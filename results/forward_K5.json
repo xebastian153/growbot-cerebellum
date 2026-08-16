@@ -1,0 +1,98 @@
+{
+ "persistence": {
+  "one_step_rmse_delta": 0.544524073600769,
+  "rollout": {
+   "1": {
+    "rmse_rollpitch_rad": 0.032644860446453094,
+    "rmse_gyro_rads": 0.8812944889068604,
+    "within_0.2rad": 0.9935
+   },
+   "5": {
+    "rmse_rollpitch_rad": 0.14191846549510956,
+    "rmse_gyro_rads": 1.825491189956665,
+    "within_0.2rad": 0.859
+   },
+   "10": {
+    "rmse_rollpitch_rad": 0.22789371013641357,
+    "rmse_gyro_rads": 2.0893445014953613,
+    "within_0.2rad": 0.719
+   },
+   "25": {
+    "rmse_rollpitch_rad": 0.3734540343284607,
+    "rmse_gyro_rads": 2.124267339706421,
+    "within_0.2rad": 0.5895
+   },
+   "50": {
+    "rmse_rollpitch_rad": 0.5170240998268127,
+    "rmse_gyro_rads": 2.10200834274292,
+    "within_0.2rad": 0.4895
+   }
+  },
+  "fit_s": 0.0,
+  "params": null
+ },
+ "linear": {
+  "one_step_rmse_delta": 0.5059410333633423,
+  "rollout": {
+   "1": {
+    "rmse_rollpitch_rad": 0.019792385399341583,
+    "rmse_gyro_rads": 0.8007126450538635,
+    "within_0.2rad": 0.996
+   },
+   "5": {
+    "rmse_rollpitch_rad": 0.11109423637390137,
+    "rmse_gyro_rads": 1.3016282320022583,
+    "within_0.2rad": 0.9345
+   },
+   "10": {
+    "rmse_rollpitch_rad": 0.18653830885887146,
+    "rmse_gyro_rads": 1.4129992723464966,
+    "within_0.2rad": 0.8265
+   },
+   "25": {
+    "rmse_rollpitch_rad": 0.3383484184741974,
+    "rmse_gyro_rads": 1.5202845335006714,
+    "within_0.2rad": 0.75
+   },
+   "50": {
+    "rmse_rollpitch_rad": 0.49222132563591003,
+    "rmse_gyro_rads": 1.4834634065628052,
+    "within_0.2rad": 0.7265
+   }
+  },
+  "fit_s": 0.1,
+  "params": null
+ },
+ "mlp": {
+  "one_step_rmse_delta": 0.4733593761920929,
+  "rollout": {
+   "1": {
+    "rmse_rollpitch_rad": 0.01855667494237423,
+    "rmse_gyro_rads": 0.7358282208442688,
+    "within_0.2rad": 0.9955
+   },
+   "5": {
+    "rmse_rollpitch_rad": 0.09645683318376541,
+    "rmse_gyro_rads": 1.1781437397003174,
+    "within_0.2rad": 0.956
+   },
+   "10": {
+    "rmse_rollpitch_rad": 0.16705955564975739,
+    "rmse_gyro_rads": 1.3329843282699585,
+    "within_0.2rad": 0.907
+   },
+   "25": {
+    "rmse_rollpitch_rad": 0.32328158617019653,
+    "rmse_gyro_rads": 1.4675215482711792,
+    "within_0.2rad": 0.82
+   },
+   "50": {
+    "rmse_rollpitch_rad": 0.48003503680229187,
+    "rmse_gyro_rads": 1.452569842338562,
+    "within_0.2rad": 0.771
+   }
+  },
+  "fit_s": 16.0,
+  "params": 24841
+ }
+}
