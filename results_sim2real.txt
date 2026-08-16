@@ -1,0 +1,24 @@
+training nominal forward model...
+
+corner                                    frozen  adapt 10s  adapt 60s adapt 300s   oracle
+------------------------------------------------------------------------------------------
+nominal                                    93.7%      93.5%      93.4%      92.5%    92.3%
+mass -                                     94.9%      95.0%      94.6%      94.7%    93.8%
+mass +                                     94.0%      94.1%      93.1%      93.7%    91.0%
+com back/low                               93.1%      92.2%      92.0%      92.7%    92.5%
+com fwd/high                               92.1%      91.5%      90.8%      88.5%    91.3%
+leg -                                      94.9%      91.4%      93.4%      94.1%    93.7%
+leg +                                      92.8%      91.8%      74.0%      91.2%    89.7%
+gain -                                     96.5%      95.9%      96.2%      95.8%    94.3%
+gain +                                     94.5%      94.1%      92.9%      94.0%    93.0%
+friction -                                 95.4%      95.1%      94.7%      94.4%    93.7%
+friction +                                 93.4%      92.5%      87.5%      93.1%    91.9%
+worst A (heavy, long, weak, slippery)      92.5%      92.3%      91.5%      92.7%    92.2%
+worst B (light, short, strong, grippy)     93.1%      91.7%      91.1%      89.1%    92.0%
+/home/sebas/Downloads/Neural/growbot-cerebellum/sim2real_proxy.py:157: RuntimeWarning: Mean of empty slice
+  + "  ".join(f"{w}s: {np.nanmean(v) * 100:.0f}%" for w, v in rec.items()))
+
+50s
+
+non-nominal corners, mean within-0.2rad @100ms:  frozen 93.9%  adapt 10.0s 93.1%  adapt 60.0s 91.0%  adapt 300.0s 92.8%  oracle 92.4%
+fraction of the frozen->oracle gap recovered by the online residual: 10.0s: nan%  60.0s: nan%  300.0s: nan%

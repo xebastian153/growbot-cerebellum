@@ -19,8 +19,15 @@ import mujoco
 import numpy as np
 
 HERE = Path(__file__).parent
-XML = HERE / "growbot_body.xml"
+BODIES = {"walk": HERE / "growbot_body.xml", "olie": HERE / "growbot_olie_body.xml"}
+XML = BODIES["walk"]
 POLICY = HERE / "policy_85mm.json"
+
+# Domain-randomisation ranges, copied from Harsh's dr_sweep_spin.py so "a different
+# body" means what the project already means by it.
+DR = {"mass_scale": (0.80, 1.25), "dcom_x": (-0.030, 0.030), "dcom_y": (-0.015, 0.015),
+      "dcom_z": (-0.010, 0.015), "leg_scale": (0.85, 1.15), "gain_mult": (0.75, 1.25),
+      "friction": (0.6, 1.4)}
 
 CTRL_HZ = 50
 OBS_DIM = 6
@@ -35,9 +42,38 @@ def quat_to_rpy(q):
     return np.array([roll, pitch, yaw])
 
 
+def perturb(m, mass_scale=1.0, dcom=(0.0, 0.0, 0.0), leg_scale=1.0, gain_mult=1.0, friction=None):
+    """Apply one DR corner to a loaded model. Same edits as dr_sweep_spin.build_model."""
+    base = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, "base_body")
+    legs = [(mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_GEOM, g), mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, b))
+            for g, b in (("lower_leg_1", "right_leg"), ("lower_leg_2", "left_leg"))]
+    half0 = float(m.geom_size[legs[0][0], 2]); hx = float(m.geom_size[legs[0][0], 0]); hy = float(m.geom_size[legs[0][0], 1])
+    leg_mass0 = float(m.body_mass[legs[0][1]])
+    m.body_mass[:] *= mass_scale
+    m.body_inertia[:] *= mass_scale
+    m.body_ipos[base] += np.array(dcom)
+    for gid, bid in legs:
+        half = half0 * leg_scale
+        m.geom_size[gid, 2] = half
+        m.geom_pos[gid, 2] = -half
+        mm = leg_mass0 * leg_scale * mass_scale
+        m.body_mass[bid] = mm
+        a, b, c = 2 * hx, 2 * hy, 2 * half
+        m.body_inertia[bid] = mm / 12.0 * np.array([b * b + c * c, a * a + c * c, a * a + b * b])
+        m.body_ipos[bid, 2] = -half
+    m.actuator_gainprm[:] *= gain_mult
+    m.actuator_biasprm[:] *= gain_mult
+    if friction is not None:
+        m.geom_friction[:, 0] = friction
+    mujoco.mj_setConst(m, mujoco.MjData(m))
+    return m
+
+
 class GrowBotSim:
-    def __init__(self, seed=0):
-        self.m = mujoco.MjModel.from_xml_path(str(XML))
+    def __init__(self, seed=0, body="walk", dr=None):
+        self.m = mujoco.MjModel.from_xml_path(str(BODIES[body]))
+        if dr:
+            perturb(self.m, **dr)
         self.d = mujoco.MjData(self.m)
         self.nframes = int(round(1.0 / (CTRL_HZ * self.m.opt.timestep)))
         self.rng = np.random.default_rng(seed)
@@ -165,9 +201,9 @@ class Excitation:
         return np.clip(a, -1.57, 1.57).astype(np.float32)
 
 
-def collect(n_steps, seed=0, push_prob=0.01, episode_s=8.0, log_every=0):
+def collect(n_steps, seed=0, push_prob=0.01, episode_s=8.0, log_every=0, body="walk", dr=None):
     """(obs_t, act_t, obs_t+1, done_t) at 50 Hz. done marks the last step of an episode."""
-    sim = GrowBotSim(seed)
+    sim = GrowBotSim(seed, body=body, dr=dr)
     exc = Excitation(sim.rng)
     O = np.zeros((n_steps, OBS_DIM), np.float32)
     A = np.zeros((n_steps, ACT_DIM), np.float32)
@@ -207,9 +243,10 @@ if __name__ == "__main__":
     ap.add_argument("--steps", type=int, default=200_000)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--out", default=str(HERE.parent / "data" / "growbot_50hz.npz"))
+    ap.add_argument("--body", default="walk", choices=list(BODIES))
     args = ap.parse_args()
     t0 = time.time()
-    O, A, O2, D, M = collect(args.steps, args.seed, log_every=50_000)
+    O, A, O2, D, M = collect(args.steps, args.seed, log_every=50_000, body=args.body)
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(args.out, obs=O, act=A, next_obs=O2, done=D, mode=M)
     dt = time.time() - t0
