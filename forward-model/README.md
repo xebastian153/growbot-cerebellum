@@ -6,6 +6,7 @@ will read next given what the legs are told to do. Learned on the MuJoCo twin in
 
 - `growbot_forward.js` is the runner. Pure JS, zero dependencies, browser or Node. Verified against the trained PyTorch net to float32 precision (`node test_forward.mjs`).
 - `forward_85mm.json` is the weights, for the 85 mm leg body. 24,841 parameters, about the size of the walk policy.
+- `growbot_planner.js` is optional: a small planner that searches through the imagination to reproduce a target motion. Separate so ports and the harness can take the runner alone.
 
 ## Why
 
@@ -25,7 +26,8 @@ Mirrors the walk policy's so the two share one calibration:
 - **Output**: the change in the IMU over one 20 ms tick. Angles live as `(sin, cos)` internally so yaw wrap and a roll through ±π in a fall never jump; `imagine()` hands you plain `imu6` back.
 
 ```js
-import { GrowBotForward, planToMatch } from "./growbot_forward.js";
+import { GrowBotForward } from "./growbot_forward.js";
+import { planToMatch } from "./growbot_planner.js";   // optional
 const fwd = new GrowBotForward(await (await fetch("forward_85mm.json")).json());
 
 // every tick, tell it what you sensed and what you commanded
