@@ -64,35 +64,35 @@
   "params": null
  },
  "mlp": {
-  "one_step_rmse_delta": 0.4733593761920929,
+  "one_step_rmse_delta": 0.46920469403266907,
   "rollout": {
    "1": {
-    "rmse_rollpitch_rad": 0.01855667494237423,
-    "rmse_gyro_rads": 0.7358282208442688,
+    "rmse_rollpitch_rad": 0.019111264497041702,
+    "rmse_gyro_rads": 0.7268415689468384,
     "within_0.2rad": 0.9955
    },
    "5": {
-    "rmse_rollpitch_rad": 0.09645683318376541,
-    "rmse_gyro_rads": 1.1781437397003174,
-    "within_0.2rad": 0.956
+    "rmse_rollpitch_rad": 0.09552088379859924,
+    "rmse_gyro_rads": 1.1649245023727417,
+    "within_0.2rad": 0.959
    },
    "10": {
-    "rmse_rollpitch_rad": 0.16705955564975739,
-    "rmse_gyro_rads": 1.3329843282699585,
-    "within_0.2rad": 0.907
+    "rmse_rollpitch_rad": 0.1703847199678421,
+    "rmse_gyro_rads": 1.3299989700317383,
+    "within_0.2rad": 0.911
    },
    "25": {
-    "rmse_rollpitch_rad": 0.32328158617019653,
-    "rmse_gyro_rads": 1.4675215482711792,
-    "within_0.2rad": 0.82
+    "rmse_rollpitch_rad": 0.3206930458545685,
+    "rmse_gyro_rads": 1.4665281772613525,
+    "within_0.2rad": 0.836
    },
    "50": {
-    "rmse_rollpitch_rad": 0.48003503680229187,
-    "rmse_gyro_rads": 1.452569842338562,
-    "within_0.2rad": 0.771
+    "rmse_rollpitch_rad": 0.47773247957229614,
+    "rmse_gyro_rads": 1.447212815284729,
+    "within_0.2rad": 0.78
    }
   },
-  "fit_s": 16.0,
+  "fit_s": 38.2,
   "params": 24841
  }
 }

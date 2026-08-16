@@ -168,6 +168,8 @@ def rollout_error(model, obs, act, done, K, horizons, n_starts=2000, seed=0):
     cur = F[starts].copy()
     out = {}
     for h in range(1, Hmax + 1):
+        # slot 0 holds the action executed during this tick: the one actually taken
+        win[:, 0, fdim:] = act[starts + h - 1]
         X = win.reshape(len(starts), -1)
         d = model.predict(X)
         cur = cur + d
@@ -178,7 +180,6 @@ def rollout_error(model, obs, act, done, K, horizons, n_starts=2000, seed=0):
         # shift the window: newest first
         win = np.roll(win, 1, axis=1)
         win[:, 0, :fdim] = cur
-        win[:, 0, fdim:] = act[starts + h]      # the action actually taken (known plan)
         if h in horizons:
             truth = F[starts + h]
             pred_ang = decode_obs(cur)[:, :2]; true_ang = decode_obs(truth)[:, :2]
