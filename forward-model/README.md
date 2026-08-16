@@ -76,5 +76,5 @@ cerebellum — comparing prediction with what actually happened and updating fro
 the error, on-device — is the follow-up this file is for. Everything needed to
 train it is in the source repository linked below.
 
-Source, data generation and evaluation: *(link to growbot-cerebellum)*.
+Source, data generation and evaluation: https://github.com/xebastian153/growbot-cerebellum.
 License: PolyForm Noncommercial 1.0.0, weights included, same as the walk policy.

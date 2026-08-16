@@ -46,6 +46,8 @@ the walk policy crosses. The *learning* half — comparing prediction to the rea
 IMU on-device and updating from the error — needs a body and is the natural
 follow-up. Nothing here touches the firmware, the protocol or the agent harness.
 
+Source, data generation, evaluation and the mimic-game harness: https://github.com/xebastian153/growbot-cerebellum
+
 ## Questions for you
 
 1. Is this wanted in the repo? It's a new capability, not a fix.
