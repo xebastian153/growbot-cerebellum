@@ -1,0 +1,16 @@
+growbot-cerebellum
+Copyright (c) 2026 Sebastián Díaz
+
+Licensed under the PolyForm Noncommercial License 1.0.0 (see LICENSE).
+
+This repository builds on and includes files from GrowBot by Brit Cruise and
+Harsh Dadwal (https://github.com/britcruise9/GrowBot), used under the same
+PolyForm Noncommercial License 1.0.0:
+
+  sim/growbot_body.xml         from policy/Harsh_policies/DR_RMA_EXPORT
+  sim/growbot_olie_body.xml    from policy/Harsh_policies/SPIN_IN_PLACE_OLIE_EXPORT
+  sim/policy_85mm.json         from policy/
+  sim/growbot_policy.js        from policy/
+
+The forward model weights in forward-model/forward_85mm.json were trained on
+data generated with that digital twin.

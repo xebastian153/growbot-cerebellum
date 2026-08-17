@@ -156,4 +156,6 @@ named as their own priority.
 licence (`sim/LICENSE.growbot`). `forward-model/forward_85mm.json` was trained on data
 generated with that twin and is offered upstream under the same terms.
 
-The code in this repository is by Sebastián Díaz. See `LICENSE`.
+Everything else in this repository is by Sebastián Díaz and is released under the
+**PolyForm Noncommercial License 1.0.0** as well — the same terms as GrowBot, so code
+can move between the two without relicensing. See `LICENSE` and `NOTICE`.
