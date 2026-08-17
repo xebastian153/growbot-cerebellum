@@ -1,0 +1,6 @@
+60 tipped starts, 4 s budget:
+  hold still                    18.3%
+  plan, single MLP (mean)       30.0%
+  plan, ensemble mean           28.3%
+  plan, PETS 8 particles        21.7%
+  plan, PETS 16 particles       18.3%

@@ -1,0 +1,7 @@
+{
+ "hold still": 0.18333333333333332,
+ "plan, single MLP (mean)": 0.3,
+ "plan, ensemble mean": 0.2833333333333333,
+ "plan, PETS 8 particles": 0.21666666666666667,
+ "plan, PETS 16 particles": 0.18333333333333332
+}

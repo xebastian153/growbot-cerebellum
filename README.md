@@ -29,6 +29,7 @@ Sim-only until a real IMU log exists.
 | `forward-model/` | **the PR payload**: `growbot_forward.js`, `growbot_planner.js`, `forward_85mm.json`, `test_forward.mjs`, README |
 | `sim2real_proxy.py` | frozen vs online-residual vs oracle across the project's 13 DR corners |
 | `multistep.py` | H-step unrolled training loss vs one-step |
+| `pets.py`, `pets_fall.py` | probabilistic ensemble + particle planner: calibration by regime, mimic, fall recovery |
 | `fall_recovery.py` | planner vs hold-still vs scripted wiggle from real fallen states, by severity |
 | `actuator_proxy.py`, `servo_id.py` | actuator-dynamics proxy (latency / slew / deadband) and servo identification from IMU + commands through the frozen model |
 | `metadata_experiment.py` | does conditioning on excitation mode / body help? (π0.7 analogue) |
@@ -181,6 +182,31 @@ Twice hold-still and +8 over the reflex a person would code; the same ordering h
 side and back falls at lower rates (90 mixed starts: 30.0 % vs 18.9 / 20.0 %). The
 ceiling is the body, not the model: two legs cannot right most falls. Worth having as a
 verb; not a headline.
+
+### PETS — the model knows where it is unsure; planning through that knowledge does not help
+
+Ensemble of 5 probabilistic nets (mean + log-variance, Gaussian NLL, bootstrap), TS-∞
+particle planner. Three findings, in decreasing order of usefulness:
+
+*Calibration, at the regime level, is clean.* Predicted aleatoric std by regime: calm
+0.21 → moderate 0.23 → **fast 0.34** → fallen 0.28; actual mean |error| 0.05 → 0.10 →
+**0.18** → 0.12 — same ordering. Epistemic std ×4 from calm to fast. The model knows
+where the contact chatter is. Per-tick correlation of predicted std with error is only
+0.18: it captures the regime, not the individual bounce, consistent with that bounce being
+irreducible.
+
+*Accuracy: nothing.* Ensemble mean 82.5 % vs single net 82.0 % at 500 ms.
+
+*Planning through particles: nothing on mimic, harmful on fall recovery.* Mimic 40 targets:
+single MLP 0.095, ensemble mean 0.092, PETS-8 0.096. Fall recovery, 60 tipped starts:
+hold still 18.3 %, single MLP 30.0 %, ensemble mean 28.3 %, **PETS-8 21.7 %, PETS-16 18.3 %**
+— monotonically worse with more particles. Averaging cost over noise the model cannot
+predict flattens the differences between plans and CEM stops finding the good ones. The
+uncertainty is worth having as a *signal* (e.g. to tell the harness when imagination is
+not to be trusted); it is not worth planning through on this body.
+
+Fall-recovery rates move ±5 pts with the model's training seed (30.0 % here vs 36.7 %
+above, same starts); orderings hold, absolute numbers carry that margin.
 
 ### Metadata conditioning — negative
 

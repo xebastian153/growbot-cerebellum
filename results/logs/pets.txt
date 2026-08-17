@@ -1,0 +1,29 @@
+    member 0 epoch  20  nll -0.4017
+    member 0 epoch  40  nll -0.5577
+    member 1 epoch  20  nll -0.3774
+    member 1 epoch  40  nll -0.5311
+    member 2 epoch  20  nll -0.3965
+    member 2 epoch  40  nll -0.5479
+    member 3 epoch  20  nll -0.3786
+    member 3 epoch  40  nll -0.5260
+    member 4 epoch  20  nll -0.4014
+    member 4 epoch  40  nll -0.5619
+
+deterministic MLP 24,841 params 18s | ensemble 130,010 params 90s
+
+1) open-loop rollout, within 0.2 rad (ensemble MEAN vs single MLP)
+   single MLP     @100ms  95.8%   @500ms  82.0%
+   ensemble mean  @100ms  95.7%   @500ms  82.5%
+
+2) predicted uncertainty by regime (one-step, test set)
+   regime                  n  aleatoric std  epistemic std  actual |err|
+   calm (|gyro|<1)     25175         0.2143         0.0161        0.0516
+   moderate            22530         0.2326         0.0289        0.1004
+   fast (|gyro|>3)      6665         0.3391         0.0614        0.1808
+   fallen               4822         0.2770         0.0434        0.1238
+   corr(predicted std, actual |err|) over all rows: 0.178
+
+3) mimic game, 40 targets
+   single MLP, mean plan        RMSE 0.095 ± 0.096   within 0.2 rad  89.8%
+   ensemble mean, mean plan     RMSE 0.092 ± 0.093   within 0.2 rad  89.8%
+   PETS, 8 particles            RMSE 0.096 ± 0.104   within 0.2 rad  90.8%

@@ -64,6 +64,12 @@ chasing it (replan-every-tick was worse than every 100 ms).
   uncertainty; adding it is the natural next step and directly explains the 100 ms
   optimum. https://arxiv.org/abs/1805.12114
 
+**Tested (Aug 2026):** `pets.py`. Regime-level calibration is good (predicted std tracks the
+error ordering calm < moderate < fallen < fast; epistemic ×4 calm→fast); per-tick
+correlation 0.18. Planning through particles: no gain on mimic, monotonically worse on
+fall recovery (30 → 22 → 18 % with 0 → 8 → 16 particles). Keep the uncertainty as a
+signal, not as a planning input, on this body.
+
 ## 4. Contact drives yaw and nobody senses it  →  proprioceptive contact estimation
 
 **Why:** the untested factor in their DR. No foot sensors on GrowBot; the phone IMU is

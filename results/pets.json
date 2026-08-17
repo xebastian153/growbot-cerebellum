@@ -1,0 +1,48 @@
+{
+ "rollout/single MLP": {
+  "5": 0.958,
+  "25": 0.82
+ },
+ "rollout/ensemble mean": {
+  "5": 0.9565,
+  "25": 0.825
+ },
+ "calibration": {
+  "calm (|gyro|<1)": {
+   "aleatoric": 0.21433702111244202,
+   "epistemic": 0.016138972714543343,
+   "err": 0.05164477601647377
+  },
+  "moderate": {
+   "aleatoric": 0.232563316822052,
+   "epistemic": 0.028898634016513824,
+   "err": 0.10038159042596817
+  },
+  "fast (|gyro|>3)": {
+   "aleatoric": 0.33910638093948364,
+   "epistemic": 0.06143524497747421,
+   "err": 0.18075285851955414
+  },
+  "fallen": {
+   "aleatoric": 0.2770175635814667,
+   "epistemic": 0.04337845742702484,
+   "err": 0.12380329519510269
+  },
+  "corr_total_std_vs_err": 0.17810473150031633
+ },
+ "mimic/single MLP, mean plan": {
+  "rmse": 0.0954954924993217,
+  "sd": 0.0961173938226566,
+  "within": 0.89775
+ },
+ "mimic/ensemble mean, mean plan": {
+  "rmse": 0.0920813525095582,
+  "sd": 0.09342157357432711,
+  "within": 0.89825
+ },
+ "mimic/PETS, 8 particles": {
+  "rmse": 0.09554244885221123,
+  "sd": 0.10437361572564703,
+  "within": 0.9075
+ }
+}
