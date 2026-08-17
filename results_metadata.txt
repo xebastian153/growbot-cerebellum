@@ -1,0 +1,23 @@
+
+######## seed 0 ########
+
+== Q1 seed0: single body (within 0.2 rad @100ms / @500ms) ==
+  walk only, meta=none                        walk:  95.9% /  82.2%
+  walk only, meta=mode                        walk:  95.8% /  82.8%
+
+== Q2 seed0: two bodies pooled ==
+  per-body model (walk)                       walk:  95.9% /  82.2%
+  per-body model (olie)                       olie:  94.8% /  82.2%
+  pooled, meta=none                           walk:  95.6% /  81.8%  olie:  94.9% /  81.7%
+  pooled, meta=body                           walk:  95.8% /  83.3%  olie:  94.8% /  82.4%
+  pooled, meta=mode+body                      walk:  95.5% /  82.8%  olie:  94.7% /  82.3%
+
+== Q3 seed0: adding less-informative excitation ==
+  meta=none | train clean (policy+sine+keyframe) (272,131)all-test:  95.7% /  82.0%  clean-test:  95.7% /  80.8%
+  meta=none | train clean + OU (353,543)      all-test:  95.9% /  82.3%  clean-test:  95.8% /  81.8%
+  meta=none | train clean + OU + still (all) (394,544)all-test:  95.9% /  82.2%  clean-test:  96.0% /  81.5%
+  meta=mode | train clean (policy+sine+keyframe) (272,131)all-test:  64.7% /  55.5%  clean-test:  95.8% /  82.0%
+  meta=mode | train clean + OU (353,543)      all-test:  85.1% /  73.6%  clean-test:  95.6% /  82.0%
+  meta=mode | train clean + OU + still (all) (394,544)all-test:  95.8% /  82.8%  clean-test:  96.0% /  82.5%
+
+406s

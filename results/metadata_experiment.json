@@ -1,0 +1,122 @@
+{
+ "Q1 seed0: single body (within 0.2 rad @100ms / @500ms)": {
+  "walk only, meta=none": {
+   "walk": {
+    "5": 0.9585,
+    "25": 0.822
+   }
+  },
+  "walk only, meta=mode": {
+   "walk": {
+    "5": 0.9575,
+    "25": 0.828
+   }
+  }
+ },
+ "Q2 seed0: two bodies pooled": {
+  "per-body model (walk)": {
+   "walk": {
+    "5": 0.9585,
+    "25": 0.822
+   }
+  },
+  "per-body model (olie)": {
+   "olie": {
+    "5": 0.948,
+    "25": 0.8215
+   }
+  },
+  "pooled, meta=none": {
+   "walk": {
+    "5": 0.956,
+    "25": 0.8175
+   },
+   "olie": {
+    "5": 0.949,
+    "25": 0.8165
+   }
+  },
+  "pooled, meta=body": {
+   "walk": {
+    "5": 0.9575,
+    "25": 0.833
+   },
+   "olie": {
+    "5": 0.9485,
+    "25": 0.824
+   }
+  },
+  "pooled, meta=mode+body": {
+   "walk": {
+    "5": 0.9555,
+    "25": 0.8275
+   },
+   "olie": {
+    "5": 0.947,
+    "25": 0.8235
+   }
+  }
+ },
+ "Q3 seed0: adding less-informative excitation": {
+  "meta=none | train clean (policy+sine+keyframe) (272,131)": {
+   "all-test": {
+    "5": 0.9565,
+    "25": 0.8195
+   },
+   "clean-test": {
+    "5": 0.9565,
+    "25": 0.8085
+   }
+  },
+  "meta=none | train clean + OU (353,543)": {
+   "all-test": {
+    "5": 0.9585,
+    "25": 0.8235
+   },
+   "clean-test": {
+    "5": 0.958,
+    "25": 0.8185
+   }
+  },
+  "meta=none | train clean + OU + still (all) (394,544)": {
+   "all-test": {
+    "5": 0.9585,
+    "25": 0.822
+   },
+   "clean-test": {
+    "5": 0.9605,
+    "25": 0.8145
+   }
+  },
+  "meta=mode | train clean (policy+sine+keyframe) (272,131)": {
+   "all-test": {
+    "5": 0.647,
+    "25": 0.555
+   },
+   "clean-test": {
+    "5": 0.958,
+    "25": 0.8205
+   }
+  },
+  "meta=mode | train clean + OU (353,543)": {
+   "all-test": {
+    "5": 0.851,
+    "25": 0.736
+   },
+   "clean-test": {
+    "5": 0.956,
+    "25": 0.82
+   }
+  },
+  "meta=mode | train clean + OU + still (all) (394,544)": {
+   "all-test": {
+    "5": 0.9575,
+    "25": 0.828
+   },
+   "clean-test": {
+    "5": 0.96,
+    "25": 0.8255
+   }
+  }
+ }
+}

@@ -128,3 +128,22 @@ Things that came in sideways and left something behind.
   this problem. Adjacent use if it ever comes up: fine-tune a small local model on
   GrowBot verb logs so the harness emits well-formed `gesture`/`walk`/`say` without
   an API. Its self-auditing measurement style is the standard to imitate.
+
+### Metadata conditioning: tested, does not help here (Aug 2026)
+
+`metadata_experiment.py`, 60 epochs, within 0.2 rad @100 / @500 ms:
+
+- Q1 walk only, +excitation-mode one-hot: 95.9/82.2 → 95.8/82.8. Nothing.
+- Q2 walk+Olie pooled, 3 seeds: per-body 95.5±0.3, pooled no meta 95.3±0.3, pooled
+  +body 95.5±0.3 (walk @100). All within noise. Pooling neither hurts nor needs a
+  body tag at this scale.
+- Q3 Finn's curve does not appear: adding OU and still to a clean set does not hurt
+  without metadata (95.7 → 95.9); with metadata, training on clean modes and testing
+  on all collapses to 64.7% because unseen mode labels arrive at test time — a
+  deployment hazard, not a gain.
+
+Why: Finn's effect is about *quality-heterogeneous* data (clumsy demos, failed
+rollouts) where a tag lets a policy avoid imitating the bad. A forward model does
+not imitate; it predicts physics, and the physics of an OU jitter is as true as a
+gait's. No quality axis, nothing for the tag to separate. Where the idea could still
+bite is real-vs-sim data on the same body — that is the log we are waiting for.
