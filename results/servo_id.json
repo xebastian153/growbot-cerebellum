@@ -1,0 +1,27 @@
+{
+ "true": {
+  "delay_ticks": 1,
+  "slew_rad_s": 4.0,
+  "deadband": 0.017453292519943295
+ },
+ "identified": {
+  "delay_ticks": 1,
+  "slew_rad_s": 4.0,
+  "deadband": 0.017453292519943295
+ },
+ "ideal_err": 0.2469140887260437,
+ "best_err": 0.2137480080127716,
+ "held_out": {
+  "100ms": {
+   "commanded": 0.9473333333333334,
+   "identified": 0.9533333333333334,
+   "true_horn": 0.9533333333333334
+  },
+  "500ms": {
+   "commanded": 0.7593333333333333,
+   "identified": 0.808,
+   "true_horn": 0.808
+  }
+ },
+ "mean_abs_horn_err_rad": 0.0
+}

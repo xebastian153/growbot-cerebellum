@@ -1,0 +1,22 @@
+training nominal (ideal-servo) forward model...
+
+servo variant                         frozen  adapt 10s  adapt 60s adapt 300s   oracle  yaw bias pitch bias
+-----------------------------------------------------------------------------------------------------------
+ideal servo (nominal)                  94.2%      92.5%      91.9%      93.8%    91.3%    -0.006     -0.004
+delay 1 tick (20 ms)                   95.4%      94.1%      94.5%      94.2%    93.3%    +0.006     -0.048
+delay 2 ticks (40 ms)                  94.7%      94.5%      93.6%      92.9%    92.1%    +0.004     -0.088
+slew 8 rad/s (light load)              95.0%      95.0%      94.5%      94.5%    93.8%    +0.014     -0.062
+slew 4 rad/s (heavy load)              94.8%      94.7%      93.7%      92.6%    93.9%    +0.018     -0.096
+deadband 2 deg                         95.0%      95.2%      94.1%      93.7%    89.9%    -0.010     -0.003
+deadband 4 deg                         93.9%      92.9%      93.0%      93.0%    90.6%    -0.001     +0.001
+realistic A: 1t + 8 rad/s + 1 deg      94.2%      93.3%      92.8%      93.5%    93.3%    +0.019     -0.088
+realistic B: 2t + 5 rad/s + 2 deg      92.6%      92.3%      88.9%      92.1%    91.3%    +0.007     -0.120
+/home/sebas/Downloads/Neural/growbot-cerebellum/actuator_proxy.py:86: RuntimeWarning: Mean of empty slice
+  print(f"  gap frozen->oracle recovered by residual after {w:.0f}s: {np.nanmean(rec)*100:.0f}%  (over variants with a gap > 0.5 pt)")
+
+35s
+
+non-ideal variants, mean within-0.2rad @100ms:  frozen 94.4%  adapt 10s 94.0%  adapt 60s 93.1%  adapt 300s 93.3%  oracle 92.3%
+  gap frozen->oracle recovered by residual after 10s: nan%  (over variants with a gap > 0.5 pt)
+  gap frozen->oracle recovered by residual after 60s: nan%  (over variants with a gap > 0.5 pt)
+  gap frozen->oracle recovered by residual after 300s: nan%  (over variants with a gap > 0.5 pt)

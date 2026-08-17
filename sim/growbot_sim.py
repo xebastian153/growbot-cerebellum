@@ -69,14 +69,47 @@ def perturb(m, mass_scale=1.0, dcom=(0.0, 0.0, 0.0), leg_scale=1.0, gain_mult=1.
     return m
 
 
+class ServoModel:
+    """A cheap hobby servo between the command and MuJoCo's ideal PD actuator.
+
+    MuJoCo's position actuator reaches any target instantly up to its force limit.
+    Real MG90S-class servos do not: the command arrives late (serial + PWM frame),
+    the horn cannot turn faster than a slew limit, and small errors inside a
+    deadband are ignored. None of that is in the twin the forward model learned.
+
+      delay_ticks  command latency in 20 ms ticks
+      slew_rad_s   maximum horn speed (MG90S ~ 0.1 s / 60 deg no load = 10.5 rad/s;
+                   under load 3-6 rad/s)
+      deadband     radians of error the servo ignores
+    """
+    def __init__(self, delay_ticks=0, slew_rad_s=None, deadband=0.0):
+        self.delay, self.slew, self.db = int(delay_ticks), slew_rad_s, float(deadband)
+        self.reset()
+    def reset(self, pos=None):
+        from collections import deque
+        self.pos = np.zeros(2, np.float32) if pos is None else np.array(pos, np.float32)
+        self.q = deque([self.pos.copy()] * (self.delay + 1), maxlen=self.delay + 1)
+    def __call__(self, target, dt):
+        self.q.append(np.array(target, np.float32))
+        tgt = self.q[0]
+        err = tgt - self.pos
+        if self.db > 0:
+            err = np.where(np.abs(err) < self.db, 0.0, err)
+        if self.slew is not None:
+            err = np.clip(err, -self.slew * dt, self.slew * dt)
+        self.pos = self.pos + err
+        return self.pos
+
+
 class GrowBotSim:
-    def __init__(self, seed=0, body="walk", dr=None):
+    def __init__(self, seed=0, body="walk", dr=None, servo=None):
         self.m = mujoco.MjModel.from_xml_path(str(BODIES[body]))
         if dr:
             perturb(self.m, **dr)
         self.d = mujoco.MjData(self.m)
         self.nframes = int(round(1.0 / (CTRL_HZ * self.m.opt.timestep)))
         self.rng = np.random.default_rng(seed)
+        self.servo = servo          # ServoModel or None (ideal)
         self.reset()
 
     # ------------------------------------------------------------------
@@ -89,6 +122,8 @@ class GrowBotSim:
             ang = self.rng.uniform(-tilt, tilt)
             self.d.qpos[3:7] = [np.cos(ang / 2), *(np.sin(ang / 2) * ax)]
         self.d.ctrl[:] = 0.0
+        if self.servo is not None:
+            self.servo.reset()
         mujoco.mj_forward(self.m, self.d)
         for _ in range(int(0.5 * CTRL_HZ) * self.nframes):
             mujoco.mj_step(self.m, self.d)
@@ -100,7 +135,10 @@ class GrowBotSim:
         return np.concatenate([rpy, gyro]).astype(np.float32)
 
     def step(self, action):
-        self.d.ctrl[:] = np.clip(action, -1.57, 1.57)
+        a = np.clip(action, -1.57, 1.57)
+        if self.servo is not None:
+            a = self.servo(a, 1.0 / CTRL_HZ)
+        self.d.ctrl[:] = a
         for _ in range(self.nframes):
             mujoco.mj_step(self.m, self.d)
         return self.obs()
@@ -201,14 +239,16 @@ class Excitation:
         return np.clip(a, -1.57, 1.57).astype(np.float32)
 
 
-def collect(n_steps, seed=0, push_prob=0.01, episode_s=8.0, log_every=0, body="walk", dr=None):
-    """(obs_t, act_t, obs_t+1, done_t) at 50 Hz. done marks the last step of an episode."""
-    sim = GrowBotSim(seed, body=body, dr=dr)
+def collect(n_steps, seed=0, push_prob=0.01, episode_s=8.0, log_every=0, body="walk", dr=None, servo=None):
+    """(obs_t, act_t, obs_t+1, done_t) at 50 Hz. done marks the last step of an episode.
+    act_t is the COMMANDED angle; with a ServoModel the horn lags it."""
+    sim = GrowBotSim(seed, body=body, dr=dr, servo=servo)
     exc = Excitation(sim.rng)
     O = np.zeros((n_steps, OBS_DIM), np.float32)
     A = np.zeros((n_steps, ACT_DIM), np.float32)
     O2 = np.zeros((n_steps, OBS_DIM), np.float32)
     D = np.zeros(n_steps, bool)
+    R = np.zeros((n_steps, ACT_DIM), np.float32)   # realized horn angle (== command with an ideal servo)
     modes = []
     o = sim.reset(tilt=0.3)
     prev = np.zeros(2, np.float32)
@@ -223,6 +263,7 @@ def collect(n_steps, seed=0, push_prob=0.01, episode_s=8.0, log_every=0, body="w
             sim.push()
         o2 = sim.step(a)
         O[i], A[i], O2[i] = o, a, o2
+        R[i] = sim.servo.pos if sim.servo is not None else np.clip(a, -1.57, 1.57)
         modes.append(exc.mode)
         t_ep += 1
         end = t_ep >= ep_len or (sim.fallen() and sim.rng.random() < 0.02)
@@ -234,6 +275,7 @@ def collect(n_steps, seed=0, push_prob=0.01, episode_s=8.0, log_every=0, body="w
             o, prev = o2, a
         if log_every and (i + 1) % log_every == 0:
             print(f"  {i + 1}/{n_steps}", flush=True)
+    collect.last_realized = R
     return O, A, O2, D, np.array(modes)
 
 

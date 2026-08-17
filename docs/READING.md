@@ -21,6 +21,12 @@ did not move the IMU at 100 ms, so if the spin gap is in the actuator it is in i
   per joint. Firmware-level, no learned model. Worth knowing because the Pico glide
   engine already sits between brain and servo. https://arxiv.org/abs/2607.02205
 
+**Tested (Aug 2026):** `actuator_proxy.py` / `servo_id.py`. A slew-limited servo opens a
+3–4 pt gap at 500 ms that an output residual cannot close and the realized horn angle closes
+completely; the servo's delay and slew are identifiable from 300 s of IMU + commands through
+the frozen forward model (two hidden servos, both recovered). Thread 1 is now the most
+concrete next step for a real log.
+
 ## 2. Learn from the real error on device  →  feedback-error learning, adaptation
 
 **Why:** brit's "continual correction instead of better sim". Our DR proxy found no

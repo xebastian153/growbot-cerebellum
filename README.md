@@ -28,6 +28,7 @@ Sim-only until a real IMU log exists.
 | `export_js.py` | exports weights + reference vectors for the JS runner |
 | `forward-model/` | **the PR payload**: `growbot_forward.js`, `growbot_planner.js`, `forward_85mm.json`, `test_forward.mjs`, README |
 | `sim2real_proxy.py` | frozen vs online-residual vs oracle across the project's 13 DR corners |
+| `actuator_proxy.py`, `servo_id.py` | actuator-dynamics proxy (latency / slew / deadband) and servo identification from IMU + commands through the frozen model |
 | `metadata_experiment.py` | does conditioning on excitation mode / body help? (π0.7 analogue) |
 | `timesfm_baseline.py` | Google TimesFM 2.5 zero-shot as an action-blind baseline |
 | `results/` | every number below, as JSON; raw run logs in `results/logs/` |
@@ -117,6 +118,35 @@ So the project's DR does not show up in the IMU at 100 ms — consistent with it
 transfer — and the spin gap is unlikely to be mass/CoM/leg/gain. Contact is the untested
 factor, and contact drives yaw, which drives spin.
 
+### Actuator dynamics — the sim-to-real signature that *is* there, and how to recover it
+
+Second attempt at a proxy, this time perturbing the actuator's **dynamics** rather than the
+body's parameters (`sim/growbot_sim.ServoModel`: command latency, slew-rate limit, deadband,
+inserted between the command and MuJoCo's ideal PD). Controlled, same three seeds per variant,
+within 0.2 rad at 500 ms:
+
+| servo | commanded angle → model | **realized** angle → model |
+|---|---|---|
+| ideal | 81.1 ± 2.0 | 81.1 ± 2.0 |
+| delay 40 ms | 82.2 ± 1.1 | 82.7 ± 0.9 |
+| deadband 4° | 80.6 ± 2.9 | 80.8 ± 2.7 |
+| **slew 4 rad/s (heavy load)** | **77.1 ± 0.7** | **80.4 ± 0.9** |
+| **realistic (2 ticks + 5 rad/s + 2°)** | **78.6 ± 2.4** | **82.5 ± 2.4** |
+
+Latency and deadband the model tolerates; a slew limit opens a 3–4 point gap that a linear
+output residual cannot close (its least-squares ceiling is no better than frozen). Giving the
+model the **realized horn angle** instead of the command closes it completely (+3.9 ± 0.1) —
+the forward model is right, its input is wrong. That is Hwangbo's actuator-net finding.
+
+GrowBot has no servo position feedback, so `servo_id.py` inverts it: propose a servo model,
+replay the commands through it, feed the estimate to the frozen forward model, keep the
+hypothesis with the lowest one-step error on 300 s of **IMU + commands only**. Two hidden
+servos, 96 hypotheses, 6 s of compute: both identified exactly (delay and slew; deadband is
+the one parameter the IMU cannot see), and the held-out gap closes to the true-horn-angle
+value (80.8 → 83.9 %, 75.9 → 80.8 %). The forward model doubles as the position sensor the
+robot does not have. Sim-only, same-model-class caveat applies; the point is that a real IMU
+log of a few minutes is enough data to run this.
+
 ### Metadata conditioning — negative
 
 Excitation-mode and body one-hots as extra input (the π0.7 idea). One body: no change.
@@ -141,8 +171,10 @@ and falls the video says the creature cannot picture; good enough to win the mim
 small enough to run in the phone browser.
 
 **Doesn't, yet.** Everything here has learned MuJoCo. Two experiments designed to stand
-in for "a different body" came back flat, for the same reason: the twin's physics is too
-clean and consistent for correction machinery to have anything to correct. The learning
+in for "a different body" came back flat (body parameters, metadata) — the twin's physics is
+too clean for output-side correction to have anything to correct. The third, actuator
+dynamics, found the real signature: the gap lives on the *input* side (where the horn actually
+is), and it is recoverable from IMU + commands alone. The learning
 half — compare prediction with the *real* IMU on device and update from the error — needs
 a body and a log. That is the next step, and it is the one the project's maintainers
 named as their own priority.
