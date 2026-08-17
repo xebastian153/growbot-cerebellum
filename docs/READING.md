@@ -102,3 +102,29 @@ the only sense. Legged robotics has done contact detection from proprioception a
   information is in the action, not the sensor history. Forecaster ≠ world action model.
 - JEPA-style latent world models. dsevero's call: adds complexity before the simple
   thing is validated. Agree.
+
+## From talks and tools we looked at (Aug 2026)
+
+Things that came in sideways and left something behind.
+
+- **Chelsea Finn, Physical Intelligence talk (π0.7).** Four transferable
+  conclusions, none of the models: (1) test-time imagination "helps, perhaps not
+  as much as you'd expect" — the same finding as Fast-WAM and our twin, so the
+  aux-head V0 is the policy path and the mimic planner is a feature; (2) memory at
+  multiple timescales (short raw + long text summaries) is the structure GrowBot's
+  harness already has; (3) a *general* value function that predicts progress
+  across tasks is what a value function should be — our pose cost is not one, and
+  GCML's `W(s*−s)` is a linear, cheap relative of the idea; (4) metadata prompting
+  turns low-quality data from harmful to helpful — cheap to try on our forward
+  model (condition on excitation mode / body) and worth considering before the
+  dream digests GrowBot's experience. Action space = target joint positions + PD,
+  same as GrowBot and our model; she says it is not the bottleneck.
+- **TimesFM 2.5 (Google).** Measured, not read: 200M-param zero-shot forecaster
+  ties persistence on the twin IMU (85.0 vs 82.0 % @100 ms, 55.0 vs 55.2 % @500 ms),
+  loses to the 25k-param action-conditioned MLP (96 / 79 %). Its covariate path is
+  in-context *linear* regression, so even with actions it would be the linear
+  baseline we already have. Forecaster ≠ world action model. 1 s/window on CPU.
+- **Soup (LLM fine-tuning from one YAML, layer streaming on 4 GB GPUs).** Not for
+  this problem. Adjacent use if it ever comes up: fine-tune a small local model on
+  GrowBot verb logs so the harness emits well-formed `gesture`/`walk`/`say` without
+  an API. Its self-auditing measurement style is the standard to imitate.
