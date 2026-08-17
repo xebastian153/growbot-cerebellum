@@ -28,6 +28,8 @@ Sim-only until a real IMU log exists.
 | `export_js.py` | exports weights + reference vectors for the JS runner |
 | `forward-model/` | **the PR payload**: `growbot_forward.js`, `growbot_planner.js`, `forward_85mm.json`, `test_forward.mjs`, README |
 | `sim2real_proxy.py` | frozen vs online-residual vs oracle across the project's 13 DR corners |
+| `multistep.py` | H-step unrolled training loss vs one-step |
+| `fall_recovery.py` | planner vs hold-still vs scripted wiggle from real fallen states, by severity |
 | `actuator_proxy.py`, `servo_id.py` | actuator-dynamics proxy (latency / slew / deadband) and servo identification from IMU + commands through the frozen model |
 | `metadata_experiment.py` | does conditioning on excitation mode / body help? (π0.7 analogue) |
 | `timesfm_baseline.py` | Google TimesFM 2.5 zero-shot as an action-blind baseline |
@@ -146,6 +148,39 @@ the one parameter the IMU cannot see), and the held-out gap closes to the true-h
 value (80.8 → 83.9 %, 75.9 → 80.8 %). The forward model doubles as the position sensor the
 robot does not have. Sim-only, same-model-class caveat applies; the point is that a real IMU
 log of a few minutes is enough data to run this.
+
+### Multi-step training loss — small, real gain
+
+Same 128×2 net, trained through an H-tick unroll with loss on every step (SPR-style),
+evaluated with the usual open-loop rollout. 3 seeds, 40 epochs:
+
+| train unroll | @100 ms | @500 ms | @1000 ms | fit |
+|---|---|---|---|---|
+| H=1 (one-step, ships) | 95.8 ± 0.3 | 82.6 ± 0.1 | 77.9 ± 0.3 | 35 s |
+| H=5 | 96.0 ± 0.3 | 83.8 ± 0.2 | 78.7 ± 0.4 | 166 s |
+| H=10 | 95.6 ± 0.2 | **84.0 ± 0.2** | **78.8 ± 0.3** | 292 s |
+
++1.2–1.4 points at 500 ms, consistent across seeds (σ ≈ 0.2), nothing at 100 ms, at 5–8×
+the training cost. Real, modest, and it saturates by H=5. It backs the "multi-step
+consistency at training time" lever without making it a big one for this body.
+
+### Fall recovery through imagination — a feature, with a low physical ceiling
+
+Harsh's suggested use of the mimic module: target = the upright resting stance, start from
+fallen states the physics produced (pushes + hard leans), planner vs two model-free
+baselines, 4 s budget, success = upright for 0.5 s. 60 "tipped" starts (|roll| < 1.2 rad,
+the recoverable bucket):
+
+| policy | recovered |
+|---|---|
+| hold still | 18.3 % |
+| scripted wiggle | 28.3 % |
+| **plan with the forward model** | **36.7 %** |
+
+Twice hold-still and +8 over the reflex a person would code; the same ordering holds on
+side and back falls at lower rates (90 mixed starts: 30.0 % vs 18.9 / 20.0 %). The
+ceiling is the body, not the model: two legs cannot right most falls. Worth having as a
+verb; not a headline.
 
 ### Metadata conditioning — negative
 
