@@ -1,0 +1,7 @@
+# Core (everything except the TimesFM baseline)
+mujoco>=3.3
+numpy>=1.26
+torch>=2.5   # CPU build is enough: --extra-index-url https://download.pytorch.org/whl/cpu
+
+# Only for timesfm_baseline.py (downloads a 200M-param model on first run)
+# timesfm
