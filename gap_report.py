@@ -73,16 +73,28 @@ def evaluate_axes(model, O, A, D, mode, horizons, n_starts=4000, seed=0):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("log", help="?imulog=1 session file (jsonl or csv)")
+    ap.add_argument("log", nargs="+", help="?imulog=1 session file(s); per-walk files concatenate with a cut between")
     ap.add_argument("--epochs", type=int, default=80)
     ap.add_argument("--horizons", type=int, nargs="+", default=[5, 25])
     ap.add_argument("--servo-id", action="store_true", help="add the after-identified-servo column")
     args = ap.parse_args()
 
-    if not run_preflight(args.log):
-        raise SystemExit("preflight FAIL: refusing to analyse a file whose contract is broken")
-    O, A, O2, D, header, mode = parse(args.log)
-    print(f"log: {len(O):,} ticks, {int(D.sum())} cuts, surface={header.get('surface', '?')}, "
+    parts, header = [], None
+    for f in args.log:
+        print(f"--- {f}")
+        if not run_preflight(f):
+            raise SystemExit(f"preflight FAIL on {f}: fix the contract before analysing")
+        Oi, Ai, O2i, Di, hi, mi = parse(f)
+        if header is None:
+            header = hi
+        else:
+            for k in ("imu_units", "pose_units", "trims_in_values", "l_sign", "r_sign", "l_off", "r_off", "gain"):
+                if hi.get(k) != header.get(k):
+                    raise SystemExit(f"header mismatch across files on {k!r}: {header.get(k)} vs {hi.get(k)} in {f}")
+        parts.append((Oi, Ai, O2i, Di, mi))     # parse sets D[-1]=True: automatic cut at file boundary
+    O, A, O2, D, mode = (np.concatenate(x) for x in zip(*parts))
+    print(f"log: {len(args.log)} file(s), {len(O):,} ticks, {int(D.sum())} cuts, "
+          f"surface={header.get('surface', '?')}, "
           f"regimes={ {m: int((mode == m).sum()) for m in sorted(set(mode))} }")
 
     tr = np.load("data/train.npz"); te = np.load("data/test.npz")
