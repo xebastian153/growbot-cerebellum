@@ -47,7 +47,7 @@ CTRL_HZ = 50
 
 def _read_rows(path):
     """JSONL or CSV, sniffed from the first non-empty line."""
-    header, imu_t, imu_v, cmd_t, cmd_v = {}, [], [], [], []
+    header, imu_t, imu_v, cmd_t, cmd_v, events = {}, [], [], [], [], []
     with open(path) as f:
         first = ""
         for first in f:
@@ -62,6 +62,7 @@ def _read_rows(path):
                 if "header" in row: header = row["header"]; continue
                 if row.get("s") == "imu": imu_t.append(row["t"]); imu_v.append(row["o"])
                 elif row.get("s") == "cmd": cmd_t.append(row["t"]); cmd_v.append([row["l"], row["r"]])
+                elif row.get("s") == "ev": events.append((row["t"], row.get("name", "")))
         else:                                       # CSV, optional `# {json}` header line
             import csv, io
             if s.startswith("#"):
@@ -75,8 +76,10 @@ def _read_rows(path):
                     imu_v.append([float(row[k]) for k in ("roll", "pitch", "yaw", "gr", "gp", "gy")])
                 elif row.get("s") == "cmd":
                     cmd_t.append(float(row["t"])); cmd_v.append([float(row["l"]), float(row["r"])])
+                elif row.get("s") == "ev":
+                    events.append((float(row["t"]), row.get("roll", "")))
     return header, (np.asarray(imu_t, np.float64), np.asarray(imu_v, np.float32),
-                    np.asarray(cmd_t, np.float64), np.asarray(cmd_v, np.float32))
+                    np.asarray(cmd_t, np.float64), np.asarray(cmd_v, np.float32)), events
 
 
 def _commands_to_rad(cmd_v, header):
@@ -92,8 +95,25 @@ def _commands_to_rad(cmd_v, header):
     return np.deg2rad(cmd_v - 90.0).astype(np.float32)
 
 
+def _mode_per_tick(events, grid, header):
+    """Regime label per grid tick from event rows: 'X_start' opens regime X until the
+    next event; 'X_stop' returns to 'idle'. No events -> the header's gait, else 'unknown'."""
+    default = str(header.get("gait", "unknown"))
+    mode = np.full(len(grid), default, dtype=object)
+    if not events:
+        return np.asarray(mode, dtype=str)
+    ev = sorted(events)
+    times = np.array([e[0] for e in ev]); names = [e[1] for e in ev]
+    idx = np.searchsorted(times, grid, side="right") - 1
+    for i, j in enumerate(idx):
+        if j >= 0:
+            n = names[j]
+            mode[i] = "idle" if n.endswith("_stop") else n.removesuffix("_start")
+    return np.asarray(mode, dtype=str)
+
+
 def parse(path, gap_ms=100.0):
-    header, (imu_t, imu_v, cmd_t, cmd_v) = _read_rows(path)
+    header, (imu_t, imu_v, cmd_t, cmd_v), events = _read_rows(path)
     if header.get("imu_units", "rad") == "deg": imu_v = np.deg2rad(imu_v)
     cmd_v = _commands_to_rad(cmd_v, header)
     # 50 Hz grid, episodes split at IMU gaps
@@ -116,7 +136,8 @@ def parse(path, gap_ms=100.0):
     O, A, O2 = obs[:-1], act[:-1], obs[1:]
     # a transition is invalid if EITHER endpoint was interpolated inside a gap
     D = (in_gap[:-1] | in_gap[1:]).copy(); D[-1] = True
-    return O, A, O2, D, header
+    mode = _mode_per_tick(events, grid, header)[:-1]
+    return O, A, O2, D, header, mode
 
 
 def fixture(path, seconds=600, servo_ms=None, seed=0, imu_hz=60.0, cmd_hz=30.0, jitter_ms=2.0,
@@ -154,7 +175,10 @@ def fixture(path, seconds=600, servo_ms=None, seed=0, imu_hz=60.0, cmd_hz=30.0, 
     n_steps = int(seconds / phys_dt)
     for i in range(n_steps):
         if t >= next_cmd:
+            last_mode = exc.mode
             a = exc(obs, prev); prev = cur_cmd = a
+            if exc.mode != last_mode:
+                rows.append({"t": round(t * 1000, 2), "s": "ev", "name": f"{exc.mode}_start"})
             l_sent = 90 + trims["l_off"] + trims["l_sign"] * np.rad2deg(float(a[0])) * trims["gain"]
             r_sent = 90 + trims["r_off"] + trims["r_sign"] * np.rad2deg(float(a[1])) * trims["gain"]
             rows.append({"t": round(t * 1000 + rng.normal(0, jitter_ms), 2), "s": "cmd",
@@ -209,6 +233,8 @@ def _jsonl_to_csv(src, dst):
                 f.write(f"{r['t']},imu," + ",".join(str(v) for v in r["o"]) + ",,\n")
             elif r["s"] == "cmd":
                 f.write(f"{r['t']},cmd,,,,,,,{r['l']},{r['r']}\n")
+            elif r["s"] == "ev":
+                f.write(f"{r['t']},ev,{r['name']},,,,,,,\n")
 
 
 if __name__ == "__main__":
@@ -222,11 +248,14 @@ if __name__ == "__main__":
     TRUE = dict(delay_ms=40, slew_rad_s=5.0, deadband=np.deg2rad(2))
     print("generating 600 s fixture (hidden servo: delay 40 ms, slew 5 rad/s, deadband 2 deg)...", flush=True)
     fixture("/tmp/imulog_fixture.jsonl", seconds=600, servo_ms=TRUE, seed=3)
-    O, A, O2, D, header = parse("/tmp/imulog_fixture.jsonl")
-    print(f"parsed: {len(O):,} ticks at 50 Hz, {int(D.sum())} episode splits, header gait={header.get('gait')}")
+    O, A, O2, D, header, mode = parse("/tmp/imulog_fixture.jsonl")
+    from collections import Counter
+    print(f"parsed: {len(O):,} ticks at 50 Hz, {int(D.sum())} episode splits, "
+          f"regimes {dict(Counter(mode))}")
     _jsonl_to_csv("/tmp/imulog_fixture.jsonl", "/tmp/imulog_fixture.csv")
-    Oc, Ac, O2c, Dc, hc = parse("/tmp/imulog_fixture.csv")
-    same = np.allclose(O, Oc, atol=1e-4) and np.allclose(A, Ac, atol=1e-4) and (D == Dc).all()
+    Oc, Ac, O2c, Dc, hc, mc = parse("/tmp/imulog_fixture.csv")
+    same = (np.allclose(O, Oc, atol=1e-4) and np.allclose(A, Ac, atol=1e-4)
+            and (D == Dc).all() and (mode == mc).all())
     print(f"CSV fallback: {'PASS — identical arrays from both formats' if same else 'FAIL'}")
     assert same
     # permanent detector for the cut-boundary bug family: no valid window may have a

@@ -34,6 +34,7 @@ Sim-only until a real IMU log exists.
 | `actuator_proxy.py`, `servo_id.py` | actuator-dynamics proxy (latency / slew / deadband) and servo identification from IMU + commands through the frozen model |
 | `metadata_experiment.py` | does conditioning on excitation mode / body help? (π0.7 analogue) |
 | `timesfm_baseline.py` | Google TimesFM 2.5 zero-shot as an action-blind baseline |
+| `gap_report.py` | the day-of-log command: gap per regime and axis as real − twin floor, optional after-identified-servo column |
 | `imulog.py` | parser for GrowBot `?imulog=1` sessions (two native-rate streams → 50 Hz arrays) + synthetic fixture; round-trip test recovers a hidden servo's delay and slew through 60/30 Hz jittered sampling |
 | `results/` | every number below, as JSON; raw run logs in `results/logs/` |
 | `docs/READING.md` | literature tied to each open question, plus what talks and tools left behind |
