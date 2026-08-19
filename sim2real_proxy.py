@@ -2,7 +2,7 @@
 on the 13 domain-randomisation corners the project itself uses (dr_sweep_spin.py),
 and see how much an online residual learned from prediction error recovers.
 
-The claim under test is brit's framing, "continual correction instead of better sim":
+The claim under test: continual correction instead of a better simulator --
 a forward model that is wrong about a new body should become right by watching its
 own error on that body, on device, without retraining. Until a real IMU log exists,
 the DR corners are the closest thing to "a different body" the project already

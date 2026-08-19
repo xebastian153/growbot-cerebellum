@@ -168,7 +168,7 @@ consistency at training time" lever without making it a big one for this body.
 
 ### Fall recovery through imagination — a feature, with a low physical ceiling
 
-Harsh's suggested use of the mimic module: target = the upright resting stance, start from
+Fall recovery as a use of the mimic module: target = the upright resting stance, start from
 fallen states the physics produced (pushes + hard leans), planner vs two model-free
 baselines, 4 s budget, success = upright for 0.5 s. 60 "tipped" starts (|roll| < 1.2 rad,
 the recoverable bucket):
@@ -238,8 +238,7 @@ too clean for output-side correction to have anything to correct. The third, act
 dynamics, found the real signature: the gap lives on the *input* side (where the horn actually
 is), and it is recoverable from IMU + commands alone. The learning
 half — compare prediction with the *real* IMU on device and update from the error — needs
-a body and a log. That is the next step, and it is the one the project's maintainers
-named as their own priority.
+a body and a log. That is the next step.
 
 ## Third-party files and licence
 

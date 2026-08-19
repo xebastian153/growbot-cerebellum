@@ -1,4 +1,4 @@
-"""Fall recovery through imagination: Harsh's proposed use of the mimic module.
+"""Fall recovery through imagination: a natural use of the mimic module.
 
 Set the target to a steady upright pose, start from a fallen or tipped body, and let
 the planner (frozen forward model + CEM over 300 ms chunks, replan every 100 ms) try

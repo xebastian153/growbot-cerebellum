@@ -1,7 +1,7 @@
 """Multi-step training loss: does teaching the forward model to roll itself out reduce drift?
 
 The shipped model is trained on one-tick deltas and then unrolled 25 ticks at test
-time on its own predictions; it never sees its errors compound. SPR / dsevero's point:
+time on its own predictions; it never sees its errors compound. SPR's point:
 train through the unroll. Same 128x2 MLP, same predict(X) interface, same evaluation
 (forward.rollout_error at 100 / 500 ms), only the loss changes:
 

@@ -5,7 +5,7 @@ settle with the twin alone. Priority order.
 
 ## 1. The servos have no position feedback  →  learned actuator models
 
-**Why:** brit: "we don't have positional feedback on our servos". Cheap positional
+**Why:** the GrowBot servos report no position. Cheap positional
 servos have latency, deadband, load-dependent slew. Our DR corners (gain ×0.75–1.25)
 did not move the IMU at 100 ms, so if the spin gap is in the actuator it is in its
 *dynamics*, not its gain.
@@ -21,7 +21,7 @@ did not move the IMU at 100 ms, so if the spin gap is in the actuator it is in i
   per joint. Firmware-level, no learned model. Worth knowing because the Pico glide
   engine already sits between brain and servo. https://arxiv.org/abs/2607.02205
 
-**Tested (Aug 2026):** `actuator_proxy.py` / `servo_id.py`. A slew-limited servo opens a
+**Tested:** `actuator_proxy.py` / `servo_id.py`. A slew-limited servo opens a
 3–4 pt gap at 500 ms that an output residual cannot close and the realized horn angle closes
 completely; the servo's delay and slew are identifiable from 300 s of IMU + commands through
 the frozen forward model (two hidden servos, both recovered). Thread 1 is now the most
@@ -29,18 +29,19 @@ concrete next step for a real log.
 
 ## 2. Learn from the real error on device  →  feedback-error learning, adaptation
 
-**Why:** brit's "continual correction instead of better sim". Our DR proxy found no
+**Why:** the eventual goal is continual on-device correction rather than a
+higher-fidelity simulator. Our DR proxy found no
 systematic error to correct in the twin, so the real signal has to come from the body.
 
 - Kawato, *Feedback-error-learning*, 1987–90 (e.g. Neural Networks 1988). A fixed
   feedback controller keeps things stable; its output *is* the training error for an
   adaptive feedforward inverse model. Cheapest on-device learner there is, and the
-  cerebellar theory brit's video leans on. Same lineage as the GCML paper's inverse
+  cerebellar theory the GrowBot launch video leans on. Same lineage as the GCML paper's inverse
   model. https://www.sciencedirect.com/science/article/abs/pii/0893608088900305
 - Kumar, Fu, Pathak, Malik, *RMA: Rapid Motor Adaptation for Legged Robots*, RSS 2021.
   Base policy + adaptation module that infers environment latents from recent history,
-  in fractions of a second, trained only in sim. Harsh already uses the privileged
-  critic; the adaptation module is the missing half he named.
+  in fractions of a second, trained only in sim. The upstream training already uses
+  the privileged critic; the adaptation module is the half not yet built.
   https://www.researchgate.net/publication/353116578
 - Nagabandi et al., *Learning to Adapt in Dynamic, Real-World Environments Through
   Meta-RL*, ICLR 2019. Meta-learn a dynamics-model prior that adapts online from the
@@ -64,7 +65,7 @@ chasing it (replan-every-tick was worse than every 100 ms).
   uncertainty; adding it is the natural next step and directly explains the 100 ms
   optimum. https://arxiv.org/abs/1805.12114
 
-**Tested (Aug 2026):** `pets.py`. Regime-level calibration is good (predicted std tracks the
+**Tested:** `pets.py`. Regime-level calibration is good (predicted std tracks the
 error ordering calm < moderate < fallen < fast; epistemic ×4 calm→fast); per-tick
 correlation 0.18. Planning through particles: no gain on mimic, monotonically worse on
 fall recovery (30 → 22 → 18 % with 0 → 8 → 16 particles). Keep the uncertainty as a
@@ -87,10 +88,11 @@ the only sense. Legged robotics has done contact detection from proprioception a
 
 ## 5. Their V0: next-state prediction as an auxiliary loss
 
-**Why:** dsevero's plan and Fast-WAM's finding are the same finding at two scales.
+**Why:** an auxiliary next-state head at training time is the natural V0;
+Fast-WAM reaches the same conclusion at robot-lab scale.
 
 - Yuan, Dong, Liu, Zhao, *Fast-WAM: Do World Action Models Need Test-time Future
-  Imagination?*, arXiv Mar 2026 (dsevero's link). Removing training-time prediction
+  Imagination?*, arXiv Mar 2026. Removing training-time prediction
   hurts far more than removing test-time imagination; 4× faster at 190 ms latency.
   Supports V0 over the mimic planner as the *policy* path.
   https://arxiv.org/abs/2603.16666
@@ -103,7 +105,7 @@ the only sense. Legged robotics has done contact detection from proprioception a
 
 - Wu, Escontrela, Hafner, Goldberg, Abbeel, *DayDreamer: World Models for Physical
   Robot Learning*, CoRL 2022. Dreamer on real robots, no simulator; the reference in
-  brit's video and the ceiling for "learn from raw experience". Says what a real data
+  the GrowBot launch video and the ceiling for "learn from raw experience". Says what a real data
   budget looks like. https://arxiv.org/abs/2206.14176
 
 ## What is *not* on this list, and why
@@ -112,10 +114,9 @@ the only sense. Legged robotics has done contact detection from proprioception a
   ties persistence on the twin IMU (85.0 % vs 82.0 % within 0.2 rad @100 ms, 55.0 % vs
   55.2 % @500 ms) and loses to a 25k-param action-conditioned MLP (96 / 79 %). The
   information is in the action, not the sensor history. Forecaster ≠ world action model.
-- JEPA-style latent world models. dsevero's call: adds complexity before the simple
-  thing is validated. Agree.
+- JEPA-style latent world models. Complexity before the simple thing is validated.
 
-## From talks and tools we looked at (Aug 2026)
+## From talks and tools
 
 Things that came in sideways and left something behind.
 
@@ -141,7 +142,7 @@ Things that came in sideways and left something behind.
   GrowBot verb logs so the harness emits well-formed `gesture`/`walk`/`say` without
   an API. Its self-auditing measurement style is the standard to imitate.
 
-### Metadata conditioning: tested, does not help here (Aug 2026)
+### Metadata conditioning: tested, does not help here
 
 `metadata_experiment.py`, 60 epochs, within 0.2 rad @100 / @500 ms:
 
@@ -149,12 +150,12 @@ Things that came in sideways and left something behind.
 - Q2 walk+Olie pooled, 3 seeds: per-body 95.5±0.3, pooled no meta 95.3±0.3, pooled
   +body 95.5±0.3 (walk @100). All within noise. Pooling neither hurts nor needs a
   body tag at this scale.
-- Q3 Finn's curve does not appear: adding OU and still to a clean set does not hurt
+- Q3 the pi0.7 curve does not appear: adding OU and still to a clean set does not hurt
   without metadata (95.7 → 95.9); with metadata, training on clean modes and testing
   on all collapses to 64.7% because unseen mode labels arrive at test time — a
   deployment hazard, not a gain.
 
-Why: Finn's effect is about *quality-heterogeneous* data (clumsy demos, failed
+Why: the pi0.7 effect is about *quality-heterogeneous* data (clumsy demos, failed
 rollouts) where a tag lets a policy avoid imitating the bad. A forward model does
 not imitate; it predicts physics, and the physics of an OU jitter is as true as a
 gait's. No quality axis, nothing for the tag to separate. Where the idea could still

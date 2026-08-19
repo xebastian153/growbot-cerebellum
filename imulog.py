@@ -1,6 +1,6 @@
 """Parser for GrowBot ?imulog=1 sessions, and the fixture that validates it.
 
-brit's format (Discord, Aug 2026): two streams at native rates, measured
+The upstream ?imulog=1 format: two streams at native rates, measured
 timestamps on one shared clock. IMU as the phone delivers it (~60 Hz), l/r poses
 at actual send time (~30 Hz). A header carries units, axis and mount convention,
 whether gravity is included, gait name and stride gain, calibration trims, build

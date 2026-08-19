@@ -1,6 +1,6 @@
-"""Does metadata conditioning help the forward model? (Finn / pi0.7 finding, tested here)
+"""Does metadata conditioning help the forward model? (the pi0.7 metadata finding, tested here)
 
-Physical Intelligence found that prompting the policy with metadata about the data
+The pi0.7 technical report found that prompting the policy with metadata about the data
 (quality, episode length) turned low-quality data from harmful into helpful. The
 forward model has an analogue that costs nothing at deployment: the harness knows
 which verb is running (walk policy, gesture, rest) and which body it is on. Append
@@ -9,7 +9,7 @@ that as one-hot input and ask three questions on the same windows and metric:
   Q1  single body: does knowing the excitation mode help?
   Q2  two bodies pooled: does body+mode metadata let walk and Olie data share a model
       without hurting either, versus one model per body?
-  Q3  Finn's curve: add progressively "less informative" excitation (OU jitter, still)
+  Q3  the pi0.7 curve: add progressively "less informative" excitation (OU jitter, still)
       to a clean set (policy + sine + keyframe). Without metadata, does it hurt?
       With metadata, does it help?
 """
@@ -109,7 +109,7 @@ def main():
                          "olie": evaluate(m, "olie", olie["test"], use_mode, use_body)}
         report(f"Q2 seed{seed}: two bodies pooled", rows)
 
-        # ---------------- Q3: Finn's curve ----------------
+        # ---------------- Q3: the pi0.7 curve ----------------
         rows = {}
         for use_mode in (False, True):
             for label, keep in (("clean (policy+sine+keyframe)", CLEAN), ("clean + OU", CLEAN + ["ou"]), ("clean + OU + still (all)", MODES)):
