@@ -93,12 +93,35 @@ def main():
 
     # diagnostics for the day the real servo leaves the model family ------------
     halfA, halfB = slice(0, half // 2), slice(half // 2, half)
-    _, bestA = identify(nominal, O[halfA], A[halfA], O2[halfA], D[halfA], grid)
-    _, bestB = identify(nominal, O[halfB], A[halfB], O2[halfB], D[halfB], grid)
+    scoresA, bestA = identify(nominal, O[halfA], A[halfA], O2[halfA], D[halfA], grid)
+    scoresB, bestB = identify(nominal, O[halfB], A[halfB], O2[halfB], D[halfB], grid)
     agree = bestA["delay_ticks"] == bestB["delay_ticks"] and bestA["slew_rad_s"] == bestB["slew_rad_s"]
     print(f"split-half stability: A=(delay {bestA['delay_ticks']}, slew {bestA['slew_rad_s']})  "
           f"B=(delay {bestB['delay_ticks']}, slew {bestB['slew_rad_s']})  "
           f"{'AGREE' if agree else 'DISAGREE -- log too short or servo outside the model family'}")
+    # Confidence band from the split halves: each half is an independent estimate of
+    # every hypothesis's error, so std(errA - errB) measures estimator noise at half
+    # the data; the full fit uses twice as much, so its noise is ~ std(diff) / 2.
+    key = lambda kw: (kw["delay_ticks"], kw["slew_rad_s"], round(float(kw["deadband"]), 5))
+    eA = {key(kw): e for e, kw in scoresA}; eB = {key(kw): e for e, kw in scoresB}
+    band = float(np.std([eA[k] - eB[k] for k in eA])) / 2.0
+    fit_err = {key(kw): e for e, kw in scores}
+    best_e = scores[0][0]
+    def determined(param_values, fixed):
+        return sorted({v for v in param_values
+                       if fit_err.get(fixed(v), np.inf) - best_e <= band})
+    slews_grid = sorted({s_ for _, s_, _ in grid}, key=lambda v: (v is None, v))
+    delays_grid = sorted({d_ for d_, _, _ in grid})
+    slew_set = determined(slews_grid, lambda v: (best["delay_ticks"], v, round(float(best["deadband"]), 5)))
+    delay_set = determined(delays_grid, lambda v: (v, best["slew_rad_s"], round(float(best["deadband"]), 5)))
+    def show(name, sset, unit=""):
+        if len(sset) == 1:
+            print(f"{name} determined: {sset[0]}{unit}")
+        else:
+            print(f"{name} ∈ {{{', '.join(str(v) for v in sset)}}}{unit} -- separation below the "
+                  f"confidence band (±{band:.4f}); report the set, not the argmin")
+    show("delay", delay_set, " ticks")
+    show("slew", slew_set, " rad/s")
     held_scores, _ = identify(nominal, O[held], A[held], O2[held], D[held],
                               [(best["delay_ticks"], best["slew_rad_s"], best["deadband"]),
                                (0, None, 0.0)])
@@ -115,7 +138,9 @@ def main():
     R_est = realized_from_commands(A, D, best)
     out = {"true": {**TRUE, "deadband": float(TRUE["deadband"])}, "identified": {**best, "deadband": float(best["deadband"])},
            "ideal_err": ideal_err, "best_err": scores[0][0],
-           "split_half_agree": agree, "held_out_err": {"best": by_kw[(best["delay_ticks"], best["slew_rad_s"])], "ideal": by_kw[(0, None)]},
+           "split_half_agree": agree, "confidence_band": band,
+           "delay_determined_set": delay_set, "slew_determined_set": [v for v in slew_set],
+           "held_out_err": {"best": by_kw[(best["delay_ticks"], best["slew_rad_s"])], "ideal": by_kw[(0, None)]},
            "held_out": {}}
     print("\nheld-out half, within 0.2 rad:")
     for h in (5, 25):
