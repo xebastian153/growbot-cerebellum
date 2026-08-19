@@ -1,0 +1,160 @@
+# Experiments
+
+Every number below is reproducible with the commands in the README; the
+machine-readable source is `results/`. Conventions in `CONVENTIONS.md`.
+
+**The twin is faithful.** The shipped `policy_85mm.json`, ported to numpy, walks in it
+(0.138 m in 5 s, no fall). It is the same net that drives the physical robot.
+
+## Forward model
+
+Held-out episodes, model rolled forward on its own predictions, fraction of starts whose
+imagined roll/pitch stays within 0.2 rad of the truth. 128×2 swish MLP, 24,841 params, K=5.
+
+| horizon | persistence | linear (GCML-style) | **MLP** |
+|---|---|---|---|
+| 100 ms | 85.9 % | 93.5 % | **95.9 %** |
+| 500 ms | 59.0 % | 75.0 % | **83.6 %** |
+
+By regime at 100 ms the three tie on calm gaits (~95 %); the model earns its keep under
+fast motion (persistence 41 → MLP 86 %) and while tipping or fallen (58 → 89 %) —
+exactly where the video locates the gap. Capacity sweep saturated (192×2, 128×3 add nothing).
+
+## Mimic game
+
+Reproduce a held-out 2 s motion by planning through imagination and executing in the twin.
+40 traces, receding-horizon CEM, replan every 100 ms.
+
+| planner | roll/pitch RMSE | beats holding still |
+|---|---|---|
+| hold still | 0.210 | — |
+| plan without a forward model | 0.220 | 42 % |
+| plan with the linear model | 0.142 | 88 % |
+| **plan with the MLP** | **0.095** | **98 %** |
+
+Planning without imagination is worse than doing nothing — the failure in the video.
+Replanning every 100 ms is the optimum (every tick chases noise; pure 2 s imagination
+drifts to 0.161 but still beats rest). 100 ms is also the sensory-delay figure in the video.
+
+## JS runner
+
+`node forward-model/test_forward.mjs`: single step 7.5e-6, 25-tick rollout 5.0e-6 versus
+PyTorch; planner beats hold-still on a reachable target with a seeded RNG. This test caught
+a real off-by-one in the Python evaluation (which action sits in history slot 0) before
+it could reach a phone.
+
+## Sim-to-real proxy — negative
+
+Forward model trained on the nominal Olie body, measured on the 13 domain-randomisation
+corners from `dr_sweep_spin.py` (mass 0.8–1.25, CoM ±3 cm, leg 0.85–1.15, gain 0.75–1.25,
+friction 0.6–1.4), with an online linear residual learning from prediction error.
+**Nothing to correct:** frozen 93.9 % across corners vs 93.7 % nominal, per-corner yaw
+bias ±0.02, residual only adds noise. Tick-to-tick gyro change is mostly unpredictable in
+the twin itself (R² ≈ 0.2, ≈ 0.05 when calm): foot–floor contact chatter, not model error.
+So the project's DR does not show up in the IMU at 100 ms — consistent with its good walk
+transfer — and the spin gap is unlikely to be mass/CoM/leg/gain. Contact is the untested
+factor, and contact drives yaw, which drives spin.
+
+## Actuator dynamics — the sim-to-real signature that *is* there, and how to recover it
+
+Second attempt at a proxy, this time perturbing the actuator's **dynamics** rather than the
+body's parameters (`sim/growbot_sim.ServoModel`: command latency, slew-rate limit, deadband,
+inserted between the command and MuJoCo's ideal PD). Controlled, same three seeds per variant,
+within 0.2 rad at 500 ms:
+
+| servo | commanded angle → model | **realized** angle → model |
+|---|---|---|
+| ideal | 81.1 ± 2.0 | 81.1 ± 2.0 |
+| delay 40 ms | 82.2 ± 1.1 | 82.7 ± 0.9 |
+| deadband 4° | 80.6 ± 2.9 | 80.8 ± 2.7 |
+| **slew 4 rad/s (heavy load)** | **77.1 ± 0.7** | **80.4 ± 0.9** |
+| **realistic (2 ticks + 5 rad/s + 2°)** | **78.6 ± 2.4** | **82.5 ± 2.4** |
+
+Latency and deadband the model tolerates; a slew limit opens a 3–4 point gap that a linear
+output residual cannot close (its least-squares ceiling is no better than frozen). Giving the
+model the **realized horn angle** instead of the command closes it completely (+3.9 ± 0.1) —
+the forward model is right, its input is wrong. That is Hwangbo's actuator-net finding.
+
+GrowBot has no servo position feedback, so `servo_id.py` inverts it: propose a servo model,
+replay the commands through it, feed the estimate to the frozen forward model, keep the
+hypothesis with the lowest one-step error on 300 s of **IMU + commands only**. Two hidden
+servos, 96 hypotheses, 6 s of compute: both identified exactly (delay and slew; deadband is
+the one parameter the IMU cannot see), and the held-out gap closes to the true-horn-angle
+value (80.8 → 83.9 %, 75.9 → 80.8 %). The forward model doubles as the position sensor the
+robot does not have. Sim-only, same-model-class caveat applies; the point is that a real IMU
+log of a few minutes is enough data to run this.
+
+## Multi-step training loss — small, real gain
+
+Same 128×2 net, trained through an H-tick unroll with loss on every step (SPR-style),
+evaluated with the usual open-loop rollout. 3 seeds, 40 epochs:
+
+| train unroll | @100 ms | @500 ms | @1000 ms | fit |
+|---|---|---|---|---|
+| H=1 (one-step, ships) | 95.8 ± 0.3 | 82.6 ± 0.1 | 77.9 ± 0.3 | 35 s |
+| H=5 | 96.0 ± 0.3 | 83.8 ± 0.2 | 78.7 ± 0.4 | 166 s |
+| H=10 | 95.6 ± 0.2 | **84.0 ± 0.2** | **78.8 ± 0.3** | 292 s |
+
++1.2–1.4 points at 500 ms, consistent across seeds (σ ≈ 0.2), nothing at 100 ms, at 5–8×
+the training cost. Real, modest, and it saturates by H=5. It backs the "multi-step
+consistency at training time" lever without making it a big one for this body.
+
+## Fall recovery through imagination — a feature, with a low physical ceiling
+
+Fall recovery as a use of the mimic module: target = the upright resting stance, start from
+fallen states the physics produced (pushes + hard leans), planner vs two model-free
+baselines, 4 s budget, success = upright for 0.5 s. 60 "tipped" starts (|roll| < 1.2 rad,
+the recoverable bucket):
+
+| policy | recovered |
+|---|---|
+| hold still | 18.3 % |
+| scripted wiggle | 28.3 % |
+| **plan with the forward model** | **36.7 %** |
+
+Twice hold-still and +8 over the reflex a person would code; the same ordering holds on
+side and back falls at lower rates (90 mixed starts: 30.0 % vs 18.9 / 20.0 %). The
+ceiling is the body, not the model: two legs cannot right most falls. Worth having as a
+verb; not a headline.
+
+## PETS — the model knows where it is unsure; planning through that knowledge does not help
+
+Ensemble of 5 probabilistic nets (mean + log-variance, Gaussian NLL, bootstrap), TS-∞
+particle planner. Three findings, in decreasing order of usefulness:
+
+*Calibration, at the regime level, is clean.* Predicted aleatoric std by regime: calm
+0.21 → moderate 0.23 → **fast 0.34** → fallen 0.28; actual mean |error| 0.05 → 0.10 →
+**0.18** → 0.12 — same ordering. Epistemic std ×4 from calm to fast. The model knows
+where the contact chatter is. Per-tick correlation of predicted std with error is only
+0.18: it captures the regime, not the individual bounce, consistent with that bounce being
+irreducible.
+
+*Accuracy: nothing.* Ensemble mean 82.5 % vs single net 82.0 % at 500 ms.
+
+*Planning through particles: nothing on mimic, harmful on fall recovery.* Mimic 40 targets:
+single MLP 0.095, ensemble mean 0.092, PETS-8 0.096. Fall recovery, 60 tipped starts:
+hold still 18.3 %, single MLP 30.0 %, ensemble mean 28.3 %, **PETS-8 21.7 %, PETS-16 18.3 %**
+— monotonically worse with more particles. Averaging cost over noise the model cannot
+predict flattens the differences between plans and CEM stops finding the good ones. The
+uncertainty is worth having as a *signal* (e.g. to tell the harness when imagination is
+not to be trusted); it is not worth planning through on this body.
+
+Fall-recovery rates move ±5 pts with the model's training seed (30.0 % here vs 36.7 %
+above, same starts); orderings hold, absolute numbers carry that margin.
+
+## Metadata conditioning — negative
+
+Excitation-mode and body one-hots as extra input (the π0.7 idea). One body: no change.
+Two bodies pooled, 3 seeds: per-body 95.5±0.3, pooled 95.3±0.3, pooled+body 95.5±0.3 —
+within noise. Adding "less informative" excitation never hurts without metadata; with
+metadata, unseen labels at test time collapse the model (64.7 %). The π0.7 effect concerns
+quality-heterogeneous imitation data; a forward model predicts physics and has no quality
+axis to separate. Useful side result: one model serves two bodies at no cost.
+
+## TimesFM 2.5 baseline
+
+Google's 200M-param zero-shot forecaster on the six IMU channels, same 400 windows,
+action-blind: 85.0 % @100 ms and 55.0 % @500 ms — ties persistence (82.0 / 55.2 %) and
+loses to the 25k-param action-conditioned MLP (96.0 / 79.0 %). The information is in the
+action, not the sensor history. Forecaster ≠ world action model. Also ~1 s per window on CPU.
+
