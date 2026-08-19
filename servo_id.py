@@ -67,6 +67,8 @@ def main():
     scores, best = identify(nominal, O[fit], A[fit], O2[fit], D[fit], grid)
     ideal_err = [e for e, kw in scores if kw["delay_ticks"] == 0 and kw["slew_rad_s"] is None and kw["deadband"] == 0.0][0]
     print(f"{len(grid)} hypotheses on {half / 50:.0f} s of IMU+commands: {time.time() - t0:.0f}s")
+    print("grid resolution: delay in 20 ms steps, slew from an enumerated set, deadband 0-4 deg;")
+    print("identified values are grid points, not continuous estimates")
     print("best 5:")
     for e, kw in scores[:5]:
         print(f"  err {e:.4f}  delay {kw['delay_ticks']}  slew {kw['slew_rad_s']}  deadband {np.rad2deg(kw['deadband']):.0f} deg")

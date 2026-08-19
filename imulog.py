@@ -19,11 +19,24 @@ This module does three things:
 Accepted file format (one JSON object per line):
   line 1  {"header": {...}}   free-form; fields used if present:
           imu_units ("rad"|"deg"), pose_units ("deg" default, 90 = neutral),
-          l_sign/r_sign/l_off/r_off (trims; default +1/+1/0/0), gait, surface
+          l_sign/r_sign/l_off/r_off/gain (trims; default +1/+1/0/0/1),
+          trims_in_values (bool, default true), gait, surface
   rows    {"t": <ms>, "s": "imu", "o": [roll, pitch, yaw, gr, gp, gy]}
           {"t": <ms>, "s": "cmd", "l": <deg>, "r": <deg>}
           {"t": <ms>, "s": "ev",  "name": "walk_start" | ...}   (optional)
-CSV fallback: columns t,s,roll,pitch,yaw,gr,gp,gy,l,r with the same meanings.
+CSV fallback (auto-detected): columns t,s,roll,pitch,yaw,gr,gp,gy,l,r with the
+same meanings; an optional first line `# {json}` carries the header.
+
+Trim convention. The upstream runner sends `l = 90 + off + sign*deg(a)*gain`,
+so what reaches the servo already contains the trims. `trims_in_values: true`
+(the default) means the logged numbers are those as-sent values and the parser
+INVERTS the trims: a = deg2rad((v - 90 - off) / (sign * gain)). `false` means
+the log carries pre-trim model commands and the trims in the header are ignored:
+a = deg2rad(v - 90). Getting this flag wrong is a constant offset/scale on every
+action -- the kind of error the forward model absorbs silently and that poisons
+servo identification, which is why it is explicit rather than guessed. A turn
+bias mixed into l/r cannot be inverted from the header alone; if turn is active
+during logging it must be logged per-sample or the session flagged.
 """
 from __future__ import annotations
 import json, sys
@@ -32,29 +45,57 @@ import numpy as np
 CTRL_HZ = 50
 
 
-def _to_rad(x, units): return np.deg2rad(x) if units == "deg" else x
+def _read_rows(path):
+    """JSONL or CSV, sniffed from the first non-empty line."""
+    header, imu_t, imu_v, cmd_t, cmd_v = {}, [], [], [], []
+    with open(path) as f:
+        first = ""
+        for first in f:
+            if first.strip(): break
+        rest = f
+        s = first.strip()
+        if s.startswith("{"):                       # JSON-lines
+            for line in [first, *rest]:
+                line = line.strip()
+                if not line: continue
+                row = json.loads(line)
+                if "header" in row: header = row["header"]; continue
+                if row.get("s") == "imu": imu_t.append(row["t"]); imu_v.append(row["o"])
+                elif row.get("s") == "cmd": cmd_t.append(row["t"]); cmd_v.append([row["l"], row["r"]])
+        else:                                       # CSV, optional `# {json}` header line
+            import csv, io
+            if s.startswith("#"):
+                maybe = s.lstrip("# ").strip()
+                if maybe.startswith("{"): header = json.loads(maybe)
+                first = next(rest, "")
+            reader = csv.DictReader(io.StringIO(first + "".join(rest)))
+            for row in reader:
+                if row.get("s") == "imu":
+                    imu_t.append(float(row["t"]))
+                    imu_v.append([float(row[k]) for k in ("roll", "pitch", "yaw", "gr", "gp", "gy")])
+                elif row.get("s") == "cmd":
+                    cmd_t.append(float(row["t"])); cmd_v.append([float(row["l"]), float(row["r"])])
+    return header, (np.asarray(imu_t, np.float64), np.asarray(imu_v, np.float32),
+                    np.asarray(cmd_t, np.float64), np.asarray(cmd_v, np.float32))
+
+
+def _commands_to_rad(cmd_v, header):
+    """Logged l/r -> model-space swing in radians, honouring the trim convention."""
+    if header.get("pose_units", "deg") != "deg":
+        return cmd_v.astype(np.float32)
+    if header.get("trims_in_values", True):
+        ls, rs = header.get("l_sign", 1.0), header.get("r_sign", 1.0)
+        lo, ro = header.get("l_off", 0.0), header.get("r_off", 0.0)
+        g = header.get("gain", 1.0)
+        return np.stack([np.deg2rad((cmd_v[:, 0] - 90 - lo) / (ls * g)),
+                         np.deg2rad((cmd_v[:, 1] - 90 - ro) / (rs * g))], 1).astype(np.float32)
+    return np.deg2rad(cmd_v - 90.0).astype(np.float32)
 
 
 def parse(path, gap_ms=100.0):
-    header, imu_t, imu_v, cmd_t, cmd_v = {}, [], [], [], []
-    with open(path) as f:
-        for line in f:
-            line = line.strip()
-            if not line: continue
-            row = json.loads(line)
-            if "header" in row: header = row["header"]; continue
-            if row.get("s") == "imu": imu_t.append(row["t"]); imu_v.append(row["o"])
-            elif row.get("s") == "cmd": cmd_t.append(row["t"]); cmd_v.append([row["l"], row["r"]])
-    imu_t = np.asarray(imu_t, np.float64); imu_v = np.asarray(imu_v, np.float32)
-    cmd_t = np.asarray(cmd_t, np.float64); cmd_v = np.asarray(cmd_v, np.float32)
+    header, (imu_t, imu_v, cmd_t, cmd_v) = _read_rows(path)
     if header.get("imu_units", "rad") == "deg": imu_v = np.deg2rad(imu_v)
-    # poses: degrees with 90 = neutral unless stated; apply trims from the header
-    pu = header.get("pose_units", "deg")
-    ls, rs = header.get("l_sign", 1.0), header.get("r_sign", 1.0)
-    lo, ro = header.get("l_off", 0.0), header.get("r_off", 0.0)
-    if pu == "deg":
-        cmd_v = np.stack([np.deg2rad((cmd_v[:, 0] - 90 - lo) * ls),
-                          np.deg2rad((cmd_v[:, 1] - 90 - ro) * rs)], 1).astype(np.float32)
+    cmd_v = _commands_to_rad(cmd_v, header)
     # 50 Hz grid, episodes split at IMU gaps
     dt = 1000.0 / CTRL_HZ
     grid = np.arange(imu_t[0], imu_t[-1] - dt, dt)
@@ -73,7 +114,8 @@ def parse(path, gap_ms=100.0):
     idx = np.searchsorted(cmd_t, grid, side="right") - 1
     act = np.where(idx[:, None] >= 0, cmd_v[np.clip(idx, 0, None)], 0.0).astype(np.float32)
     O, A, O2 = obs[:-1], act[:-1], obs[1:]
-    D = in_gap[1:].copy(); D[-1] = True
+    # a transition is invalid if EITHER endpoint was interpolated inside a gap
+    D = (in_gap[:-1] | in_gap[1:]).copy(); D[-1] = True
     return O, A, O2, D, header
 
 
@@ -101,7 +143,8 @@ def fixture(path, seconds=600, servo_ms=None, seed=0, imu_hz=60.0, cmd_hz=30.0, 
     phys_dt = sim.m.opt.timestep                      # 0.005 s
     rows, t = [], 0.0
     next_imu = 0.0; next_cmd = 0.0; cur_cmd = np.zeros(2, np.float32)
-    header = {"imu_units": "rad", "pose_units": "deg", "gait": "mixed", "surface": "twin",
+    header = {"imu_units": "rad", "pose_units": "deg", "trims_in_values": True, "gain": 1.0,
+              "gait": "mixed", "surface": "twin",
               "build": "fixture", "note": "synthetic session for parser validation"}
     rows.append({"header": header})
     obs = sim.reset(tilt=0.3); prev = np.zeros(2, np.float32)
@@ -136,18 +179,51 @@ def fixture(path, seconds=600, servo_ms=None, seed=0, imu_hz=60.0, cmd_hz=30.0, 
     return path
 
 
+def _selfcheck():
+    """Cheap invariants that need no simulation: trim inversion and CSV equality."""
+    rng = np.random.default_rng(0)
+    a = rng.uniform(-1.2, 1.2, (50, 2)).astype(np.float32)
+    trims = dict(l_sign=-1.0, r_sign=1.0, l_off=3.0, r_off=-2.0, gain=1.2)
+    sent = np.stack([90 + trims["l_off"] + trims["l_sign"] * np.rad2deg(a[:, 0]) * trims["gain"],
+                     90 + trims["r_off"] + trims["r_sign"] * np.rad2deg(a[:, 1]) * trims["gain"]], 1)
+    back = _commands_to_rad(sent, {**trims, "trims_in_values": True})
+    assert np.allclose(back, a, atol=1e-5), "as-sent inversion failed"
+    pre = 90 + np.rad2deg(a)
+    back2 = _commands_to_rad(pre, {**trims, "trims_in_values": False})
+    assert np.allclose(back2, a, atol=1e-5), "pre-trim path must ignore header trims"
+    print("trim convention check: PASS (as-sent inverted, pre-trim ignores trims)")
+
+
+def _jsonl_to_csv(src, dst):
+    rows = [json.loads(l) for l in open(src) if l.strip()]
+    with open(dst, "w") as f:
+        f.write("# " + json.dumps(rows[0]["header"]) + "\n")
+        f.write("t,s,roll,pitch,yaw,gr,gp,gy,l,r\n")
+        for r in rows[1:]:
+            if r["s"] == "imu":
+                f.write(f"{r['t']},imu," + ",".join(str(v) for v in r["o"]) + ",,\n")
+            elif r["s"] == "cmd":
+                f.write(f"{r['t']},cmd,,,,,,,{r['l']},{r['r']}\n")
+
+
 if __name__ == "__main__":
     import itertools, time
     from forward import MLP, make_windows
-    from sim2real_proxy import K
+    from sim2real_proxy import K, horizon_within
     from servo_id import identify, realized_from_commands
-    from sim2real_proxy import horizon_within
+
+    _selfcheck()
 
     TRUE = dict(delay_ms=40, slew_rad_s=5.0, deadband=np.deg2rad(2))
     print("generating 600 s fixture (hidden servo: delay 40 ms, slew 5 rad/s, deadband 2 deg)...", flush=True)
     fixture("/tmp/imulog_fixture.jsonl", seconds=600, servo_ms=TRUE, seed=3)
     O, A, O2, D, header = parse("/tmp/imulog_fixture.jsonl")
     print(f"parsed: {len(O):,} ticks at 50 Hz, {int(D.sum())} episode splits, header gait={header.get('gait')}")
+    _jsonl_to_csv("/tmp/imulog_fixture.jsonl", "/tmp/imulog_fixture.csv")
+    Oc, Ac, O2c, Dc, hc = parse("/tmp/imulog_fixture.csv")
+    same = np.allclose(O, Oc, atol=1e-4) and np.allclose(A, Ac, atol=1e-4) and (D == Dc).all()
+    print(f"CSV fallback: {'PASS — identical arrays from both formats' if same else 'FAIL'}")
+    assert same
 
     tr = np.load("data/train.npz")
     Xtr, Ytr, *_ = make_windows(tr["obs"], tr["act"], tr["next_obs"], tr["done"], K)
