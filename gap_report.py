@@ -23,7 +23,7 @@ import numpy as np
 sys.path.insert(0, "."); sys.path.insert(0, "sim")
 from forward import MLP, make_windows, encode_obs, decode_obs
 from sim2real_proxy import K
-from imulog import parse
+from imulog import parse, run_preflight
 from servo_id import identify, realized_from_commands
 
 AXES = ("roll", "pitch", "yaw")
@@ -79,6 +79,8 @@ def main():
     ap.add_argument("--servo-id", action="store_true", help="add the after-identified-servo column")
     args = ap.parse_args()
 
+    if not run_preflight(args.log):
+        raise SystemExit("preflight FAIL: refusing to analyse a file whose contract is broken")
     O, A, O2, D, header, mode = parse(args.log)
     print(f"log: {len(O):,} ticks, {int(D.sum())} cuts, surface={header.get('surface', '?')}, "
           f"regimes={ {m: int((mode == m).sum()) for m in sorted(set(mode))} }")

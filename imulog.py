@@ -237,7 +237,94 @@ def _jsonl_to_csv(src, dst):
                 f.write(f"{r['t']},ev,{r['name']},,,,,,,\n")
 
 
+def preflight(path):
+    """Contract checks that need no ground truth, run BEFORE any analysis.
+
+    The round-trip test proves that information survives the pipeline IF the file
+    speaks the twin's dialect; it cannot prove the phone speaks it, because the
+    fixture shares every convention with the parser by construction. This closes
+    what is closable from the file alone: units and rates fail hard, physics on
+    labelled segments warns, and mount-dependent signs are reported for a human
+    to confirm -- the preflight cannot know how the phone is mounted.
+
+    Returns (ok, findings); ok is False only on FAIL-level findings.
+    """
+    header, (imu_t, imu_v, cmd_t, cmd_v), events = _read_rows(path)
+    F, out = True, []
+    def fail(m): out.append(("FAIL", m)); return False
+    def warn(m): out.append(("WARN", m))
+    def info(m): out.append(("ok", m))
+
+    if len(imu_t) < 100 or len(cmd_t) < 10:
+        return fail(f"too few rows (imu {len(imu_t)}, cmd {len(cmd_t)})"), out
+    # --- timestamps: order, units, one clock ---
+    if not (np.diff(imu_t) >= 0).all():
+        warn(f"IMU timestamps not sorted ({int((np.diff(imu_t) < 0).sum())} inversions) -- sorting on parse")
+        imu_t = np.sort(imu_t); cmd_t = np.sort(cmd_t)
+    dt_i = float(np.median(np.diff(imu_t))); dt_c = float(np.median(np.diff(cmd_t)))
+    if dt_i < 1.0:
+        F = fail(f"IMU median dt = {dt_i:.4f}: timestamps look like SECONDS, expected milliseconds")
+    else:
+        info(f"effective rates: IMU {1000 / dt_i:.1f} Hz, commands {1000 / dt_c:.1f} Hz")
+        if not (10 <= 1000 / dt_i <= 250): warn(f"IMU rate {1000 / dt_i:.1f} Hz far from the expected ~60")
+        if not (5 <= 1000 / dt_c <= 100): warn(f"command rate {1000 / dt_c:.1f} Hz far from the expected ~30")
+    lo, hi = max(imu_t[0], cmd_t[0]), min(imu_t[-1], cmd_t[-1])
+    overlap = max(0.0, hi - lo) / max(imu_t[-1] - imu_t[0], 1e-9)
+    if overlap < 0.5:
+        F = fail(f"IMU and command timestamp ranges overlap only {overlap * 100:.0f}% -- different clocks?")
+    # --- units in practice, not in the header ---
+    ang = np.abs(imu_v[:, :3])
+    if header.get("imu_units", "rad") == "rad" and float(np.percentile(ang, 99)) > 7.0:
+        F = fail(f"header says radians but 99th pct |angle| = {np.percentile(ang, 99):.1f} -- degrees in practice?")
+    gyro99 = float(np.percentile(np.abs(imu_v[:, 3:]), 99))
+    if gyro99 > 50:
+        warn(f"99th pct |gyro| = {gyro99:.0f}: deg/s suspected (rad/s rarely exceeds ~20 on this body)")
+    pose_rng = float(cmd_v.min()), float(cmd_v.max())
+    if header.get("pose_units", "deg") == "deg" and (pose_rng[0] < -10 or pose_rng[1] > 190):
+        F = fail(f"pose range {pose_rng} incompatible with degrees around 90 = neutral")
+    if header.get("pose_units", "deg") == "deg" and pose_rng[1] < 3.2:
+        F = fail(f"pose range {pose_rng} looks like RADIANS but the header says degrees")
+    if "trims_in_values" not in header:
+        warn("header omits trims_in_values -- parser will assume as-sent; ask the emitter to state it")
+    # --- physics on labelled segments ---
+    def seg_mask(name):
+        m = np.zeros(len(imu_t), bool); ev = sorted(events)
+        for i, (t0, n) in enumerate(ev):
+            if n.removesuffix("_start") == name and not n.endswith("_stop"):
+                t1 = ev[i + 1][0] if i + 1 < len(ev) else imu_t[-1]
+                m |= (imu_t >= t0) & (imu_t < t1)
+        return m
+    stillm = seg_mask("still") | seg_mask("idle")
+    if stillm.sum() > 50:
+        grms = float(np.sqrt((imu_v[stillm, 3:] ** 2).mean()))
+        astd = float(imu_v[stillm, :2].std())
+        if grms > 0.15 or astd > 0.05:
+            warn(f"'still' segments not still: gyro RMS {grms:.3f} rad/s, roll/pitch std {astd:.3f} rad "
+                 f"-- mislabelled segments or a unit/axis problem")
+        else:
+            info(f"'still' segments check out (gyro RMS {grms:.3f}, orientation std {astd:.4f})")
+    for name in ("spin", "spin_ccw", "spin_cw"):
+        m = seg_mask(name)
+        if m.sum() > 50:
+            yz = float(imu_v[m, 5].mean())
+            info(f"'{name}' segment mean yaw rate {yz:+.2f} rad/s -- CONFIRM the sign matches the "
+                 f"commanded direction (mount convention; the file alone cannot decide this)")
+    return F, out
+
+
+def run_preflight(path):
+    ok, findings = preflight(path)
+    for lvl, msg in findings:
+        print(f"  [{lvl:>4}] {msg}")
+    print(f"preflight: {'PASS' if ok else 'FAIL -- fix the contract before analysing'}")
+    return ok
+
+
 if __name__ == "__main__":
+    import sys as _sys
+    if len(_sys.argv) > 1:                 # imulog.py <file> = standalone preflight
+        raise SystemExit(0 if run_preflight(_sys.argv[1]) else 1)
+
     import itertools, time
     from forward import MLP, make_windows
     from sim2real_proxy import K, horizon_within
