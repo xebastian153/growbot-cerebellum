@@ -13,10 +13,12 @@ imagined roll/pitch stays within 0.2 rad of the truth. 128×2 swish MLP, 24,841 
 
 | horizon | persistence | linear (GCML-style) | **MLP** |
 |---|---|---|---|
-| 100 ms | 85.9 % | 93.5 % | **95.9 %** |
-| 500 ms | 59.0 % | 75.0 % | **83.6 %** |
+| 100 ms | 85.9 % | 93.5 % | **96.0 %** |
+| 500 ms | 59.0 % | 75.0 % | **82.7 %** |
 
-By regime at 100 ms the three tie on calm gaits (~95 %); the model earns its keep under
+Per axis (now reported separately in `results/forward_K5.json`): yaw is consistently the
+hardest angle — MLP at 1 s sits at 59 % within 0.2 rad against 77 % for roll/pitch —
+consistent with contact dominating the yaw gyro. By regime at 100 ms the three tie on calm gaits (~95 %); the model earns its keep under
 fast motion (persistence 41 → MLP 86 %) and while tipping or fallen (58 → 89 %) —
 exactly where the video locates the gap. Capacity sweep saturated (192×2, 128×3 add nothing).
 

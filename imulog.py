@@ -229,6 +229,12 @@ if __name__ == "__main__":
     same = np.allclose(O, Oc, atol=1e-4) and np.allclose(A, Ac, atol=1e-4) and (D == Dc).all()
     print(f"CSV fallback: {'PASS — identical arrays from both formats' if same else 'FAIL'}")
     assert same
+    # permanent detector for the cut-boundary bug family: no valid window may have a
+    # target that crosses a cut, and every cut must cost at least one window
+    *_, valid = make_windows(O, A, O2, D, K)
+    assert not (valid & D).any(), "a window whose target crosses a cut leaked into make_windows"
+    print(f"cut coherence: {int(D.sum())} cut transitions, none inside valid windows "
+          f"({int(valid.sum()):,} valid of {len(D):,})")
 
     tr = np.load("data/train.npz")
     Xtr, Ytr, *_ = make_windows(tr["obs"], tr["act"], tr["next_obs"], tr["done"], K)

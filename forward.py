@@ -57,15 +57,19 @@ def make_windows(obs, act, next_obs, done, K):
     F2 = encode_obs(next_obs)
     fdim = F.shape[1]
     X = np.zeros((N, K * (fdim + act.shape[1])), np.float32)
-    valid = np.ones(N, bool)
+    # A row is valid iff (a) its own transition does not cross a cut -- under the
+    # parser's convention done[t] means next_obs[t] is interpolated inside a gap,
+    # so Y[t] would be a delta the physics never produced -- and (b) no cut lies
+    # inside the K-step history. (a) was missing until a review caught it: the
+    # third relative of the same cut-boundary bug (servo transient, gap endpoints).
+    valid = ~done
+    nodone_back = np.ones(N, bool)
     for k in range(K):
         idx = np.arange(N) - k
-        ok = idx >= 0
-        # an episode end inside the window invalidates it
-        for j in range(1, k + 1):
-            jj = np.arange(N) - j
-            ok &= (jj >= 0) & ~done[np.clip(jj, 0, N - 1)]
-        valid &= ok
+        if k > 0:
+            nodone_back = nodone_back & (idx >= 0) & ~done[np.clip(idx, 0, N - 1)]
+            valid = valid & nodone_back
+        valid = valid & (idx >= 0)
         idx = np.clip(idx, 0, N - 1)
         X[:, k * (fdim + 2):(k + 1) * (fdim + 2)] = np.concatenate([F[idx], act[idx]], axis=1)
     Y = F2 - F                     # predict the delta
@@ -88,6 +92,7 @@ class Linear:
     def fit(self, X, Y, ridge=1e-3):
         Xb = np.concatenate([X, np.ones((len(X), 1), np.float32)], 1)
         A = Xb.T @ Xb + ridge * np.eye(Xb.shape[1], dtype=np.float32)
+        A[-1, -1] -= ridge                      # do not penalise the bias
         self.W = np.linalg.solve(A, Xb.T @ Y)
         return self
     def predict(self, X):
@@ -182,13 +187,20 @@ def rollout_error(model, obs, act, done, K, horizons, n_starts=2000, seed=0):
         win[:, 0, :fdim] = cur
         if h in horizons:
             truth = F[starts + h]
-            pred_ang = decode_obs(cur)[:, :2]; true_ang = decode_obs(truth)[:, :2]
+            pred_ang = decode_obs(cur)[:, :3]; true_ang = decode_obs(truth)[:, :3]
             ang_err = np.arctan2(np.sin(pred_ang - true_ang), np.cos(pred_ang - true_ang))
             gyro_err = cur[:, 6:] - truth[:, 6:]
             out[h] = {
-                "rmse_rollpitch_rad": float(np.sqrt((ang_err ** 2).mean())),
+                # headline (roll/pitch) kept for continuity with every published table
+                "rmse_rollpitch_rad": float(np.sqrt((ang_err[:, :2] ** 2).mean())),
                 "rmse_gyro_rads": float(np.sqrt((gyro_err ** 2).mean())),
-                "within_0.2rad": float((np.abs(ang_err).max(1) < 0.2).mean()),
+                "within_0.2rad": float((np.abs(ang_err[:, :2]).max(1) < 0.2).mean()),
+                # per-axis: the spin gap lives in yaw, so the tool that will measure
+                # it must see it -- one RMSE and one within per angle
+                "rmse_axis_rad": {a: float(np.sqrt((ang_err[:, i] ** 2).mean()))
+                                  for i, a in enumerate(("roll", "pitch", "yaw"))},
+                "within_0.2rad_axis": {a: float((np.abs(ang_err[:, i]) < 0.2).mean())
+                                       for i, a in enumerate(("roll", "pitch", "yaw"))},
             }
     return out
 
@@ -220,11 +232,12 @@ def main():
                            "params": getattr(m, "n_params", None)}
         print(f"\n{m.name:<12} one-step delta RMSE {rmse1:.4f}   fit {time.time() - t0:.1f}s"
               + (f"   params {m.n_params:,}" if hasattr(m, "n_params") else ""))
-        print(f"  {'horizon':>8}{'ms':>6}{'roll/pitch RMSE':>18}{'gyro RMSE':>12}{'within 0.2 rad':>16}")
+        print(f"  {'horizon':>8}{'ms':>6}{'roll/pitch RMSE':>18}{'yaw RMSE':>11}{'gyro RMSE':>12}{'within 0.2':>12}{'yaw w0.2':>10}")
         for h in args.horizons:
             r = ro[h]
             print(f"  {h:>8}{h * 1000 // CTRL_HZ:>6}{r['rmse_rollpitch_rad']:>18.4f}"
-                  f"{r['rmse_gyro_rads']:>12.3f}{r['within_0.2rad'] * 100:>15.1f}%")
+                  f"{r['rmse_axis_rad']['yaw']:>11.4f}{r['rmse_gyro_rads']:>12.3f}"
+                  f"{r['within_0.2rad'] * 100:>11.1f}%{r['within_0.2rad_axis']['yaw'] * 100:>9.1f}%")
 
     (HERE / "results").mkdir(exist_ok=True)
     (HERE / "results" / f"forward_K{args.K}.json").write_text(json.dumps(results, indent=1))
@@ -270,6 +283,3 @@ def by_regime(model, te, K, h=5):
         rows.append((name, len(idx), float(np.sqrt((e ** 2).mean())), float((np.abs(e).max(1) < 0.2).mean())))
     return rows
 
-
-if __name__ == "__main__" and False:
-    pass

@@ -76,7 +76,7 @@ Full write-ups with conditions and per-regime splits: [docs/EXPERIMENTS.md](docs
 
 | experiment | verdict |
 |---|---|
-| Forward model | 95.9 % within 0.2 rad at 100 ms, 83.6 % at 500 ms; the gain over baselines concentrates in fast motion (41 → 86 %) and falls (58 → 89 %) |
+| Forward model | 96.0 % within 0.2 rad at 100 ms, 82.7 % at 500 ms; yaw is the hard axis (59 % vs 77 % at 1 s); the gain over baselines concentrates in fast motion (41 → 86 %) and falls (58 → 89 %) |
 | Mimic game | planning without a model is worse than doing nothing; with it, error halves (0.210 → 0.095 rad) and 39/40 traces beat hold-still |
 | JS runner | float32-equivalent to the trained net; the equivalence test caught a real convention bug |
 | Body-parameter DR proxy | **negative** — mass/CoM/leg/gain/friction never reach the IMU at 100 ms; contact chatter dominates the gyro |

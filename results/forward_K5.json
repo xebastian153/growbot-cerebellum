@@ -1,98 +1,248 @@
 {
  "persistence": {
-  "one_step_rmse_delta": 0.544524073600769,
+  "one_step_rmse_delta": 0.5439549684524536,
   "rollout": {
    "1": {
     "rmse_rollpitch_rad": 0.032644860446453094,
     "rmse_gyro_rads": 0.8812944889068604,
-    "within_0.2rad": 0.9935
+    "within_0.2rad": 0.9935,
+    "rmse_axis_rad": {
+     "roll": 0.03401420637965202,
+     "pitch": 0.031215503811836243,
+     "yaw": 0.03692953661084175
+    },
+    "within_0.2rad_axis": {
+     "roll": 0.996,
+     "pitch": 0.997,
+     "yaw": 0.995
+    }
    },
    "5": {
     "rmse_rollpitch_rad": 0.14191846549510956,
     "rmse_gyro_rads": 1.825491189956665,
-    "within_0.2rad": 0.859
+    "within_0.2rad": 0.859,
+    "rmse_axis_rad": {
+     "roll": 0.1535501331090927,
+     "pitch": 0.12924417853355408,
+     "yaw": 0.1770910769701004
+    },
+    "within_0.2rad_axis": {
+     "roll": 0.9035,
+     "pitch": 0.9235,
+     "yaw": 0.908
+    }
    },
    "10": {
     "rmse_rollpitch_rad": 0.22789371013641357,
     "rmse_gyro_rads": 2.0893445014953613,
-    "within_0.2rad": 0.719
+    "within_0.2rad": 0.719,
+    "rmse_axis_rad": {
+     "roll": 0.2439703494310379,
+     "pitch": 0.2105933576822281,
+     "yaw": 0.3031259775161743
+    },
+    "within_0.2rad_axis": {
+     "roll": 0.785,
+     "pitch": 0.851,
+     "yaw": 0.7785
+    }
    },
    "25": {
     "rmse_rollpitch_rad": 0.3734540343284607,
     "rmse_gyro_rads": 2.124267339706421,
-    "within_0.2rad": 0.5895
+    "within_0.2rad": 0.5895,
+    "rmse_axis_rad": {
+     "roll": 0.4517008066177368,
+     "pitch": 0.2736826539039612,
+     "yaw": 0.5762572884559631
+    },
+    "within_0.2rad_axis": {
+     "roll": 0.673,
+     "pitch": 0.7535,
+     "yaw": 0.6215
+    }
    },
    "50": {
     "rmse_rollpitch_rad": 0.5170240998268127,
     "rmse_gyro_rads": 2.10200834274292,
-    "within_0.2rad": 0.4895
+    "within_0.2rad": 0.4895,
+    "rmse_axis_rad": {
+     "roll": 0.6563889384269714,
+     "pitch": 0.322151243686676,
+     "yaw": 0.8220798969268799
+    },
+    "within_0.2rad_axis": {
+     "roll": 0.588,
+     "pitch": 0.688,
+     "yaw": 0.4535
+    }
    }
   },
   "fit_s": 0.0,
   "params": null
  },
  "linear": {
-  "one_step_rmse_delta": 0.5059410333633423,
+  "one_step_rmse_delta": 0.5053196549415588,
   "rollout": {
    "1": {
-    "rmse_rollpitch_rad": 0.019792385399341583,
-    "rmse_gyro_rads": 0.8007126450538635,
-    "within_0.2rad": 0.996
+    "rmse_rollpitch_rad": 0.01977965049445629,
+    "rmse_gyro_rads": 0.8006346225738525,
+    "within_0.2rad": 0.996,
+    "rmse_axis_rad": {
+     "roll": 0.020971469581127167,
+     "pitch": 0.018511256203055382,
+     "yaw": 0.021513909101486206
+    },
+    "within_0.2rad_axis": {
+     "roll": 0.9975,
+     "pitch": 0.998,
+     "yaw": 0.9975
+    }
    },
    "5": {
-    "rmse_rollpitch_rad": 0.11109423637390137,
-    "rmse_gyro_rads": 1.3016282320022583,
-    "within_0.2rad": 0.9345
+    "rmse_rollpitch_rad": 0.11104349792003632,
+    "rmse_gyro_rads": 1.3014391660690308,
+    "within_0.2rad": 0.9345,
+    "rmse_axis_rad": {
+     "roll": 0.12381621450185776,
+     "pitch": 0.0965963751077652,
+     "yaw": 0.15032029151916504
+    },
+    "within_0.2rad_axis": {
+     "roll": 0.9595,
+     "pitch": 0.96,
+     "yaw": 0.9495
+    }
    },
    "10": {
-    "rmse_rollpitch_rad": 0.18653830885887146,
-    "rmse_gyro_rads": 1.4129992723464966,
-    "within_0.2rad": 0.8265
+    "rmse_rollpitch_rad": 0.18642741441726685,
+    "rmse_gyro_rads": 1.4129481315612793,
+    "within_0.2rad": 0.8275,
+    "rmse_axis_rad": {
+     "roll": 0.19878774881362915,
+     "pitch": 0.17318716645240784,
+     "yaw": 0.2836148142814636
+    },
+    "within_0.2rad_axis": {
+     "roll": 0.8925,
+     "pitch": 0.887,
+     "yaw": 0.8465
+    }
    },
    "25": {
-    "rmse_rollpitch_rad": 0.3383484184741974,
-    "rmse_gyro_rads": 1.5202845335006714,
-    "within_0.2rad": 0.75
+    "rmse_rollpitch_rad": 0.33825746178627014,
+    "rmse_gyro_rads": 1.5203202962875366,
+    "within_0.2rad": 0.75,
+    "rmse_axis_rad": {
+     "roll": 0.4064273238182068,
+     "pitch": 0.2522955536842346,
+     "yaw": 0.568734347820282
+    },
+    "within_0.2rad_axis": {
+     "roll": 0.823,
+     "pitch": 0.833,
+     "yaw": 0.668
+    }
    },
    "50": {
-    "rmse_rollpitch_rad": 0.49222132563591003,
-    "rmse_gyro_rads": 1.4834634065628052,
-    "within_0.2rad": 0.7265
+    "rmse_rollpitch_rad": 0.4923866391181946,
+    "rmse_gyro_rads": 1.4832799434661865,
+    "within_0.2rad": 0.727,
+    "rmse_axis_rad": {
+     "roll": 0.6324600577354431,
+     "pitch": 0.2913476824760437,
+     "yaw": 0.826654851436615
+    },
+    "within_0.2rad_axis": {
+     "roll": 0.803,
+     "pitch": 0.8085,
+     "yaw": 0.478
+    }
    }
   },
   "fit_s": 0.1,
   "params": null
  },
  "mlp": {
-  "one_step_rmse_delta": 0.46920469403266907,
+  "one_step_rmse_delta": 0.46894240379333496,
   "rollout": {
    "1": {
-    "rmse_rollpitch_rad": 0.019111264497041702,
-    "rmse_gyro_rads": 0.7268415689468384,
-    "within_0.2rad": 0.9955
+    "rmse_rollpitch_rad": 0.01896798610687256,
+    "rmse_gyro_rads": 0.7256309390068054,
+    "within_0.2rad": 0.9955,
+    "rmse_axis_rad": {
+     "roll": 0.02122505009174347,
+     "pitch": 0.016403237357735634,
+     "yaw": 0.020619681105017662
+    },
+    "within_0.2rad_axis": {
+     "roll": 0.997,
+     "pitch": 0.998,
+     "yaw": 0.9975
+    }
    },
    "5": {
-    "rmse_rollpitch_rad": 0.09552088379859924,
-    "rmse_gyro_rads": 1.1649245023727417,
-    "within_0.2rad": 0.959
+    "rmse_rollpitch_rad": 0.09551066160202026,
+    "rmse_gyro_rads": 1.1731359958648682,
+    "within_0.2rad": 0.96,
+    "rmse_axis_rad": {
+     "roll": 0.10933136194944382,
+     "pitch": 0.07931724935770035,
+     "yaw": 0.14022395014762878
+    },
+    "within_0.2rad_axis": {
+     "roll": 0.9705,
+     "pitch": 0.975,
+     "yaw": 0.962
+    }
    },
    "10": {
-    "rmse_rollpitch_rad": 0.1703847199678421,
-    "rmse_gyro_rads": 1.3299989700317383,
-    "within_0.2rad": 0.911
+    "rmse_rollpitch_rad": 0.16937194764614105,
+    "rmse_gyro_rads": 1.331443190574646,
+    "within_0.2rad": 0.9065,
+    "rmse_axis_rad": {
+     "roll": 0.1865958720445633,
+     "pitch": 0.15018555521965027,
+     "yaw": 0.26203882694244385
+    },
+    "within_0.2rad_axis": {
+     "roll": 0.9325,
+     "pitch": 0.9385,
+     "yaw": 0.9155
+    }
    },
    "25": {
-    "rmse_rollpitch_rad": 0.3206930458545685,
-    "rmse_gyro_rads": 1.4665281772613525,
-    "within_0.2rad": 0.836
+    "rmse_rollpitch_rad": 0.3251856863498688,
+    "rmse_gyro_rads": 1.469150185585022,
+    "within_0.2rad": 0.827,
+    "rmse_axis_rad": {
+     "roll": 0.4044819176197052,
+     "pitch": 0.21882833540439606,
+     "yaw": 0.5482315421104431
+    },
+    "within_0.2rad_axis": {
+     "roll": 0.879,
+     "pitch": 0.8715,
+     "yaw": 0.7745
+    }
    },
    "50": {
-    "rmse_rollpitch_rad": 0.47773247957229614,
-    "rmse_gyro_rads": 1.447212815284729,
-    "within_0.2rad": 0.78
+    "rmse_rollpitch_rad": 0.48373979330062866,
+    "rmse_gyro_rads": 1.4539120197296143,
+    "within_0.2rad": 0.774,
+    "rmse_axis_rad": {
+     "roll": 0.6316076517105103,
+     "pitch": 0.2628310024738312,
+     "yaw": 0.8109740018844604
+    },
+    "within_0.2rad_axis": {
+     "roll": 0.838,
+     "pitch": 0.828,
+     "yaw": 0.5875
+    }
    }
   },
-  "fit_s": 38.2,
+  "fit_s": 59.5,
   "params": 24841
  }
 }
