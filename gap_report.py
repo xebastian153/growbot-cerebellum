@@ -87,18 +87,26 @@ def main():
     Xtr, Ytr, *_ = make_windows(tr["obs"], tr["act"], tr["next_obs"], tr["done"], K)
     model = MLP(hidden=128, epochs=args.epochs).fit(Xtr, Ytr)
     twin = evaluate_axes(model, te["obs"], te["act"], te["done"], te["mode"].astype(str), args.horizons)
-    real = evaluate_axes(model, O, A, D, mode, args.horizons)
 
     corrected = None
     if args.servo_id:
+        # Identification and attribution must not share ticks: the servo is fitted on
+        # the first half, and EVERY log column (real, gap, gap*) is evaluated on the
+        # held-out second half, so gap* cannot credit itself for what it fitted.
         half = len(O) // 2
         grid = list(itertools.product([0, 1, 2, 3], [3.0, 4.0, 5.0, 6.0, 8.0, None],
                                       [0.0, np.deg2rad(2)]))
         _, best = identify(model, O[:half], A[:half], O2[:half], D[:half], grid)
         print(f"identified servo: delay {best['delay_ticks']} ticks, slew {best['slew_rad_s']} rad/s "
               f"(grid points; run servo_id.py for determined-set diagnostics)")
-        R = realized_from_commands(A, D, best)
-        corrected = evaluate_axes(model, O, R, D, mode, args.horizons)
+        R = realized_from_commands(A, D, best)          # replayed over the full log: servo state is continuous
+        held = slice(half, None)
+        print(f"evaluation restricted to the held-out half ({len(O) - half:,} ticks); "
+              f"identification used the first half")
+        real = evaluate_axes(model, O[held], A[held], D[held], mode[held], args.horizons)
+        corrected = evaluate_axes(model, O[held], R[held], D[held], mode[held], args.horizons)
+    else:
+        real = evaluate_axes(model, O, A, D, mode, args.horizons)
 
     hs = args.horizons
     cols = "".join(f"{'real':>8}{'twin':>7}{'gap':>7}" + (f"{'gap*':>7}" if corrected else "") for _ in hs)
