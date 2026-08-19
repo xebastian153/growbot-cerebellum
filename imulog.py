@@ -143,7 +143,10 @@ def fixture(path, seconds=600, servo_ms=None, seed=0, imu_hz=60.0, cmd_hz=30.0, 
     phys_dt = sim.m.opt.timestep                      # 0.005 s
     rows, t = [], 0.0
     next_imu = 0.0; next_cmd = 0.0; cur_cmd = np.zeros(2, np.float32)
-    header = {"imu_units": "rad", "pose_units": "deg", "trims_in_values": True, "gain": 1.0,
+    # Non-trivial trims, declared and applied at emission, so the full parse()
+    # round-trip exercises the inversion path -- not only _commands_to_rad in isolation.
+    trims = dict(l_sign=-1.0, r_sign=1.0, l_off=3.0, r_off=-2.0, gain=1.2)
+    header = {"imu_units": "rad", "pose_units": "deg", "trims_in_values": True, **trims,
               "gait": "mixed", "surface": "twin",
               "build": "fixture", "note": "synthetic session for parser validation"}
     rows.append({"header": header})
@@ -152,8 +155,10 @@ def fixture(path, seconds=600, servo_ms=None, seed=0, imu_hz=60.0, cmd_hz=30.0, 
     for i in range(n_steps):
         if t >= next_cmd:
             a = exc(obs, prev); prev = cur_cmd = a
+            l_sent = 90 + trims["l_off"] + trims["l_sign"] * np.rad2deg(float(a[0])) * trims["gain"]
+            r_sent = 90 + trims["r_off"] + trims["r_sign"] * np.rad2deg(float(a[1])) * trims["gain"]
             rows.append({"t": round(t * 1000 + rng.normal(0, jitter_ms), 2), "s": "cmd",
-                         "l": round(90 + np.rad2deg(float(a[0])), 2), "r": round(90 + np.rad2deg(float(a[1])), 2)})
+                         "l": round(l_sent, 2), "r": round(r_sent, 2)})
             next_cmd += 1.0 / cmd_hz * (1 + rng.normal(0, 0.03))
         aa = cur_cmd
         if sim.servo is not None: aa = sim.servo(np.clip(cur_cmd, -1.57, 1.57), phys_dt)
