@@ -30,13 +30,29 @@ def realized_from_commands(A, D, kw):
 
 
 def identify(model, O, A, O2, D, grid):
-    """Return (sorted [(err, kw)], best kw) by one-step forward error."""
+    """Return (sorted [(err, kw)], best kw) by one-step forward error.
+
+    Two guards for real logs: (1) windows within max-grid-delay ticks after an
+    episode cut are excluded, because the replayed servo's state there is its
+    reset value, not something identified -- with many Bluetooth micro-gaps that
+    transient would otherwise enter the score as valid data; (2) the residual is
+    normalised per output component, so the gyro's large irreducible contact
+    variance (a floor common to every hypothesis) does not dilute the angle
+    components where the servo signature actually lives.
+    """
+    max_delay = max(d for d, _, _ in grid)
+    D_ext = D.copy()
+    for j in range(1, max_delay + 1):
+        D_ext[j:] |= D[:-j]
+    _, Y0, *_ = make_windows(O, A, O2, D_ext, K)   # Y is hypothesis-independent
+    ystd = Y0.std(0) + 1e-8
     scores = []
     for d, s, db in grid:
         kw = dict(delay_ticks=d, slew_rad_s=s, deadband=db)
-        Rc = realized_from_commands(A, D, kw)
-        X, Y, *_ = make_windows(O, Rc, O2, D, K)
-        scores.append((float(((model.predict(X) - Y) ** 2).mean()), kw))
+        Rc = realized_from_commands(A, D, kw)       # reset on the true cuts
+        X, Y, *_ = make_windows(O, Rc, O2, D_ext, K)
+        e = (model.predict(X) - Y) / ystd
+        scores.append((float((e ** 2).mean()), kw))
     scores.sort(key=lambda x: x[0])
     return scores, scores[0][1]
 
@@ -56,8 +72,8 @@ def main():
     nominal = MLP(hidden=128, epochs=args.epochs).fit(Xtr, Ytr)
 
     TRUE = dict(delay_ticks=args.true_delay, slew_rad_s=args.true_slew, deadband=np.deg2rad(args.true_deadband_deg))
-    O, A, O2, D, _ = collect(args.log_steps, seed=args.seed, body="walk", servo=ServoModel(**TRUE))
-    R_true = collect.last_realized
+    O, A, O2, D, _, R_true = collect(args.log_steps, seed=args.seed, body="walk",
+                                     servo=ServoModel(**TRUE), return_realized=True)
     half = args.log_steps // 2
     fit, held = slice(0, half), slice(half, None)
 
@@ -75,9 +91,32 @@ def main():
     print(f"ideal-servo hypothesis err {ideal_err:.4f}   true: delay {TRUE['delay_ticks']}, slew {TRUE['slew_rad_s']}, "
           f"deadband {args.true_deadband_deg:.0f} deg")
 
+    # diagnostics for the day the real servo leaves the model family ------------
+    halfA, halfB = slice(0, half // 2), slice(half // 2, half)
+    _, bestA = identify(nominal, O[halfA], A[halfA], O2[halfA], D[halfA], grid)
+    _, bestB = identify(nominal, O[halfB], A[halfB], O2[halfB], D[halfB], grid)
+    agree = bestA["delay_ticks"] == bestB["delay_ticks"] and bestA["slew_rad_s"] == bestB["slew_rad_s"]
+    print(f"split-half stability: A=(delay {bestA['delay_ticks']}, slew {bestA['slew_rad_s']})  "
+          f"B=(delay {bestB['delay_ticks']}, slew {bestB['slew_rad_s']})  "
+          f"{'AGREE' if agree else 'DISAGREE -- log too short or servo outside the model family'}")
+    held_scores, _ = identify(nominal, O[held], A[held], O2[held], D[held],
+                              [(best["delay_ticks"], best["slew_rad_s"], best["deadband"]),
+                               (0, None, 0.0)])
+    by_kw = {(kw["delay_ticks"], kw["slew_rad_s"]): e for e, kw in held_scores}
+    print(f"held-out one-step err: best {by_kw[(best['delay_ticks'], best['slew_rad_s'])]:.4f}  "
+          f"ideal {by_kw[(0, None)]:.4f}  (fit: best {scores[0][0]:.4f}  ideal {ideal_err:.4f}; "
+          f"divergence between fit and held-out = fitting noise)")
+    slew_family = sorted((e, kw["slew_rad_s"]) for e, kw in scores
+                         if kw["delay_ticks"] == best["delay_ticks"] and kw["deadband"] == best["deadband"])
+    print("slew separability at the identified delay: "
+          + "  ".join(f"{sl}:{e:.4f}" for e, sl in slew_family)
+          + "   (near-ties here mean the excitation never hit the slew limit)")
+
     R_est = realized_from_commands(A, D, best)
     out = {"true": {**TRUE, "deadband": float(TRUE["deadband"])}, "identified": {**best, "deadband": float(best["deadband"])},
-           "ideal_err": ideal_err, "best_err": scores[0][0], "held_out": {}}
+           "ideal_err": ideal_err, "best_err": scores[0][0],
+           "split_half_agree": agree, "held_out_err": {"best": by_kw[(best["delay_ticks"], best["slew_rad_s"])], "ideal": by_kw[(0, None)]},
+           "held_out": {}}
     print("\nheld-out half, within 0.2 rad:")
     for h in (5, 25):
         c = horizon_within(nominal, O[held], A[held], D[held], h=h)[0]

@@ -77,7 +77,12 @@ class ServoModel:
     the horn cannot turn faster than a slew limit, and small errors inside a
     deadband are ignored. None of that is in the twin the forward model learned.
 
-      delay_ticks  command latency in 20 ms ticks
+      delay_ticks  command latency in CALLS -- the caller's rate sets the unit.
+                   GrowBotSim.step calls once per 50 Hz tick (1 call = 20 ms);
+                   imulog.fixture calls at physics rate (1 call = 5 ms) and
+                   converts from milliseconds for exactly that reason. This
+                   ambiguity has produced one real bug already; when in doubt,
+                   express the delay in ms and divide by the caller's dt.
       slew_rad_s   maximum horn speed (MG90S ~ 0.1 s / 60 deg no load = 10.5 rad/s;
                    under load 3-6 rad/s)
       deadband     radians of error the servo ignores
@@ -239,9 +244,12 @@ class Excitation:
         return np.clip(a, -1.57, 1.57).astype(np.float32)
 
 
-def collect(n_steps, seed=0, push_prob=0.01, episode_s=8.0, log_every=0, body="walk", dr=None, servo=None):
+def collect(n_steps, seed=0, push_prob=0.01, episode_s=8.0, log_every=0, body="walk", dr=None, servo=None,
+            return_realized=False):
     """(obs_t, act_t, obs_t+1, done_t) at 50 Hz. done marks the last step of an episode.
-    act_t is the COMMANDED angle; with a ServoModel the horn lags it."""
+    act_t is the COMMANDED angle; with a ServoModel the horn lags it.
+    return_realized=True appends the realized horn angle to the tuple (preferred over
+    the legacy collect.last_realized attribute, which later calls overwrite)."""
     sim = GrowBotSim(seed, body=body, dr=dr, servo=servo)
     exc = Excitation(sim.rng)
     O = np.zeros((n_steps, OBS_DIM), np.float32)
@@ -275,7 +283,9 @@ def collect(n_steps, seed=0, push_prob=0.01, episode_s=8.0, log_every=0, body="w
             o, prev = o2, a
         if log_every and (i + 1) % log_every == 0:
             print(f"  {i + 1}/{n_steps}", flush=True)
-    collect.last_realized = R
+    collect.last_realized = R          # legacy side channel; prefer return_realized=True
+    if return_realized:
+        return O, A, O2, D, np.array(modes), R
     return O, A, O2, D, np.array(modes)
 
 
