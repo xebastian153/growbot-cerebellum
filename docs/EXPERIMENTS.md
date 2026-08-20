@@ -89,6 +89,50 @@ log of a few minutes is enough data to run this.
 `sensor_id.py` asks the symmetric question about the observation side (fusion-filter lag,
 gyro noise character, clock jitter), validated by the same hidden-secret round-trip in `imulog.py`.
 
+## Model mismatch — wrong-family identification recovers ~90 % of the gap; split-half catches drift, not shape
+
+`servo_id.py` searches a (delay, slew, deadband) family. A real servo under load is not in
+that family, so `model_mismatch.py` hides two out-of-family servos in the twin and runs the
+identical identification against them: a **load-dependent slew** (8 / (1 + 2·|err|) rad/s —
+the effective limit spans ~2.7–8 across the operating range, so no single grid point
+reproduces it) and a **voltage sag** (slew drifting 6 → 3 rad/s over the session, the age
+counter surviving episode resets). The in-family servo (delay 2, slew 5) runs through the
+same pipeline as control. One seed (777), 600 s logs, identification on the first half,
+every number below from the second half only; within 0.2 rad, n = 1500 starts per cell.
+
+| held-out, within 0.2 rad | horizon | commanded | identified | + linear residual | true horn (floor) |
+|---|---|---|---|---|---|
+| in-family control | 100 ms | 94.8 | 95.5 | 95.5 | 95.5 |
+|  | 500 ms | 80.4 | 84.0 | 83.7 | 84.0 |
+| load-dependent slew | 100 ms | 94.1 | 95.8 | 95.8 | 95.7 |
+|  | 500 ms | 75.9 | 82.5 | 82.4 | 83.3 |
+| voltage sag | 100 ms | 93.8 | 95.3 | 95.0 | 95.4 |
+|  | 500 ms | 74.9 | 81.6 | 81.5 | 82.0 |
+
+Three findings:
+
+- **Graceful degradation.** The wrong-family point approximation (load-dependent identifies
+  as slew 4.0, sag as 5.0, both with the true delay 2) recovers 90 % and 94 % of the closable
+  commanded → true-horn gap at 500 ms. Being outside the family cost 0.8 and 0.4 points
+  against the oracle floor — the grid's nearest point is a good servo model even when no grid
+  point is the servo.
+- **The honesty diagnostics split by time, so they catch drift, not shape.** Voltage sag
+  fires split-half DISAGREE (A: slew 6, B: slew 5) — non-stationarity is caught, exactly the
+  battery signature a real fresh-vs-low session would show. Load-dependent slew passes AGREE
+  on the same wrong point in both halves: a time-stationary mismatch presents identical
+  statistics to both halves, so a time-split diagnostic cannot see it, and nothing else in
+  the report flags it. The saving grace is the previous finding: the undetected wrong answer
+  was also the nearly harmless one.
+- **Residual on top of identification — negative.** A linear residual (ridge least squares
+  from the model's input window to its one-step error, fit on the identification half only)
+  moves the held-out numbers by −0.1 to −0.3 points everywhere. After identification at most
+  0.8 points remained to close, and the residual closed none of them. At these mismatch
+  magnitudes the fallback is unnecessary; whether it earns its place under larger mismatch
+  is untested.
+
+Sim-only, single seed, and both mismatch shapes are guesses at what a loaded MG90S does —
+a real log decides whether they were the right guesses.
+
 ## Multi-step training loss — small, real gain
 
 Same 128×2 net, trained through an H-tick unroll with loss on every step (SPR-style),

@@ -1,0 +1,36 @@
+training nominal forward model...
+
+=== in-family control (delay 2, slew 5, db 2 deg) ===
+96 hypotheses on 300 s: 6s   best 3:
+  err 0.4872  delay 2  slew 5.0  deadband 2 deg
+  err 0.4874  delay 2  slew 5.0  deadband 1 deg
+  err 0.4875  delay 2  slew 5.0  deadband 4 deg
+split-half stability: A=(delay 2, slew 5.0)  B=(delay 2, slew 5.0)  AGREE
+delay set [1, 2, 3]  slew set [4.0, 5.0, 6.0]  (band ±0.0076)
+one-step err: fit 0.4872  held-out 0.4629
+  100 ms within 0.2 rad:  commanded  94.8%   identified  95.5%   +residual  95.5%   true horn  95.5%
+  500 ms within 0.2 rad:  commanded  80.4%   identified  84.0%   +residual  83.7%   true horn  84.0%
+
+=== load-dependent slew (delay 2, slew0 8 / (1 + 2|err|), db 2 deg) ===
+96 hypotheses on 300 s: 6s   best 3:
+  err 0.4799  delay 2  slew 4.0  deadband 1 deg
+  err 0.4799  delay 2  slew 4.0  deadband 2 deg
+  err 0.4800  delay 2  slew 4.0  deadband 0 deg
+split-half stability: A=(delay 2, slew 4.0)  B=(delay 2, slew 4.0)  AGREE
+delay set [1, 2, 3]  slew set [4.0, 5.0]  (band ±0.0042)
+one-step err: fit 0.4799  held-out 0.4652
+  100 ms within 0.2 rad:  commanded  94.1%   identified  95.8%   +residual  95.8%   true horn  95.7%
+  500 ms within 0.2 rad:  commanded  75.9%   identified  82.5%   +residual  82.4%   true horn  83.3%
+
+=== voltage sag (delay 2, slew 6 -> 3 over the session, db 2 deg) ===
+96 hypotheses on 300 s: 6s   best 3:
+  err 0.4680  delay 2  slew 5.0  deadband 2 deg
+  err 0.4681  delay 2  slew 5.0  deadband 1 deg
+  err 0.4682  delay 2  slew 5.0  deadband 0 deg
+split-half stability: A=(delay 2, slew 6.0)  B=(delay 2, slew 5.0)  DISAGREE -- log too short or servo outside the model family
+delay set [1, 2, 3]  slew set [4.0, 5.0, 6.0]  (band ±0.0063)
+one-step err: fit 0.4680  held-out 0.4794
+  100 ms within 0.2 rad:  commanded  93.8%   identified  95.3%   +residual  95.0%   true horn  95.4%
+  500 ms within 0.2 rad:  commanded  74.9%   identified  81.6%   +residual  81.5%   true horn  82.0%
+
+saved results/model_mismatch.json

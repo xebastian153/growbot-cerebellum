@@ -1,0 +1,161 @@
+{
+ "config": {
+  "seed": 777,
+  "log_steps": 30000,
+  "epochs": 60,
+  "grid": "delay {0..3} ticks x slew {3,4,5,6,8,none} rad/s x deadband {0,1,2,4} deg",
+  "n_starts": 1500,
+  "horizons_ms": [
+   100,
+   500
+  ]
+ },
+ "variants": {
+  "in-family control (delay 2, slew 5, db 2 deg)": {
+   "identified": {
+    "delay_ticks": 2,
+    "slew_rad_s": 5.0,
+    "deadband": 0.03490658503988659
+   },
+   "split_half": {
+    "A": {
+     "delay": 2,
+     "slew": 5.0
+    },
+    "B": {
+     "delay": 2,
+     "slew": 5.0
+    },
+    "agree": true
+   },
+   "confidence_band": 0.007584955034875575,
+   "delay_determined_set": [
+    1,
+    2,
+    3
+   ],
+   "slew_determined_set": [
+    4.0,
+    5.0,
+    6.0
+   ],
+   "one_step_err": {
+    "fit": 0.4871583878993988,
+    "held_out": 0.46289387345314026
+   },
+   "mean_abs_horn_err_rad": 0.0,
+   "residual": "linear",
+   "held_out": {
+    "100ms": {
+     "commanded": 0.948,
+     "identified": 0.9553333333333334,
+     "identified_plus_residual": 0.9546666666666667,
+     "true_horn": 0.9553333333333334
+    },
+    "500ms": {
+     "commanded": 0.804,
+     "identified": 0.84,
+     "identified_plus_residual": 0.8373333333333334,
+     "true_horn": 0.84
+    }
+   }
+  },
+  "load-dependent slew (delay 2, slew0 8 / (1 + 2|err|), db 2 deg)": {
+   "identified": {
+    "delay_ticks": 2,
+    "slew_rad_s": 4.0,
+    "deadband": 0.017453292519943295
+   },
+   "split_half": {
+    "A": {
+     "delay": 2,
+     "slew": 4.0
+    },
+    "B": {
+     "delay": 2,
+     "slew": 4.0
+    },
+    "agree": true
+   },
+   "confidence_band": 0.004228366400516724,
+   "delay_determined_set": [
+    1,
+    2,
+    3
+   ],
+   "slew_determined_set": [
+    4.0,
+    5.0
+   ],
+   "one_step_err": {
+    "fit": 0.4798888564109802,
+    "held_out": 0.46523913741111755
+   },
+   "mean_abs_horn_err_rad": 0.04444892704486847,
+   "residual": "linear",
+   "held_out": {
+    "100ms": {
+     "commanded": 0.9406666666666667,
+     "identified": 0.958,
+     "identified_plus_residual": 0.958,
+     "true_horn": 0.9573333333333334
+    },
+    "500ms": {
+     "commanded": 0.7586666666666667,
+     "identified": 0.8253333333333334,
+     "identified_plus_residual": 0.824,
+     "true_horn": 0.8326666666666667
+    }
+   }
+  },
+  "voltage sag (delay 2, slew 6 -> 3 over the session, db 2 deg)": {
+   "identified": {
+    "delay_ticks": 2,
+    "slew_rad_s": 5.0,
+    "deadband": 0.03490658503988659
+   },
+   "split_half": {
+    "A": {
+     "delay": 2,
+     "slew": 6.0
+    },
+    "B": {
+     "delay": 2,
+     "slew": 5.0
+    },
+    "agree": false
+   },
+   "confidence_band": 0.006324298353965204,
+   "delay_determined_set": [
+    1,
+    2,
+    3
+   ],
+   "slew_determined_set": [
+    4.0,
+    5.0,
+    6.0
+   ],
+   "one_step_err": {
+    "fit": 0.4680405557155609,
+    "held_out": 0.4794347286224365
+   },
+   "mean_abs_horn_err_rad": 0.048468973487615585,
+   "residual": "linear",
+   "held_out": {
+    "100ms": {
+     "commanded": 0.938,
+     "identified": 0.9533333333333334,
+     "identified_plus_residual": 0.95,
+     "true_horn": 0.954
+    },
+    "500ms": {
+     "commanded": 0.7493333333333333,
+     "identified": 0.816,
+     "identified_plus_residual": 0.8146666666666667,
+     "true_horn": 0.82
+    }
+   }
+  }
+ }
+}

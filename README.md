@@ -32,6 +32,7 @@ Sim-only until a real IMU log exists.
 | `pets.py`, `pets_fall.py` | probabilistic ensemble + particle planner: calibration by regime, mimic, fall recovery |
 | `fall_recovery.py` | planner vs hold-still vs scripted wiggle from real fallen states, by severity |
 | `actuator_proxy.py`, `servo_id.py` | actuator-dynamics proxy (latency / slew / deadband) and servo identification from IMU + commands through the frozen model |
+| `model_mismatch.py` | identification stress test: out-of-family servos (load-dependent slew, voltage sag) vs the grid, plus a residual fallback |
 | `sensor_id.py` | the sensor side of the same question: fused-orientation lag behind the raw gyro, still-segment Allan deviation (measured gyro noise for the twin), clock-jitter stats per stream |
 | `metadata_experiment.py` | does conditioning on excitation mode / body help? (π0.7 analogue) |
 | `timesfm_baseline.py` | Google TimesFM 2.5 zero-shot as an action-blind baseline |
@@ -97,6 +98,7 @@ Full write-ups with conditions and per-regime splits: [docs/EXPERIMENTS.md](docs
 | Metadata conditioning | **negative** — a forward model has no quality axis for a tag to separate; one model serves two bodies regardless |
 | TimesFM 2.5 baseline | a 200M-param action-blind forecaster ties persistence; the information is in the action |
 | `?imulog=1` parser | round-trip validated: a hidden servo survives 60/30 Hz jittered sampling into the 50 Hz arrays, determined to one grid step — the injected 40 ms delay is inside the determined set on all 5 seeds tested and the set never leaves ±20 ms; slew resolves to within one grid step of the injected 5 rad/s (the set contains it on 4 of 5). The argmin alone is a coin flip here and is no longer the acceptance rule |
+| Model mismatch | out-of-family servos (load-dependent slew, voltage sag) identify to their nearest grid point and still recover 90–94 % of the closable held-out gap at 500 ms; split-half DISAGREE fires on drift but is blind to stationary mismatch; a linear residual on top adds nothing (**negative**) — seed 777, sim-only |
 | Sensor characterisation | round-trip validated: a hidden 60 ms fusion-filter lag recovered on 3 of 3 body-rate axes (+61.5 / +61.6 / +62.1 ms, peak corr 0.89–0.92; 60.4–63.5 ms across 5 seeds), gyro noise density within 8%, an injected timing stall flagged, and a bias instability refused on a gyro that has none — all from the file alone |
 
 ## What holds, what doesn't
