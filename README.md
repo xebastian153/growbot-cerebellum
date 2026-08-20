@@ -38,6 +38,7 @@ Sim-only until a real IMU log exists.
 | `metadata_experiment.py` | does conditioning on excitation mode / body help? (π0.7 analogue) |
 | `timesfm_baseline.py` | Google TimesFM 2.5 zero-shot as an action-blind baseline |
 | `gap_report.py` | the day-of-log command: gap per regime and axis as real − twin floor, optional after-identified-servo column |
+| `real_log_report.py` | the full day-of-log run on the maintainer's real walk files: adapter evidence, per-file/tip-window gap, extended-grid servo identification, sensor-side numbers (needs the untracked walk logs) |
 | `real2sim.py` | the loop closed: identified servo → twin's `ServoModel` → retrain → score on the real logs, at three points of the identification uncertainty band plus a nominal control (needs the untracked walk logs) |
 | `coverage.py` | 2×2 factorial: {nominal, identified servo} × {standard, +sit↔stand transition data} scored on the real logs — does the pitch gap come from missing motions? (needs the untracked walk logs) |
 | `imulog.py` | parser for GrowBot `?imulog=1` sessions (two native-rate streams → 50 Hz arrays, regimes from event rows) + preflight (`imulog.py <file>`: units, rates, clock, still-segment physics — validated against deliberately corrupted fixtures) + round-trip test that recovers a hidden servo through 60/30 Hz jittered sampling |
