@@ -1,0 +1,104 @@
+{
+ "files": [
+  "imu-walk-1-2026-08-20T17-50-14-713Z.json",
+  "imu-walk-3-2026-08-20T17-38-19-478Z.json"
+ ],
+ "conditions": {
+  "n_files": 2,
+  "seam_ms": 1000.0,
+  "gap_ms": 100.0,
+  "max_lag_ms": 500.0,
+  "min_corr": 0.5,
+  "min_still_s": 60.0,
+  "gimbal_pitch_rad": 1.2,
+  "still_gyro_rms_max": 0.15,
+  "still_ang_std_max": 0.05,
+  "imu_rows": 1279,
+  "session_span_s": 22.465001953125
+ },
+ "dt": {
+  "imu": {
+   "median_ms": 16.69921875,
+   "p95_ms": 18.400390625,
+   "p99_ms": 20.5,
+   "max_ms": 71.19921875,
+   "frac_dev20": 0.02975724353954581,
+   "jitter_warn": false
+  },
+  "cmd": {
+   "median_ms": 40.3984375,
+   "p95_ms": 84.2849609374997,
+   "p99_ms": 101.7647265625,
+   "max_ms": 134.5,
+   "frac_dev20": 0.05737704918032787,
+   "jitter_warn": true
+  }
+ },
+ "filter_lag": {
+  "axes": [
+   {
+    "axis": "wx",
+    "lag_ms": 13.267094348707925,
+    "corr": 0.8685739012321387,
+    "determined": true,
+    "boundary": false,
+    "reason": ""
+   },
+   {
+    "axis": "wy",
+    "lag_ms": 14.5476221529419,
+    "corr": 0.9488377562725671,
+    "determined": true,
+    "boundary": false,
+    "reason": ""
+   },
+   {
+    "axis": "wz",
+    "lag_ms": 13.468200394415998,
+    "corr": 0.965532964796507,
+    "determined": true,
+    "boundary": false,
+    "reason": ""
+   }
+  ],
+  "grid_dt_ms": 16.69921875,
+  "max_lag_ms": 500.0,
+  "min_corr": 0.5,
+  "gap_ms": 100.0,
+  "gimbal_pitch_rad": 1.2,
+  "segments_used": 2,
+  "segments_dropped": 0,
+  "excluded_ms": 1000.0,
+  "warmup_excluded_ms": 1035.3515625,
+  "grid_samples": 1286,
+  "usable_samples": 1224,
+  "usable_frac": 0.9517884914463453,
+  "gimbal_kept_frac": 1.0,
+  "split_half": [
+   {
+    "axis": "wx",
+    "half_a": 13.523922998260183,
+    "half_b": 13.311629611095805,
+    "band_ms": 0.10614669358218887,
+    "verdict": "AGREE"
+   },
+   {
+    "axis": "wy",
+    "half_a": 13.897760856357952,
+    "half_b": 15.615206065859232,
+    "band_ms": 0.85872260475064,
+    "verdict": "AGREE"
+   },
+   {
+    "axis": "wz",
+    "half_a": 12.338270948539959,
+    "half_b": 15.45473159622944,
+    "band_ms": 1.5582303238447404,
+    "verdict": "AGREE"
+   }
+  ]
+ },
+ "filter_lag_per_regime": {},
+ "still_segment": null,
+ "allan": null
+}

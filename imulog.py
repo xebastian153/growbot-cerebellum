@@ -46,9 +46,150 @@ CTRL_HZ = 50
 GAP_MS = 100.0          # IMU dt above this is a dropout: parse() cuts the episode there,
                         # and sensor_id refuses to interpolate across it
 
+# ----------------------------------------------------------------------------
+# growbot-imulog-1: the upstream app's own per-walk format (one JSON object with
+# header + imu[] + pose[] arrays), converted here to the internal representation.
+#
+# Mount rotation, device frame -> twin body frame. Columns are the twin axes in
+# device coordinates: twin x = +device y (long axis of the phone), twin y =
+# -device x, twin z = +device z (out of the screen). Established from the real
+# logs, not from a datasheet:
+#   - gravity: composing R = Rz(alpha) Rx(beta) Ry(gamma) (the W3C deviceorientation
+#     intrinsic ZX'Y'' order) maps the logged accelerometer to earth mean
+#     [-0.2, 0.4, 9.9] m/s^2 -- the composition is right;
+#   - stance: under this mount the walking stance reads pitch -0.74 +- 0.16 rad,
+#     roll -0.06 -- the twin walks at pitch -0.52 +- 0.27 and its geometry rests
+#     the -x phone edge at -0.81 rad; the opposite x sign reads +0.74 and is out;
+#   - action response: corr(mean leg command, pitch) and corr(right-left
+#     differential, roll) match the twin's signs on both files under this mount
+#     and the upstream l/r assignment; swapping l and r flips the roll signature
+#     into disagreement.
+GROWBOT_V1_MOUNT = np.array([[0.0, -1.0, 0.0],
+                             [1.0,  0.0, 0.0],
+                             [0.0,  0.0, 1.0]])
+GROWBOT_V1_UNITS = {"accel": "m/s^2", "rate": "deg/s", "t": "ms"}
+
+
+def _rz(a):
+    c, s = np.cos(a), np.sin(a)
+    z = np.zeros_like(a); o = np.ones_like(a)
+    return np.stack([np.stack([c, -s, z], -1), np.stack([s, c, z], -1),
+                     np.stack([z, z, o], -1)], -2)
+
+
+def _rx(a):
+    c, s = np.cos(a), np.sin(a)
+    z = np.zeros_like(a); o = np.ones_like(a)
+    return np.stack([np.stack([o, z, z], -1), np.stack([z, c, -s], -1),
+                     np.stack([z, s, c], -1)], -2)
+
+
+def _ry(a):
+    c, s = np.cos(a), np.sin(a)
+    z = np.zeros_like(a); o = np.ones_like(a)
+    return np.stack([np.stack([c, z, s], -1), np.stack([z, o, z], -1),
+                     np.stack([-s, z, c], -1)], -2)
+
+
+def _deviceorientation_to_R(alpha_rad, beta_rad, gamma_rad):
+    """W3C deviceorientation intrinsic Z-X'-Y'': R(device->earth) = Rz(a) Rx(b) Ry(g)."""
+    return _rz(alpha_rad) @ _rx(beta_rad) @ _ry(gamma_rad)
+
+
+def _R_to_deviceorientation(R):
+    """Inverse of _deviceorientation_to_R (any branch recomposes to the same R)."""
+    beta = np.arcsin(np.clip(R[..., 2, 1], -1.0, 1.0))
+    gamma = np.arctan2(-R[..., 2, 0], R[..., 2, 2])
+    alpha = np.arctan2(-R[..., 0, 1], R[..., 1, 1])
+    return alpha, beta, gamma
+
+
+def _R_to_zyx_rpy(R):
+    """Rotation matrix -> (roll, pitch, yaw), same ZYX convention as the twin's quat_to_rpy."""
+    roll = np.arctan2(R[..., 2, 1], R[..., 2, 2])
+    pitch = -np.arcsin(np.clip(R[..., 2, 0], -1.0, 1.0))
+    yaw = np.arctan2(R[..., 1, 0], R[..., 0, 0])
+    return np.stack([roll, pitch, yaw], -1)
+
+
+def _convert_growbot_v1(obj):
+    """One growbot-imulog-1 object -> (header, imu_t, imu_v, cmd_t, cmd_v, events).
+
+    Everything leaves in the twin's dialect: orientation as ZYX roll/pitch/yaw in
+    radians, gyro as body rates in rad/s, commands as horn radians in the twin's
+    action order [a0 = right leg, a1 = left leg].
+
+    The pieces, each with the reason it is what it is:
+      rate fields    logged as rate_alpha/beta/gamma but EMPIRICALLY they are the
+                     body rates about device x/y/z in that order -- correlating
+                     vee(R^T dR/dt) from the orientation stream against the three
+                     logged rates on a real walk assigns them diagonally at
+                     0.70-0.89 with off-diagonals below 0.20. The W3C names
+                     (alpha about z) do not describe this app's output; the data
+                     does.
+      commands       the upstream servo map (sim/growbot_policy.js) is
+                     l = 90 + L_OFF + L_SIGN*deg(a_left)*gain + turn and
+                     r = 90 + R_OFF + R_SIGN*deg(a_right)*gain - turn, with
+                     a_right = action[0] (joint_1) and a_left = action[1]
+                     (joint_2). Inverted exactly, per side, turn folded per side.
+                     header.gain (the agent's walk gain, sometimes null) scales
+                     the ACTION before this map and is therefore already inside
+                     the logged values; only cal.gain takes part in the
+                     inversion. The two must never be confused: the internal
+                     'gain' key is cal.gain, the agent's is kept as 'gain_agent'.
+      send_ok        a row with send_ok = 0 is a command that never reached the
+                     body, so the previous command stayed in force: the row is
+                     dropped from the stream (zero-order hold then does the right
+                     thing) and counted in the header.
+    """
+    h = dict(obj.get("header", {}))
+    for k, want in GROWBOT_V1_UNITS.items():
+        got = str(h.get("units", {}).get(k, ""))
+        if not got.startswith(want):
+            raise ValueError(f"growbot-imulog-1 units[{k!r}] = {got!r}, expected {want!r}: "
+                             f"refusing to guess a conversion")
+    want_imu = ["seq", "t_ms", "ax", "ay", "az", "rate_alpha", "rate_beta", "rate_gamma",
+                "ori_alpha", "ori_beta", "ori_gamma"]
+    want_pose = ["seq", "t_ms", "l", "r", "send_ok"]
+    if h.get("imu_fields") != want_imu or h.get("pose_fields") != want_pose:
+        raise ValueError(f"growbot-imulog-1 field order changed: imu {h.get('imu_fields')}, "
+                         f"pose {h.get('pose_fields')} -- the converter indexes by position")
+    imu = np.asarray(obj["imu"], np.float64)
+    pose = np.asarray(obj["pose"], np.float64)
+    if imu.ndim != 2 or imu.shape[1] != len(want_imu) or pose.ndim != 2 or pose.shape[1] != len(want_pose):
+        raise ValueError(f"growbot-imulog-1 row shapes {imu.shape}/{pose.shape} do not match the declared fields")
+
+    M = GROWBOT_V1_MOUNT
+    ori = np.deg2rad(imu[:, 8:11])
+    R = _deviceorientation_to_R(ori[:, 0], ori[:, 1], ori[:, 2]) @ M
+    rpy = _R_to_zyx_rpy(R)
+    gyro = np.deg2rad(imu[:, 5:8]) @ M              # M^T w_device, rates about device x/y/z
+    imu_t = imu[:, 1].astype(np.float64)
+    imu_v = np.concatenate([rpy, gyro], 1).astype(np.float32)
+
+    cal = dict(h.get("cal", {}))
+    ls, rs = float(cal.get("L_SIGN", 1)), float(cal.get("R_SIGN", 1))
+    lo, ro = float(cal.get("L_OFF", 0)), float(cal.get("R_OFF", 0))
+    g, turn = float(cal.get("gain", 1.0)), float(cal.get("turn", 0.0))
+    ok = pose[:, 4] != 0
+    a_right = np.deg2rad((pose[ok, 3] - 90 - ro + turn) / (rs * g))
+    a_left = np.deg2rad((pose[ok, 2] - 90 - lo - turn) / (ls * g))
+    cmd_t = pose[ok, 1].astype(np.float64)
+    cmd_v = np.stack([a_right, a_left], 1).astype(np.float32)
+
+    header = {"format": h.get("format"), "imu_units": "rad", "pose_units": "rad",
+              "trims_in_values": True,
+              "l_sign": ls, "r_sign": rs, "l_off": lo, "r_off": ro, "gain": g, "turn": turn,
+              "gait": h.get("gait", "unknown"), "gain_agent": h.get("gain"),
+              "walk": h.get("walk"), "end_why": h.get("end_why"),
+              "body_id": h.get("body_id"), "app": h.get("app"), "anchor": h.get("anchor"),
+              "send_ok_dropped": int((~ok).sum()), "n_pose_rows": int(len(pose)),
+              "dropped_imu": h.get("dropped_imu"), "dropped_pose": h.get("dropped_pose")}
+    return header, imu_t, list(imu_v), cmd_t, list(cmd_v), []
+
 
 def _read_rows(path):
-    """JSONL or CSV, sniffed from the first non-empty line."""
+    """growbot-imulog-1 (one JSON object), JSONL, or CSV -- sniffed from the first line."""
     header, imu_t, imu_v, cmd_t, cmd_v, events = {}, [], [], [], [], []
     with open(path) as f:
         first = ""
@@ -56,7 +197,16 @@ def _read_rows(path):
             if first.strip(): break
         rest = f
         s = first.strip()
-        if s.startswith("{"):                       # JSON-lines
+        handled = False
+        if s.startswith("{") and '"imu"' in s and '"pose"' in s:   # one-object growbot-imulog-1
+            obj = json.loads(s)
+            if str(obj.get("header", {}).get("format", "")).startswith("growbot-imulog"):
+                header, imu_t, imu_v, cmd_t, cmd_v, events = _convert_growbot_v1(obj)
+                imu_t = list(imu_t); cmd_t = list(cmd_t)
+                handled = True
+        if handled:
+            pass
+        elif s.startswith("{"):                     # JSON-lines
             for line in [first, *rest]:
                 line = line.strip()
                 if not line: continue
@@ -312,6 +462,64 @@ def _jsonl_to_csv(src, dst):
                 f.write(f"{r['t']},ev,{r['name']},,,,,,,\n")
 
 
+def _jsonl_to_growbot_v1(src, dst, cal=None, gait=None):
+    """Re-emit an internal-dialect session as growbot-imulog-1, inverting every conversion.
+
+    The equivalence standard of _jsonl_to_csv, applied to the real upstream format:
+    the same physical session written in both dialects must parse to the same arrays.
+    The emission runs the exact inverse of _convert_growbot_v1 -- twin rpy back
+    through the mount to W3C deviceorientation degrees, twin body rates back to
+    device rates, twin actions back through the upstream servo map with a cal of
+    its own (signs, offsets, gain AND a nonzero turn, so the per-side turn folding
+    is exercised) -- and the parser must undo all of it.
+    """
+    cal = cal or {"L_SIGN": -1, "R_SIGN": -1, "L_OFF": 2.0, "R_OFF": -3.0,
+                  "IMU_SIGN": [1, 1, 1], "gain": 0.99, "turn": 1.5, "SWAP": 0}
+    rows = [json.loads(l) for l in open(src) if l.strip()]
+    h = rows[0]["header"]
+    M = GROWBOT_V1_MOUNT
+    imu, pose = [], []
+    iseq = pseq = 0
+    for r in rows[1:]:
+        if r["s"] == "imu":
+            o = np.asarray(r["o"], np.float64)
+            R_t = _rz(np.float64(o[2])) @ _ry(np.float64(o[1])) @ _rx(np.float64(o[0]))
+            R_d = R_t @ M.T
+            al, be, ga = _R_to_deviceorientation(R_d)
+            w_dev = M @ o[3:]
+            acc = R_d.T @ np.array([0.0, 0.0, 9.81])
+            imu.append([iseq, r["t"], *np.round(acc, 6),
+                        *np.round(np.rad2deg(w_dev), 6),
+                        round(float(np.rad2deg(al)) % 360.0, 6),
+                        round(float(np.rad2deg(be)), 6), round(float(np.rad2deg(ga)), 6)])
+            iseq += 1
+        elif r["s"] == "cmd":
+            # internal fixture convention: column l carries action[0], r carries action[1]
+            a0 = np.deg2rad((r["l"] - 90 - h["l_off"]) / (h["l_sign"] * h["gain"]))
+            a1 = np.deg2rad((r["r"] - 90 - h["r_off"]) / (h["r_sign"] * h["gain"]))
+            l = 90 + cal["L_OFF"] + cal["L_SIGN"] * np.rad2deg(a1) * cal["gain"] + cal["turn"]
+            r_ = 90 + cal["R_OFF"] + cal["R_SIGN"] * np.rad2deg(a0) * cal["gain"] - cal["turn"]
+            pose.append([pseq, r["t"], round(float(l), 6), round(float(r_), 6), 1])
+            pseq += 1
+    out = {"header": {"format": "growbot-imulog-1", "app": "fixture",
+                      "walk": 0, "end_why": "done",
+                      "units": {"accel": "m/s^2", "rate": "deg/s",
+                                "ori": "deg (deviceorientation alpha,beta,gamma)",
+                                "pose": "servo/wheel command deg 0-180, 90 = neutral/stopped",
+                                "t": "ms, performance.now() monotonic"},
+                      "gravity_included": True,
+                      "axes": "device frame, DeviceMotionEvent convention",
+                      "imu_fields": ["seq", "t_ms", "ax", "ay", "az", "rate_alpha",
+                                     "rate_beta", "rate_gamma", "ori_alpha", "ori_beta", "ori_gamma"],
+                      "pose_fields": ["seq", "t_ms", "l", "r", "send_ok"],
+                      "gait": gait if gait is not None else h.get("gait", "unknown"),
+                      "gain": None, "cal": cal, "body_id": "fixture-2leg", "wheels": 0,
+                      "dropped_imu": 0, "dropped_pose": 0},
+           "imu": imu, "pose": pose}
+    with open(dst, "w") as f:
+        f.write(json.dumps(out))
+
+
 def preflight(path):
     """Contract checks that need no ground truth, run BEFORE any analysis.
 
@@ -382,8 +590,17 @@ def preflight(path):
         F = fail(f"pose range {pose_rng} incompatible with degrees around 90 = neutral")
     if header.get("pose_units", "deg") == "deg" and pose_rng[1] < 3.2:
         F = fail(f"pose range {pose_rng} looks like RADIANS but the header says degrees")
+    if header.get("pose_units") == "rad" and max(abs(pose_rng[0]), abs(pose_rng[1])) > 1.65:
+        F = fail(f"pose range {pose_rng} exceeds the +-1.57 rad ctrlrange -- degrees in practice, "
+                 f"or a wrong calibration inversion")
     if "trims_in_values" not in header:
         warn("header omits trims_in_values -- parser will assume as-sent; ask the emitter to state it")
+    if str(header.get("format", "")).startswith("growbot-imulog"):
+        info(f"growbot-imulog walk {header.get('walk')}, end_why={header.get('end_why')!r}, "
+             f"gait={header.get('gait')!r}, agent gain={header.get('gain_agent')}, "
+             f"cal gain={header.get('gain')}, send_ok dropped {header.get('send_ok_dropped', 0)} "
+             f"of {header.get('n_pose_rows')} pose rows, app-side drops "
+             f"imu={header.get('dropped_imu')} pose={header.get('dropped_pose')}")
     # --- physics on labelled segments ---
     def seg_mask(name):
         m = np.zeros(len(imu_t), bool); ev = sorted(events)
@@ -445,6 +662,24 @@ if __name__ == "__main__":
             and (D == Dc).all() and (mode == mc).all())
     print(f"CSV fallback: {'PASS — identical arrays from both formats' if same else 'FAIL'}")
     assert same
+    # growbot-imulog-1: the same session through the real upstream format. Twin rpy ->
+    # mount -> W3C ZX'Y'' degrees -> back, body rates -> device rates -> back, actions
+    # -> upstream servo map (signs, offsets, gain, nonzero turn) -> back. A wrong
+    # composition order, a wrong extraction branch, a swapped l/r or an unfolded turn
+    # all break the equality; the mount itself is validated against the real logs
+    # (gravity, stance, action-response signatures), not here, because M M^T = I makes
+    # any mount self-consistent in a round trip.
+    _jsonl_to_growbot_v1("/tmp/imulog_fixture.jsonl", "/tmp/imulog_fixture_v1.json")
+    Og, Ag, O2g, Dg, hg, mg = parse("/tmp/imulog_fixture_v1.json")
+    ang_err = float(np.abs(np.arctan2(np.sin(O[:, :3] - Og[:, :3]), np.cos(O[:, :3] - Og[:, :3]))).max())
+    gyro_err = float(np.abs(O[:, 3:] - Og[:, 3:]).max())
+    act_err = float(np.abs(A - Ag).max())
+    same_g = (ang_err < 1e-4 and gyro_err < 1e-4 and act_err < 1e-4 and (D == Dg).all()
+              and hg.get("send_ok_dropped") == 0)
+    print(f"growbot-imulog-1: {'PASS' if same_g else 'FAIL'} — max errs angle {ang_err:.1e} rad, "
+          f"gyro {gyro_err:.1e} rad/s, action {act_err:.1e} rad through mount + W3C angles + servo cal "
+          f"(signs, offsets, gain 0.99, turn 1.5)")
+    assert same_g, "growbot-imulog-1 dialect does not round-trip"
     # permanent detector for the cut-boundary bug family: no valid window may have a
     # target that crosses a cut, and every cut must cost at least one window
     *_, valid = make_windows(O, A, O2, D, K)

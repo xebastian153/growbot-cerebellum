@@ -1,0 +1,777 @@
+{
+ "files": [
+  "imu-walk-1-2026-08-20T17-50-14-713Z.json",
+  "imu-walk-3-2026-08-20T17-38-19-478Z.json"
+ ],
+ "conditions": {
+  "epochs": 80,
+  "K": 5,
+  "horizons_ms": [
+   100,
+   500
+  ],
+  "model": "MLP h128 seed 0 on data/train.npz",
+  "tip_window_s": 1.5
+ },
+ "mapping_evidence": [
+  {
+   "file": "imu-walk-1-2026-08-20T17-50-14-713Z.json",
+   "gravity": {
+    "earth_mean": [
+     -0.17,
+     0.35,
+     9.88
+    ],
+    "expected": [
+     0.0,
+     0.0,
+     9.81
+    ]
+   },
+   "rate_axis_assignment": {
+    "corr_matrix": [
+     [
+      0.798,
+      0.179,
+      -0.024
+     ],
+     [
+      0.141,
+      0.697,
+      -0.04
+     ],
+     [
+      0.053,
+      0.075,
+      0.886
+     ]
+    ],
+    "diag": [
+     0.798,
+     0.697,
+     0.886
+    ],
+    "max_offdiag": 0.179,
+    "reading": "logged rate_alpha/beta/gamma are about device x/y/z in that order, positive -- NOT the W3C rotationRate naming"
+   },
+   "stance": {
+    "roll_mean": -0.056,
+    "pitch_mean": -0.738,
+    "pitch_std": 0.157,
+    "twin_policy_pitch_mean": -0.522,
+    "twin_geometry_edge_rest": -0.81
+   },
+   "action_response": {
+    "real": {
+     "mean_cmd_vs_pitch": -0.212,
+     "diff_cmd_vs_roll": 0.28
+    },
+    "twin_policy": {
+     "mean_cmd_vs_pitch": -0.179,
+     "diff_cmd_vs_roll": 0.188
+    },
+    "reading": "same signs as the twin under the upstream l/r assignment; swapping l and r flips the roll signature into disagreement"
+   }
+  },
+  {
+   "file": "imu-walk-3-2026-08-20T17-38-19-478Z.json",
+   "gravity": {
+    "earth_mean": [
+     -0.0,
+     0.04,
+     9.73
+    ],
+    "expected": [
+     0.0,
+     0.0,
+     9.81
+    ]
+   },
+   "rate_axis_assignment": {
+    "corr_matrix": [
+     [
+      0.73,
+      0.234,
+      -0.139
+     ],
+     [
+      0.149,
+      0.287,
+      -0.006
+     ],
+     [
+      -0.032,
+      0.242,
+      0.783
+     ]
+    ],
+    "diag": [
+     0.73,
+     0.287,
+     0.783
+    ],
+    "max_offdiag": 0.242,
+    "reading": "logged rate_alpha/beta/gamma are about device x/y/z in that order, positive -- NOT the W3C rotationRate naming"
+   },
+   "stance": {
+    "roll_mean": -0.006,
+    "pitch_mean": -0.384,
+    "pitch_std": 0.428,
+    "twin_policy_pitch_mean": -0.522,
+    "twin_geometry_edge_rest": -0.81
+   },
+   "action_response": {
+    "real": {
+     "mean_cmd_vs_pitch": -0.726,
+     "diff_cmd_vs_roll": 0.525
+    },
+    "twin_policy": {
+     "mean_cmd_vs_pitch": -0.179,
+     "diff_cmd_vs_roll": 0.188
+    },
+    "reading": "same signs as the twin under the upstream l/r assignment; swapping l and r flips the roll signature into disagreement"
+   }
+  }
+ ],
+ "gap_report": {
+  "header": {
+   "format": "growbot-imulog-1",
+   "imu_units": "rad",
+   "pose_units": "rad",
+   "trims_in_values": true,
+   "l_sign": -1.0,
+   "r_sign": -1.0,
+   "l_off": 0.0,
+   "r_off": 0.0,
+   "gain": 0.99,
+   "turn": 0.0,
+   "gait": "official",
+   "gain_agent": null,
+   "walk": 1,
+   "end_why": "done",
+   "body_id": "growbot-85mm-2leg",
+   "app": "v3/next.html",
+   "send_ok_dropped": 0,
+   "n_pose_rows": 379,
+   "dropped_imu": 0,
+   "dropped_pose": 0
+  },
+  "report": {
+   "all": {
+    "5": {
+     "roll": {
+      "real": 0.9620253164556962,
+      "twin": 0.968,
+      "gap": -0.005974683544303749,
+      "gap_after_servo": 0.004573839662447288
+     },
+     "pitch": {
+      "real": 0.9578059071729957,
+      "twin": 0.97175,
+      "gap": -0.013944092827004262,
+      "gap_after_servo": -0.020273206751054818
+     },
+     "yaw": {
+      "real": 0.9810126582278481,
+      "twin": 0.963,
+      "gap": 0.018012658227848144,
+      "gap_after_servo": 0.03489029535864985
+     }
+    },
+    "25": {
+     "roll": {
+      "real": 0.6054852320675106,
+      "twin": 0.871,
+      "gap": -0.2655147679324894,
+      "gap_after_servo": -0.1790168776371308
+     },
+     "pitch": {
+      "real": 0.4008438818565401,
+      "twin": 0.8715,
+      "gap": -0.47065611814346,
+      "gap_after_servo": -0.47909493670886083
+     },
+     "yaw": {
+      "real": 0.43248945147679324,
+      "twin": 0.77875,
+      "gap": -0.3462605485232068,
+      "gap_after_servo": -0.2998470464135022
+     }
+    }
+   },
+   "official": {
+    "5": {
+     "roll": {
+      "real": 0.9620253164556962,
+      "twin": 0.952,
+      "gap": 0.010025316455696265,
+      "gap_after_servo": 0.020573839662447302
+     },
+     "pitch": {
+      "real": 0.9578059071729957,
+      "twin": 0.9668571428571429,
+      "gap": -0.009051235684147119,
+      "gap_after_servo": -0.015380349608197674
+     },
+     "yaw": {
+      "real": 0.9810126582278481,
+      "twin": 0.9542857142857143,
+      "gap": 0.02672694394213382,
+      "gap_after_servo": 0.04360458107293552
+     }
+    },
+    "25": {
+     "roll": {
+      "real": 0.6054852320675106,
+      "twin": 0.8617142857142858,
+      "gap": -0.2562290536467752,
+      "gap_after_servo": -0.16973116335141658
+     },
+     "pitch": {
+      "real": 0.4008438818565401,
+      "twin": 0.84,
+      "gap": -0.4391561181434599,
+      "gap_after_servo": -0.44759493670886075
+     },
+     "yaw": {
+      "real": 0.43248945147679324,
+      "twin": 0.7531428571428571,
+      "gap": -0.3206534056660639,
+      "gap_after_servo": -0.27423990355635924
+     }
+    }
+   }
+  }
+ },
+ "sensor_id": {
+  "files": [
+   "imu-walk-1-2026-08-20T17-50-14-713Z.json",
+   "imu-walk-3-2026-08-20T17-38-19-478Z.json"
+  ],
+  "conditions": {
+   "n_files": 2,
+   "seam_ms": 1000.0,
+   "gap_ms": 100.0,
+   "max_lag_ms": 500.0,
+   "min_corr": 0.5,
+   "min_still_s": 60.0,
+   "gimbal_pitch_rad": 1.2,
+   "still_gyro_rms_max": 0.15,
+   "still_ang_std_max": 0.05,
+   "imu_rows": 1279,
+   "session_span_s": 22.465001953125
+  },
+  "dt": {
+   "imu": {
+    "median_ms": 16.69921875,
+    "p95_ms": 18.400390625,
+    "p99_ms": 20.5,
+    "max_ms": 71.19921875,
+    "frac_dev20": 0.02975724353954581,
+    "jitter_warn": false
+   },
+   "cmd": {
+    "median_ms": 40.3984375,
+    "p95_ms": 84.2849609374997,
+    "p99_ms": 101.7647265625,
+    "max_ms": 134.5,
+    "frac_dev20": 0.05737704918032787,
+    "jitter_warn": true
+   }
+  },
+  "filter_lag": {
+   "axes": [
+    {
+     "axis": "wx",
+     "lag_ms": 13.267094348707925,
+     "corr": 0.8685739012321387,
+     "determined": true,
+     "boundary": false,
+     "reason": ""
+    },
+    {
+     "axis": "wy",
+     "lag_ms": 14.5476221529419,
+     "corr": 0.9488377562725671,
+     "determined": true,
+     "boundary": false,
+     "reason": ""
+    },
+    {
+     "axis": "wz",
+     "lag_ms": 13.468200394415998,
+     "corr": 0.965532964796507,
+     "determined": true,
+     "boundary": false,
+     "reason": ""
+    }
+   ],
+   "grid_dt_ms": 16.69921875,
+   "max_lag_ms": 500.0,
+   "min_corr": 0.5,
+   "gap_ms": 100.0,
+   "gimbal_pitch_rad": 1.2,
+   "segments_used": 2,
+   "segments_dropped": 0,
+   "excluded_ms": 1000.0,
+   "warmup_excluded_ms": 1035.3515625,
+   "grid_samples": 1286,
+   "usable_samples": 1224,
+   "usable_frac": 0.9517884914463453,
+   "gimbal_kept_frac": 1.0,
+   "split_half": [
+    {
+     "axis": "wx",
+     "half_a": 13.523922998260183,
+     "half_b": 13.311629611095805,
+     "band_ms": 0.10614669358218887,
+     "verdict": "AGREE"
+    },
+    {
+     "axis": "wy",
+     "half_a": 13.897760856357952,
+     "half_b": 15.615206065859232,
+     "band_ms": 0.85872260475064,
+     "verdict": "AGREE"
+    },
+    {
+     "axis": "wz",
+     "half_a": 12.338270948539959,
+     "half_b": 15.45473159622944,
+     "band_ms": 1.5582303238447404,
+     "verdict": "AGREE"
+    }
+   ]
+  },
+  "filter_lag_per_regime": {},
+  "still_segment": null,
+  "allan": null
+ },
+ "twin_floor": {
+  "all": {
+   "n": 4000,
+   "5": {
+    "roll": {
+     "within": 0.968,
+     "rmse": 0.09836116433143616
+    },
+    "pitch": {
+     "within": 0.97175,
+     "rmse": 0.08469923585653305
+    },
+    "yaw": {
+     "within": 0.963,
+     "rmse": 0.1273924708366394
+    }
+   },
+   "25": {
+    "roll": {
+     "within": 0.871,
+     "rmse": 0.4156589210033417
+    },
+    "pitch": {
+     "within": 0.8715,
+     "rmse": 0.22612012922763824
+    },
+    "yaw": {
+     "within": 0.77875,
+     "rmse": 0.5457808971405029
+    }
+   }
+  },
+  "keyframe": {
+   "n": 1134,
+   "5": {
+    "roll": {
+     "within": 0.9788359788359788,
+     "rmse": 0.06382598727941513
+    },
+    "pitch": {
+     "within": 0.9805996472663139,
+     "rmse": 0.06984301656484604
+    },
+    "yaw": {
+     "within": 0.9691358024691358,
+     "rmse": 0.11102809756994247
+    }
+   },
+   "25": {
+    "roll": {
+     "within": 0.8950617283950617,
+     "rmse": 0.3275180160999298
+    },
+    "pitch": {
+     "within": 0.8765432098765432,
+     "rmse": 0.216096431016922
+    },
+    "yaw": {
+     "within": 0.808641975308642,
+     "rmse": 0.4632548689842224
+    }
+   }
+  },
+  "ou": {
+   "n": 811,
+   "5": {
+    "roll": {
+     "within": 0.9728729963008631,
+     "rmse": 0.11158321052789688
+    },
+    "pitch": {
+     "within": 0.9728729963008631,
+     "rmse": 0.08155352622270584
+    },
+    "yaw": {
+     "within": 0.9642416769420469,
+     "rmse": 0.10606981068849564
+    }
+   },
+   "25": {
+    "roll": {
+     "within": 0.8668310727496917,
+     "rmse": 0.4614282250404358
+    },
+    "pitch": {
+     "within": 0.8754623921085081,
+     "rmse": 0.18837031722068787
+    },
+    "yaw": {
+     "within": 0.8002466091245376,
+     "rmse": 0.4935476779937744
+    }
+   }
+  },
+  "policy": {
+   "n": 875,
+   "5": {
+    "roll": {
+     "within": 0.952,
+     "rmse": 0.13175931572914124
+    },
+    "pitch": {
+     "within": 0.9668571428571429,
+     "rmse": 0.09515450894832611
+    },
+    "yaw": {
+     "within": 0.9542857142857143,
+     "rmse": 0.15840476751327515
+    }
+   },
+   "25": {
+    "roll": {
+     "within": 0.8617142857142858,
+     "rmse": 0.4961722791194916
+    },
+    "pitch": {
+     "within": 0.84,
+     "rmse": 0.2726254463195801
+    },
+    "yaw": {
+     "within": 0.7531428571428571,
+     "rmse": 0.6847540140151978
+    }
+   }
+  },
+  "sine": {
+   "n": 740,
+   "5": {
+    "roll": {
+     "within": 0.9702702702702702,
+     "rmse": 0.08903247863054276
+    },
+    "pitch": {
+     "within": 0.9675675675675676,
+     "rmse": 0.07789530605077744
+    },
+    "yaw": {
+     "within": 0.9662162162162162,
+     "rmse": 0.12701745331287384
+    }
+   },
+   "25": {
+    "roll": {
+     "within": 0.8351351351351352,
+     "rmse": 0.4255346357822418
+    },
+    "pitch": {
+     "within": 0.8959459459459459,
+     "rmse": 0.20892897248268127
+    },
+    "yaw": {
+     "within": 0.7324324324324324,
+     "rmse": 0.5242531299591064
+    }
+   }
+  },
+  "still": {
+   "n": 440,
+   "5": {
+    "roll": {
+     "within": 0.9590909090909091,
+     "rmse": 0.081549733877182
+    },
+    "pitch": {
+     "within": 0.9636363636363636,
+     "rmse": 0.11034582555294037
+    },
+    "yaw": {
+     "within": 0.9568181818181818,
+     "rmse": 0.13414360582828522
+    }
+   },
+   "25": {
+    "roll": {
+     "within": 0.8954545454545455,
+     "rmse": 0.3280797004699707
+    },
+    "pitch": {
+     "within": 0.8727272727272727,
+     "rmse": 0.24051576852798462
+    },
+    "yaw": {
+     "within": 0.7909090909090909,
+     "rmse": 0.5578662753105164
+    }
+   }
+  }
+ },
+ "per_file": {
+  "imu-walk-1-2026-08-20T17-50-14-713Z.json": {
+   "ticks": 809,
+   "seconds": 16.2,
+   "end_why": "done",
+   "gain_agent": null,
+   "regimes": {
+    "all": {
+     "n": 778,
+     "5": {
+      "roll": {
+       "within": 0.9640102827763496,
+       "rmse": 0.09872371703386307
+      },
+      "pitch": {
+       "within": 0.9537275064267352,
+       "rmse": 0.1112205907702446
+      },
+      "yaw": {
+       "within": 0.980719794344473,
+       "rmse": 0.0761352926492691
+      }
+     },
+     "25": {
+      "roll": {
+       "within": 0.5308483290488432,
+       "rmse": 0.22892747819423676
+      },
+      "pitch": {
+       "within": 0.525706940874036,
+       "rmse": 0.269676148891449
+      },
+      "yaw": {
+       "within": 0.36632390745501286,
+       "rmse": 0.3289695978164673
+      }
+     }
+    },
+    "official": {
+     "n": 778,
+     "5": {
+      "roll": {
+       "within": 0.9640102827763496,
+       "rmse": 0.09872371703386307
+      },
+      "pitch": {
+       "within": 0.9537275064267352,
+       "rmse": 0.1112205907702446
+      },
+      "yaw": {
+       "within": 0.980719794344473,
+       "rmse": 0.0761352926492691
+      }
+     },
+     "25": {
+      "roll": {
+       "within": 0.5308483290488432,
+       "rmse": 0.22892747819423676
+      },
+      "pitch": {
+       "within": 0.525706940874036,
+       "rmse": 0.269676148891449
+      },
+      "yaw": {
+       "within": 0.36632390745501286,
+       "rmse": 0.3289695978164673
+      }
+     }
+    }
+   }
+  },
+  "imu-walk-3-2026-08-20T17-38-19-478Z.json": {
+   "ticks": 261,
+   "seconds": 5.2,
+   "end_why": "tipped",
+   "gain_agent": 0.8,
+   "regimes": {
+    "all": {
+     "n": 230,
+     "5": {
+      "roll": {
+       "within": 1.0,
+       "rmse": 0.0573081411421299
+      },
+      "pitch": {
+       "within": 0.9565217391304348,
+       "rmse": 0.09610915929079056
+      },
+      "yaw": {
+       "within": 1.0,
+       "rmse": 0.043956782668828964
+      }
+     },
+     "25": {
+      "roll": {
+       "within": 0.717391304347826,
+       "rmse": 0.16960005462169647
+      },
+      "pitch": {
+       "within": 0.17391304347826086,
+       "rmse": 0.4404107332229614
+      },
+      "yaw": {
+       "within": 0.6173913043478261,
+       "rmse": 0.22982022166252136
+      }
+     }
+    },
+    "official": {
+     "n": 181,
+     "5": {
+      "roll": {
+       "within": 1.0,
+       "rmse": 0.05235021188855171
+      },
+      "pitch": {
+       "within": 0.9558011049723757,
+       "rmse": 0.09732616692781448
+      },
+      "yaw": {
+       "within": 1.0,
+       "rmse": 0.04331497475504875
+      }
+     },
+     "25": {
+      "roll": {
+       "within": 0.6795580110497238,
+       "rmse": 0.1747448742389679
+      },
+      "pitch": {
+       "within": 0.04419889502762431,
+       "rmse": 0.4833570420742035
+      },
+      "yaw": {
+       "within": 0.6740331491712708,
+       "rmse": 0.20631684362888336
+      }
+     }
+    },
+    "tip_onset": {
+     "n": 49,
+     "5": {
+      "roll": {
+       "within": 1.0,
+       "rmse": 0.07274959981441498
+      },
+      "pitch": {
+       "within": 0.9591836734693877,
+       "rmse": 0.09147335588932037
+      },
+      "yaw": {
+       "within": 1.0,
+       "rmse": 0.046250395476818085
+      }
+     },
+     "25": {
+      "roll": {
+       "within": 0.8571428571428571,
+       "rmse": 0.14906412363052368
+      },
+      "pitch": {
+       "within": 0.6530612244897959,
+       "rmse": 0.2177533507347107
+      },
+      "yaw": {
+       "within": 0.40816326530612246,
+       "rmse": 0.30113470554351807
+      }
+     }
+    }
+   }
+  }
+ },
+ "servo": {
+  "fit_ticks": 535,
+  "band": 0.014249811555397235,
+  "argmin": {
+   "delay_ticks": 4.0,
+   "slew_rad_s": 2.0,
+   "deadband": 0.03490658503988659
+  },
+  "argmin_interior": true,
+  "split_half_agree": false,
+  "delay_determined_set": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6
+  ],
+  "slew_determined_set": [
+   1.5,
+   2.0,
+   3.0
+  ],
+  "held_out_extended": {
+   "5": {
+    "roll": {
+     "real": 0.9620253164556962,
+     "after_servo": 0.9620253164556962,
+     "twin": 0.952
+    },
+    "pitch": {
+     "real": 0.9578059071729957,
+     "after_servo": 0.9493670886075949,
+     "twin": 0.9668571428571429
+    },
+    "yaw": {
+     "real": 0.9810126582278481,
+     "after_servo": 0.9978902953586498,
+     "twin": 0.9542857142857143
+    }
+   },
+   "25": {
+    "roll": {
+     "real": 0.6054852320675106,
+     "after_servo": 0.7194092827004219,
+     "twin": 0.8617142857142858
+    },
+    "pitch": {
+     "real": 0.4008438818565401,
+     "after_servo": 0.39029535864978904,
+     "twin": 0.84
+    },
+    "yaw": {
+     "real": 0.43248945147679324,
+     "after_servo": 0.5126582278481012,
+     "twin": 0.7531428571428571
+    }
+   }
+  }
+ },
+ "data_ask": [
+  "pose-sequence (gesture) capture, 3-5 min: the walk lane alone leaves the servo at delay [0, 1, 2, 3, 4, 5, 6] ticks / slew [1.5, 2.0, 3.0] rad/s; varied large and small steps are what separate slew and deadband (the twin fixture determines both to one grid step from 8 min of mixed excitation)",
+  "one still capture, 2-5 min (robot on the floor, untouched): unlocks the Allan read of the phone gyro's noise -- no still segment exists in the walk lane, so ARW and bias instability are currently unmeasurable",
+  "the same walk lane twice, battery fresh vs low: the twin predicts a split-half DISAGREE on slew if the battery sags (model_mismatch.py); this is the free real actuator experiment"
+ ]
+}

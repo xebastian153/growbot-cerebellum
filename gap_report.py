@@ -29,7 +29,10 @@ from servo_id import identify, realized_from_commands
 AXES = ("roll", "pitch", "yaw")
 REGIME_MAP = {"walk": "policy", "spin": "policy", "gesture": "keyframe",
               "handling": "ou", "idle": "still", "still": "still",
-              "policy": "policy", "sine": "sine", "keyframe": "keyframe", "ou": "ou"}
+              "policy": "policy", "sine": "sine", "keyframe": "keyframe", "ou": "ou",
+              # the app's walk lane labels its gait "official"; the nearest twin regime
+              # is policy walking (the same alternating gait family)
+              "official": "policy"}
 
 
 def evaluate_axes(model, O, A, D, mode, horizons, n_starts=4000, seed=0):

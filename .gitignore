@@ -2,3 +2,6 @@
 __pycache__/
 data/*.npz
 *.pyc
+
+# maintainer-provided session logs: theirs to publish, never committed here
+imu-walk-*.json
