@@ -86,6 +86,9 @@ value (80.8 → 83.9 %, 75.9 → 80.8 %). The forward model doubles as the posit
 robot does not have. Sim-only, same-model-class caveat applies; the point is that a real IMU
 log of a few minutes is enough data to run this.
 
+`sensor_id.py` asks the symmetric question about the observation side (fusion-filter lag,
+gyro noise character, clock jitter), validated by the same hidden-secret round-trip in `imulog.py`.
+
 ## Multi-step training loss — small, real gain
 
 Same 128×2 net, trained through an H-tick unroll with loss on every step (SPR-style),

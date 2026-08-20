@@ -141,7 +141,7 @@ def parse(path, gap_ms=100.0):
 
 
 def fixture(path, seconds=600, servo_ms=None, seed=0, imu_hz=60.0, cmd_hz=30.0, jitter_ms=2.0,
-            push_prob_s=0.5):
+            push_prob_s=0.5, fused_lag_ms=None, gyro_arw=None, still_lead_s=0.0, imu_slow=None):
     """Synthetic ?imulog=1 session from the twin: physics at 200 Hz, jittered sampling.
 
     servo_ms: dict(delay_ms=, slew_rad_s=, deadband=) -- delay given in MILLISECONDS
@@ -149,6 +149,18 @@ def fixture(path, seconds=600, servo_ms=None, seed=0, imu_hz=60.0, cmd_hz=30.0, 
     fixture steps it at physics rate, not at 50 Hz. (The first version passed 50 Hz
     ticks straight through and simulated a 10 ms delay while believing it was 40; the
     round-trip test below is what caught it.)
+
+    Sensor-side secrets, all off by default so the servo round-trip is untouched:
+    fused_lag_ms   emit orientation through a causal boxcar FIR on (sin, cos) at
+                   physics rate -- linear phase, so its group delay is exactly
+                   (W-1)/2 * phys_dt at EVERY frequency; the one filter whose lag
+                   a cross-correlation must recover with no spectral caveats.
+    gyro_arw       white noise on the emitted gyro with angle-random-walk density
+                   N (rad/s/sqrt(Hz)); per-sample std is N*sqrt(imu_hz).
+    still_lead_s   hold neutral commands for this long first (reset untilted, no
+                   pushes), labelled still from t=2 s -- the segment Allan needs.
+    imu_slow       (start_s, dur_s, factor): IMU period multiplied by factor in
+                   that window -- the timing stall dt_stats must flag.
     """
     sys.path.insert(0, "sim")
     from growbot_sim import GrowBotSim, ServoModel, Excitation
@@ -171,14 +183,24 @@ def fixture(path, seconds=600, servo_ms=None, seed=0, imu_hz=60.0, cmd_hz=30.0, 
               "gait": "mixed", "surface": "twin",
               "build": "fixture", "note": "synthetic session for parser validation"}
     rows.append({"header": header})
-    obs = sim.reset(tilt=0.3); prev = np.zeros(2, np.float32)
+    if still_lead_s > 0:
+        rows.append({"t": 2000.0, "s": "ev", "name": "still_start"})   # 2 s settle stays unlabelled
+    obs = sim.reset(tilt=0.0 if still_lead_s > 0 else 0.3); prev = np.zeros(2, np.float32)
+    lead_done = still_lead_s <= 0
+    if fused_lag_ms is not None:                    # boxcar FIR on (sin, cos): lag (W-1)/2*phys_dt
+        W = int(round(2 * fused_lag_ms / 1000 / phys_dt)) + 1
+        hist = np.zeros((W, 6)); nh = 0
     n_steps = int(seconds / phys_dt)
     for i in range(n_steps):
         if t >= next_cmd:
-            last_mode = exc.mode
-            a = exc(obs, prev); prev = cur_cmd = a
-            if exc.mode != last_mode:
-                rows.append({"t": round(t * 1000, 2), "s": "ev", "name": f"{exc.mode}_start"})
+            if t < still_lead_s:
+                a = cur_cmd = np.zeros(2, np.float32)
+            else:
+                last_mode = exc.mode
+                a = exc(obs, prev); prev = cur_cmd = a
+                if exc.mode != last_mode or not lead_done:
+                    rows.append({"t": round(t * 1000, 2), "s": "ev", "name": f"{exc.mode}_start"})
+                lead_done = True
             l_sent = 90 + trims["l_off"] + trims["l_sign"] * np.rad2deg(float(a[0])) * trims["gain"]
             r_sent = 90 + trims["r_off"] + trims["r_sign"] * np.rad2deg(float(a[1])) * trims["gain"]
             rows.append({"t": round(t * 1000 + rng.normal(0, jitter_ms), 2), "s": "cmd",
@@ -189,13 +211,26 @@ def fixture(path, seconds=600, servo_ms=None, seed=0, imu_hz=60.0, cmd_hz=30.0, 
         sim.d.ctrl[:] = np.clip(aa, -1.57, 1.57)
         mujoco.mj_step(sim.m, sim.d)
         t += phys_dt
-        if rng.random() < push_prob_s * phys_dt:
+        if fused_lag_ms is not None:
+            o6 = sim.obs()
+            hist[nh % W] = np.concatenate([np.sin(o6[:3]), np.cos(o6[:3])]); nh += 1
+        if t >= still_lead_s and rng.random() < push_prob_s * phys_dt:
             sim.push()
         if t >= next_imu:
             obs = sim.obs()
+            emit = obs
+            if fused_lag_ms is not None:
+                m = hist[:min(nh, W)].mean(0)
+                emit = np.concatenate([np.arctan2(m[:3], m[3:]), obs[3:]])
+            if gyro_arw is not None:
+                emit = emit.copy()
+                emit[3:] += rng.normal(0, gyro_arw * np.sqrt(imu_hz), 3)
             rows.append({"t": round(t * 1000 + rng.normal(0, jitter_ms), 2), "s": "imu",
-                         "o": [round(float(v), 5) for v in obs]})
-            next_imu += 1.0 / imu_hz * (1 + rng.normal(0, 0.03))
+                         "o": [round(float(v), 5) for v in emit]})
+            period = 1.0 / imu_hz * (1 + rng.normal(0, 0.03))
+            if imu_slow is not None and imu_slow[0] <= t < imu_slow[0] + imu_slow[1]:
+                period *= imu_slow[2]
+            next_imu += period
         if sim.fallen() and rng.random() < 0.002:
             obs = sim.reset(tilt=0.3); prev = np.zeros(2, np.float32)
             if sim.servo is not None: sim.servo.reset()
@@ -268,6 +303,17 @@ def preflight(path):
         info(f"effective rates: IMU {1000 / dt_i:.1f} Hz, commands {1000 / dt_c:.1f} Hz")
         if not (10 <= 1000 / dt_i <= 250): warn(f"IMU rate {1000 / dt_i:.1f} Hz far from the expected ~60")
         if not (5 <= 1000 / dt_c <= 100): warn(f"command rate {1000 / dt_c:.1f} Hz far from the expected ~30")
+    from sensor_id import dt_stats
+    for name, ts in (("IMU", imu_t), ("command", cmd_t)):
+        st = dt_stats(ts)
+        line = (f"{name} dt: median {st['median_ms']:.1f} ms, p95 {st['p95_ms']:.1f}, "
+                f"p99 {st['p99_ms']:.1f}, max {st['max_ms']:.0f}; "
+                f"{st['frac_dev20'] * 100:.1f}% of ticks >20% off the median")
+        if st["jitter_warn"]:
+            warn(line + " -- p99 above 1.5x median: timing jitter degrades the fixed-dt "
+                 "forward model (reported, never gated)")
+        else:
+            info(line)
     lo, hi = max(imu_t[0], cmd_t[0]), min(imu_t[-1], cmd_t[-1])
     overlap = max(0.0, hi - lo) / max(imu_t[-1] - imu_t[0], 1e-9)
     if overlap < 0.5:
@@ -371,3 +417,35 @@ if __name__ == "__main__":
         print(f"  {h*20:>3} ms  within 0.2 rad: commanded {c*100:5.1f}%  identified servo {e*100:5.1f}%")
     ok = best["delay_ticks"] == round(TRUE["delay_ms"] / 20) and best["slew_rad_s"] == TRUE["slew_rad_s"]
     print("\nROUND-TRIP", "PASS" if ok else "FAIL", "- delay and slew recovered through 60/30 Hz jittered sampling" if ok else "")
+
+    # --- sensor-side round-trip: the same standard, applied to sensor_id.py --------
+    from sensor_id import dt_stats, allan_deviation, filter_lag, still_windows
+    SENSOR = dict(fused_lag_ms=60.0, gyro_arw=2e-3, still_lead_s=120.0, imu_slow=(300.0, 30.0, 3.0))
+    print("\ngenerating 600 s sensor fixture (hidden: fused-filter lag 60 ms, gyro ARW 2e-3 "
+          "rad/s/sqrt(Hz), 30 s of 3x-slow IMU at 300 s)...", flush=True)
+    fixture("/tmp/imulog_sensor_fixture.jsonl", seconds=600, seed=4, **SENSOR)
+    _, (it, iv, ct, cv), ev = _read_rows("/tmp/imulog_sensor_fixture.jsonl")
+    st = dt_stats(it)
+    print(f"dt stats: median {st['median_ms']:.1f} ms  p99 {st['p99_ms']:.1f} ms  "
+          f"max {st['max_ms']:.0f} ms  jitter_warn {st['jitter_warn']}")
+    assert st["jitter_warn"], "dt_stats missed the injected 3x IMU slowdown"
+    lags = filter_lag(iv[:, :3], it, iv[:, 3:], it)
+    for r in lags:
+        print(f"  filter lag {r['axis']:>5}: " + (f"{r['lag_ms']:+6.1f} ms (corr {r['corr']:.2f})"
+              if r["determined"] else f"undetermined (corr {r['corr']:.2f})"))
+    det = [r for r in lags if r["determined"]]
+    assert len(det) >= 2, f"filter lag determined on only {len(det)} of 3 axes"
+    for r in det:
+        assert abs(r["lag_ms"] - SENSOR["fused_lag_ms"]) <= 10.0, \
+            f"{r['axis']} lag {r['lag_ms']:.1f} ms vs injected {SENSOR['fused_lag_ms']:.0f} ms"
+    t0, t1 = max(still_windows(ev, it[-1]), key=lambda w: w[1] - w[0])
+    sel = (it >= t0) & (it < t1)
+    fs = 1000.0 / float(np.median(np.diff(it[sel])))
+    for a, r in enumerate(allan_deviation(iv[sel, 3:], fs)):
+        n_est = r["arw"]
+        print(f"  ARW axis {a}: {'undetermined' if n_est is None else f'{n_est:.2e}'} rad/s/sqrt(Hz) "
+              f"(injected {SENSOR['gyro_arw']:.0e})")
+        assert n_est is not None and abs(n_est / SENSOR["gyro_arw"] - 1) <= 0.20, \
+            f"axis {a} ARW {n_est} vs injected {SENSOR['gyro_arw']}"
+    print("\nSENSOR ROUND-TRIP PASS - fused-filter lag, gyro noise density and the timing "
+          "stall all recovered from the file alone")

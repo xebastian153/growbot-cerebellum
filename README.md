@@ -32,6 +32,7 @@ Sim-only until a real IMU log exists.
 | `pets.py`, `pets_fall.py` | probabilistic ensemble + particle planner: calibration by regime, mimic, fall recovery |
 | `fall_recovery.py` | planner vs hold-still vs scripted wiggle from real fallen states, by severity |
 | `actuator_proxy.py`, `servo_id.py` | actuator-dynamics proxy (latency / slew / deadband) and servo identification from IMU + commands through the frozen model |
+| `sensor_id.py` | the sensor side of the same question: fused-orientation lag behind the raw gyro, still-segment Allan deviation (measured gyro noise for the twin), clock-jitter stats per stream |
 | `metadata_experiment.py` | does conditioning on excitation mode / body help? (π0.7 analogue) |
 | `timesfm_baseline.py` | Google TimesFM 2.5 zero-shot as an action-blind baseline |
 | `gap_report.py` | the day-of-log command: gap per regime and axis as real − twin floor, optional after-identified-servo column |
@@ -74,7 +75,8 @@ VIRTUAL_ENV=.venv uv pip install timesfm && .venv/bin/python timesfm_baseline.py
 On a real `?imulog=1` session the whole analysis is:
 
 ```bash
-.venv/bin/python imulog.py session.jsonl            # preflight: units, rates, clock, labelled-segment physics
+.venv/bin/python imulog.py session.jsonl            # preflight: units, rates, clock, jitter, labelled-segment physics
+.venv/bin/python sensor_id.py session.jsonl         # sensor side: fusion-filter lag, gyro Allan noise, dt stats
 .venv/bin/python gap_report.py session.jsonl --servo-id   # gap per regime and axis vs the twin floor
 ```
 
@@ -95,6 +97,7 @@ Full write-ups with conditions and per-regime splits: [docs/EXPERIMENTS.md](docs
 | Metadata conditioning | **negative** — a forward model has no quality axis for a tag to separate; one model serves two bodies regardless |
 | TimesFM 2.5 baseline | a 200M-param action-blind forecaster ties persistence; the information is in the action |
 | `?imulog=1` parser | round-trip validated: a hidden servo's delay and slew survive 60/30 Hz jittered sampling into the 50 Hz arrays |
+| Sensor characterisation | round-trip validated: a hidden 60 ms fusion-filter lag recovered to 60.8 ms on the determined axes, gyro noise density within 5%, and an injected timing stall flagged — all from the file alone |
 
 ## What holds, what doesn't
 
