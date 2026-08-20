@@ -1,0 +1,49 @@
+  [  ok] effective rates: IMU 59.9 Hz, commands 24.8 Hz
+  [  ok] IMU dt: median 16.7 ms, p95 18.5, p99 20.5, max 71; 3.2% of ticks >20% off the median
+  [WARN] command dt: median 40.3 ms, p95 44.4, p99 101.5, max 134; 4.0% of ticks >20% off the median -- p99 above 1.5x median: timing jitter degrades the fixed-dt forward model (reported, never gated)
+  [WARN] command stream has 12 dt above the 100 ms gap threshold (max 134 ms) -- these cut episodes in parse() and are excluded from sensor_id's interpolation, they are not interpolated across
+  [  ok] growbot-imulog walk 1, end_why='done', gait='official', agent gain=None, cal gain=0.99, send_ok dropped 0 of 379 pose rows, app-side drops imu=0 pose=0
+preflight: PASS
+  [  ok] effective rates: IMU 59.9 Hz, commands 24.7 Hz
+  [  ok] IMU dt: median 16.7 ms, p95 18.0, p99 20.3, max 71; 2.2% of ticks >20% off the median
+  [WARN] command dt: median 40.5 ms, p95 100.7, p99 102.1, max 102; 11.8% of ticks >20% off the median -- p99 above 1.5x median: timing jitter degrades the fixed-dt forward model (reported, never gated)
+  [WARN] command stream has 12 dt above the 100 ms gap threshold (max 102 ms) -- these cut episodes in parse() and are excluded from sensor_id's interpolation, they are not interpolated across
+  [  ok] growbot-imulog walk 3, end_why='tipped', gait='official', agent gain=0.8, cal gain=0.99, send_ok dropped 0 of 111 pose rows, app-side drops imu=0 pose=0
+preflight: PASS
+
+real log: 1070 ticks concatenated, identification half = [0:535], evaluation = held-out [535:1070] (535 ticks, 10.7 s)
+
+== control nominal
+  gait sanity (policy mode): {'policy_ticks': 77199, 'horn_tracking_err_rad': 0.0, 'cmd_amplitude_rad': 0.392, 'horn_amplitude_rad': 0.392, 'gyro_norm_mean': 1.704, 'fallen_frac': 0.0884}
+  control collection asserted equal to data/train.npz
+  real held-out @100ms  roll  96.2 (floor  95.2)  pitch  95.8 (floor  96.7)  yaw  98.1 (floor  95.4)
+  real held-out @500ms  roll  60.5 (floor  86.2)  pitch  40.1 (floor  84.0)  yaw  43.2 (floor  75.3)
+
+== argmin d4 s2.0 (80 ms, 2.0 rad/s)
+  gait sanity (policy mode): {'policy_ticks': 79685, 'horn_tracking_err_rad': 0.1972, 'cmd_amplitude_rad': 0.293, 'horn_amplitude_rad': 0.224, 'gyro_norm_mean': 0.939, 'fallen_frac': 0.0826}
+  real held-out @100ms  roll  97.9 (floor  95.6)  pitch  96.2 (floor  97.6)  yaw  99.8 (floor  95.8)
+  real held-out @500ms  roll  79.1 (floor  88.3)  pitch  40.5 (floor  89.7)  yaw  58.9 (floor  80.8)
+
+== half-A d4 s3.0 (80 ms, 3.0 rad/s)
+  gait sanity (policy mode): {'policy_ticks': 83095, 'horn_tracking_err_rad': 0.231, 'cmd_amplitude_rad': 0.319, 'horn_amplitude_rad': 0.249, 'gyro_norm_mean': 1.18, 'fallen_frac': 0.1001}
+  real held-out @100ms  roll  97.5 (floor  96.5)  pitch  94.3 (floor  97.1)  yaw  99.8 (floor  96.3)
+  real held-out @500ms  roll  79.5 (floor  88.1)  pitch  39.9 (floor  86.3)  yaw  56.3 (floor  77.8)
+
+== half-B d6 s1.5 (120 ms, 1.5 rad/s)
+  gait sanity (policy mode): {'policy_ticks': 74971, 'horn_tracking_err_rad': 0.1991, 'cmd_amplitude_rad': 0.287, 'horn_amplitude_rad': 0.212, 'gyro_norm_mean': 0.965, 'fallen_frac': 0.0996}
+  real held-out @100ms  roll  97.0 (floor  96.6)  pitch  96.4 (floor  97.4)  yaw  99.2 (floor  96.6)
+  real held-out @500ms  roll  88.2 (floor  86.1)  pitch  42.6 (floor  88.4)  yaw  63.3 (floor  80.9)
+
+== control seed spread (extra MLP seeds on the control data)
+  roll: seeds ['60.5', '58.9', '57.0'] -> spread 3.6 pts
+  pitch: seeds ['40.1', '40.1', '39.9'] -> spread 0.2 pts
+  yaw: seeds ['43.2', '44.7', '45.1'] -> spread 1.9 pts
+
+== closure @500 ms vs control (within 0.2 rad; threshold = max(3.0, 2x spread) pts)
+  argmin d4 s2.0 (80 ms, 2.0 rad/s)       roll +18.6 (thr 7.2) MATERIAL  pitch  +0.4 (thr 3.0)  yaw +15.6 (thr 3.8) MATERIAL
+  half-A d4 s3.0 (80 ms, 3.0 rad/s)       roll +19.0 (thr 7.2) MATERIAL  pitch  -0.2 (thr 3.0)  yaw +13.1 (thr 3.8) MATERIAL
+  half-B d6 s1.5 (120 ms, 1.5 rad/s)      roll +27.6 (thr 7.2) MATERIAL  pitch  +2.5 (thr 3.0)  yaw +20.0 (thr 3.8) MATERIAL
+
+  loop VALIDATED robustly to the identification uncertainty on roll+yaw: every config in the determined band closes materially there; pitch stays open in every config, as the attribution predicted -- the coverage hypothesis (sit-to-stand) stands
+
+wrote results/real2sim.json   total 7.0 min

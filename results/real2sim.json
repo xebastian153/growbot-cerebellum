@@ -1,0 +1,237 @@
+{
+ "conditions": {
+  "logs": [
+   "imu-walk-1-2026-08-20T17-50-14-713Z.json",
+   "imu-walk-3-2026-08-20T17-38-19-478Z.json"
+  ],
+  "train_steps": 400000,
+  "test_steps": 60000,
+  "train_seed": 0,
+  "test_seed": 1,
+  "epochs": 80,
+  "hidden": 128,
+  "K": 5,
+  "horizons_ms": [
+   100,
+   500
+  ],
+  "tip_window_s": 1.5,
+  "held_out_ticks": 535,
+  "deadband_deg": 2.0,
+  "delay_unit": "ticks at the 50 Hz caller (1 tick = 20 ms)",
+  "rule": "material closure @500ms = gain over control > max(3.0 pts, 2x control seed spread)"
+ },
+ "configs": {
+  "control nominal": {
+   "servo": null,
+   "gait_sanity": {
+    "policy_ticks": 77199,
+    "horn_tracking_err_rad": 0.0,
+    "cmd_amplitude_rad": 0.392,
+    "horn_amplitude_rad": 0.392,
+    "gyro_norm_mean": 1.704,
+    "fallen_frac": 0.0884
+   },
+   "twin_floor_policy": {
+    "100": {
+     "roll": 0.952,
+     "pitch": 0.9668571428571429,
+     "yaw": 0.9542857142857143
+    },
+    "500": {
+     "roll": 0.8617142857142858,
+     "pitch": 0.84,
+     "yaw": 0.7531428571428571
+    }
+   },
+   "real_heldout_all": {
+    "100": {
+     "roll": 0.9620253164556962,
+     "pitch": 0.9578059071729957,
+     "yaw": 0.9810126582278481
+    },
+    "500": {
+     "roll": 0.6054852320675106,
+     "pitch": 0.4008438818565401,
+     "yaw": 0.43248945147679324
+    }
+   }
+  },
+  "argmin d4 s2.0 (80 ms, 2.0 rad/s)": {
+   "servo": {
+    "delay_ticks": 4,
+    "slew_rad_s": 2.0,
+    "deadband": 0.03490658503988659
+   },
+   "gait_sanity": {
+    "policy_ticks": 79685,
+    "horn_tracking_err_rad": 0.1972,
+    "cmd_amplitude_rad": 0.293,
+    "horn_amplitude_rad": 0.224,
+    "gyro_norm_mean": 0.939,
+    "fallen_frac": 0.0826
+   },
+   "twin_floor_policy": {
+    "100": {
+     "roll": 0.9559902200488998,
+     "pitch": 0.9755501222493888,
+     "yaw": 0.9584352078239609
+    },
+    "500": {
+     "roll": 0.882640586797066,
+     "pitch": 0.8973105134474327,
+     "yaw": 0.8080684596577017
+    }
+   },
+   "real_heldout_all": {
+    "100": {
+     "roll": 0.9789029535864979,
+     "pitch": 0.9620253164556962,
+     "yaw": 0.9978902953586498
+    },
+    "500": {
+     "roll": 0.7911392405063291,
+     "pitch": 0.4050632911392405,
+     "yaw": 0.5886075949367089
+    }
+   }
+  },
+  "half-A d4 s3.0 (80 ms, 3.0 rad/s)": {
+   "servo": {
+    "delay_ticks": 4,
+    "slew_rad_s": 3.0,
+    "deadband": 0.03490658503988659
+   },
+   "gait_sanity": {
+    "policy_ticks": 83095,
+    "horn_tracking_err_rad": 0.231,
+    "cmd_amplitude_rad": 0.319,
+    "horn_amplitude_rad": 0.249,
+    "gyro_norm_mean": 1.18,
+    "fallen_frac": 0.1001
+   },
+   "twin_floor_policy": {
+    "100": {
+     "roll": 0.9651972157772621,
+     "pitch": 0.9709976798143851,
+     "yaw": 0.962877030162413
+    },
+    "500": {
+     "roll": 0.8805104408352669,
+     "pitch": 0.8631090487238979,
+     "yaw": 0.7784222737819025
+    }
+   },
+   "real_heldout_all": {
+    "100": {
+     "roll": 0.9746835443037974,
+     "pitch": 0.9430379746835443,
+     "yaw": 0.9978902953586498
+    },
+    "500": {
+     "roll": 0.7953586497890295,
+     "pitch": 0.3987341772151899,
+     "yaw": 0.5632911392405063
+    }
+   }
+  },
+  "half-B d6 s1.5 (120 ms, 1.5 rad/s)": {
+   "servo": {
+    "delay_ticks": 6,
+    "slew_rad_s": 1.5,
+    "deadband": 0.03490658503988659
+   },
+   "gait_sanity": {
+    "policy_ticks": 74971,
+    "horn_tracking_err_rad": 0.1991,
+    "cmd_amplitude_rad": 0.287,
+    "horn_amplitude_rad": 0.212,
+    "gyro_norm_mean": 0.965,
+    "fallen_frac": 0.0996
+   },
+   "twin_floor_policy": {
+    "100": {
+     "roll": 0.9658031088082901,
+     "pitch": 0.9740932642487047,
+     "yaw": 0.9658031088082901
+    },
+    "500": {
+     "roll": 0.861139896373057,
+     "pitch": 0.883937823834197,
+     "yaw": 0.8093264248704664
+    }
+   },
+   "real_heldout_all": {
+    "100": {
+     "roll": 0.9704641350210971,
+     "pitch": 0.9641350210970464,
+     "yaw": 0.9915611814345991
+    },
+    "500": {
+     "roll": 0.8818565400843882,
+     "pitch": 0.42616033755274263,
+     "yaw": 0.6329113924050633
+    }
+   }
+  }
+ },
+ "control_seed_spread_500ms": {
+  "roll": 0.03586497890295359,
+  "pitch": 0.002109704641350185,
+  "yaw": 0.01898734177215189
+ },
+ "closure_verdict": {
+  "argmin d4 s2.0 (80 ms, 2.0 rad/s)": {
+   "roll": {
+    "gain_pts": 18.6,
+    "threshold_pts": 7.2,
+    "material": true
+   },
+   "pitch": {
+    "gain_pts": 0.4,
+    "threshold_pts": 3.0,
+    "material": false
+   },
+   "yaw": {
+    "gain_pts": 15.6,
+    "threshold_pts": 3.8,
+    "material": true
+   }
+  },
+  "half-A d4 s3.0 (80 ms, 3.0 rad/s)": {
+   "roll": {
+    "gain_pts": 19.0,
+    "threshold_pts": 7.2,
+    "material": true
+   },
+   "pitch": {
+    "gain_pts": -0.2,
+    "threshold_pts": 3.0,
+    "material": false
+   },
+   "yaw": {
+    "gain_pts": 13.1,
+    "threshold_pts": 3.8,
+    "material": true
+   }
+  },
+  "half-B d6 s1.5 (120 ms, 1.5 rad/s)": {
+   "roll": {
+    "gain_pts": 27.6,
+    "threshold_pts": 7.2,
+    "material": true
+   },
+   "pitch": {
+    "gain_pts": 2.5,
+    "threshold_pts": 3.0,
+    "material": false
+   },
+   "yaw": {
+    "gain_pts": 20.0,
+    "threshold_pts": 3.8,
+    "material": true
+   }
+  }
+ },
+ "conclusion": "loop VALIDATED robustly to the identification uncertainty on roll+yaw: every config in the determined band closes materially there; pitch stays open in every config, as the attribution predicted -- the coverage hypothesis (sit-to-stand) stands"
+}

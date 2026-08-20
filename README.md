@@ -38,6 +38,7 @@ Sim-only until a real IMU log exists.
 | `metadata_experiment.py` | does conditioning on excitation mode / body help? (π0.7 analogue) |
 | `timesfm_baseline.py` | Google TimesFM 2.5 zero-shot as an action-blind baseline |
 | `gap_report.py` | the day-of-log command: gap per regime and axis as real − twin floor, optional after-identified-servo column |
+| `real2sim.py` | the loop closed: identified servo → twin's `ServoModel` → retrain → score on the real logs, at three points of the identification uncertainty band plus a nominal control (needs the untracked walk logs) |
 | `imulog.py` | parser for GrowBot `?imulog=1` sessions (two native-rate streams → 50 Hz arrays, regimes from event rows) + preflight (`imulog.py <file>`: units, rates, clock, still-segment physics — validated against deliberately corrupted fixtures) + round-trip test that recovers a hidden servo through 60/30 Hz jittered sampling |
 | `results/` | every number below, as JSON; raw run logs in `results/logs/` |
 | `docs/READING.md` | literature tied to each open question, plus what talks and tools left behind |
@@ -102,6 +103,7 @@ Full write-ups with conditions and per-regime splits: [docs/EXPERIMENTS.md](docs
 | `?imulog=1` parser | round-trip validated: a hidden servo survives 60/30 Hz jittered sampling into the 50 Hz arrays, determined to one grid step — the injected 40 ms delay is inside the determined set on all 5 seeds tested and the set never leaves ±20 ms; slew resolves to within one grid step of the injected 5 rad/s (the set contains it on 4 of 5). The argmin alone is a coin flip here and is no longer the acceptance rule |
 | Yaw floor | **negative** — the twin's own yaw weakness (58.6 % @1 s vs ~83 % roll/pitch) is not a model limit: 4× data +0.9 pts, 4× capacity +1.3, and a teacher-forced probe fed true contact forces and linear velocity +3.1 — all under the pre-stated 4.6-pt materiality threshold (2× seed spread). Contact chatter is aleatoric at 20 ms; planning should not chase it. Sim-only, 3 MLP seeds |
 | Model mismatch | out-of-family servos (load-dependent slew, voltage sag) identify to their nearest grid point and still recover 90–94 % of the closable held-out gap at 500 ms; split-half DISAGREE fires on drift but is blind to stationary mismatch; a linear residual on top adds nothing (**negative**) — seed 777, sim-only |
+| Real2Sim loop closure | the identified servo, put back into the twin and retrained end-to-end, closes the real-log 500 ms gap on roll (+19 to +28 pts) and yaw (+13 to +20) at **every** point of the split-half DISAGREE band — the loop is robust to the identification uncertainty; pitch stays open in every config (the sit-to-stand coverage hole, not the actuator); held-out half only, 10.7 s, control reproduces the published baseline exactly |
 | Sensor characterisation | round-trip validated: a hidden 60 ms fusion-filter lag recovered on 3 of 3 body-rate axes (+61.5 / +61.6 / +62.1 ms, peak corr 0.89–0.92; 60.4–63.5 ms across 5 seeds), gyro noise density within 8%, an injected timing stall flagged, and a bias instability refused on a gyro that has none — all from the file alone |
 
 ## What holds, what doesn't

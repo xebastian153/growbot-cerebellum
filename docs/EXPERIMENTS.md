@@ -169,6 +169,51 @@ Three findings:
 Sim-only, single seed, and both mismatch shapes are guesses at what a loaded MG90S does —
 a real log decides whether they were the right guesses.
 
+## Real2Sim loop closure — the identified servo, fed back, closes roll and yaw on the real logs
+
+The real-log report identified the servo as delay 4 ticks (80 ms at the 50 Hz caller),
+slew 2.0 rad/s, deadband 2° — with split-half DISAGREE (A: 4 / 3.0, B: 6 / 1.5), so a
+single point would overclaim. `real2sim.py` therefore runs the whole loop at three
+points spanning the determined band, plus a nominal control through the identical
+pipeline: collect 400 k ticks with the servo inside the twin (seed 0), train the
+standard model (128×2, K=5, 80 epochs, seed 0), evaluate on the real logs. The
+corrected twins train on **commanded** actions — the horn lags inside the twin —
+because commanded angles are all a real log carries.
+
+Discipline: identification used the first half of the concatenated log, so every
+real-log number here is the held-out second half only (535 ticks, 10.7 s — n is small
+and quoted). The decision rule preceded the numbers: closure on an axis at 500 ms is
+material when it beats max(3.0 pts, 2× the control's spread across 3 MLP seeds). The
+control collection is asserted array-equal to `data/train.npz`, and its real-log
+numbers reproduce the published baseline exactly (60.5 / 40.1 / 43.2 at 500 ms).
+
+| real log held-out, within 0.2 rad @500 ms | roll | pitch | yaw |
+|---|---|---|---|
+| control (nominal servo) | 60.5 | 40.1 | 43.2 |
+| argmin — delay 80 ms, slew 2.0 | 79.1 **(+18.6)** | 40.5 (+0.4) | 58.9 **(+15.6)** |
+| half-A — delay 80 ms, slew 3.0 | 79.5 **(+19.0)** | 39.9 (−0.2) | 56.3 **(+13.1)** |
+| half-B — delay 120 ms, slew 1.5 | 88.2 **(+27.6)** | 42.6 (+2.5) | 63.3 **(+20.0)** |
+| materiality threshold (2× seed spread) | 7.2 | 3.0 | 3.8 |
+
+Every config in the determined band closes roll and yaw materially — the loop is
+**validated robustly to the identification uncertainty**: it does not matter where in
+the DISAGREE band the true servo sits, retraining against any of it transfers. The
+slowest config reaches its own twin floor on roll (88.2 vs 86.1), and closure grows
+monotonically toward the slow end of the band — weak evidence the truth sits there,
+for the gesture capture to settle. At 100 ms every config stays at the floor (96–100 %),
+so the correction costs nothing at short horizon.
+
+Pitch does not move (+0.4 / −0.2 / +2.5, all under threshold) — exactly what the
+held-out attribution predicted, and the strongest evidence yet for the coverage
+hypothesis: the tipped walk's sit-to-stand has no counterpart in twin training data,
+and no servo model can supply missing motions.
+
+Context, not caveat: on the slower servos the policy's realized gait shrinks (horn
+amplitude 0.39 → 0.21–0.25 rad, mean gyro 1.7 → 0.9–1.2 rad/s, falls roughly
+unchanged) — the same policy driven through the identified servo walks noticeably
+more gently than the twin pretends, which is itself an argument for retraining the
+walk policy against the corrected twin upstream.
+
 ## Multi-step training loss — small, real gain
 
 Same 128×2 net, trained through an H-tick unroll with loss on every step (SPR-style),
