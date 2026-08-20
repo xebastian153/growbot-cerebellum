@@ -214,6 +214,57 @@ unchanged) — the same policy driven through the identified servo walks noticea
 more gently than the twin pretends, which is itself an argument for retraining the
 walk policy against the corrected twin upstream.
 
+## Coverage — transition data does not close the pitch gap (negative)
+
+The Real2Sim section above read the immovable pitch as "the sit-to-stand coverage
+hole": the tipped walk contains a sit-to-stand, twin training data contains nothing
+like it, and no servo model can supply missing motions. `coverage.py` tests that
+reading directly — and kills it.
+
+Design: a 2×2 factorial so the coverage effect and the actuator effect separate —
+{nominal, corrected-argmin servo} × {400 k standard ticks, 300 k standard + 100 k
+synthesized transitions}. The transitions are built around the REAL sit pose from
+the log header (act {l:130, r:50} through the adapter's cal inversion →
+[+0.705, −0.705] rad), glided over 0.3–1.5 s (the app's own 700 ms /act glide sits
+inside the range), held, scaled 0.75–1.20 in depth, and mixed with shipped-policy
+walking bursts so sit→stand→walk chains — the exact shape the tipped walk
+contains — are in the data. Shared seeds everywhere (standard: seed 0, asserted
+array-equal to `data/train.npz`; transitions: seed 10; MLP seed 0); the augmented
+cells' standard part is the exact 300 k prefix of the standard cells' stream, cut
+at the splice. The decision rule preceded the numbers: material = gain over the
+control > max(3.0 pts, 2× the control seed spread real2sim measured) = 7.2 / 3.0 /
+3.8 pts for roll / pitch / yaw.
+
+Sanity precondition, so the negative is interpretable: the synthesized data must
+actually reach walk-3's pitch excursions. It does — transition pitch spans −1.57
+to +1.46 rad against walk-3's −1.01 to +0.01 (the −1.0 tail is the sit itself).
+
+| real log held-out, within 0.2 rad @500 ms | roll | pitch | yaw |
+|---|---|---|---|
+| control (nominal, standard) | 60.5 | 40.1 | 43.2 |
+| coverage (nominal, +transitions) | 60.5 (+0.0) | 39.2 (−0.8) | 47.5 (+4.2)* |
+| corrected (argmin servo, standard) | 79.1 **(+18.6)** | 40.5 (+0.4) | 58.9 **(+15.6)** |
+| coverage + corrected | 77.6 **(+17.1)** | 39.7 (−0.4) | 61.8 **(+18.6)** |
+| materiality threshold | 7.2 | 3.0 | 3.8 |
+
+Pitch never moves — not in the aggregate, and not where the sit-to-stand lives:
+walk-3's walking part (n=181) reads 4.4 / 3.3 / 4.4 / 4.4 % across the four cells.
+Training data that demonstrably contains the missing motions changes nothing, so
+**the pitch gap is not a training-coverage hole of this kind**. What the 2×2
+excludes: missing motions in the command/pose repertoire. What it leaves open, as
+questions: the twin never rests its body on the ground the way a seated robot
+does (a contact configuration no pose sequence supplies), and the body model
+itself may be wrong in the folded regime. (*) Coverage alone nudges yaw +4.2
+against a 3.8 threshold — barely material, and worth exactly that much.
+
+Two replications came free: the corrected-servo cell reproduces real2sim's
+closure (+18.6 / +0.4 / +15.6, same numbers to the decimal — same seeds, same
+code path), and additivity holds (combined observed +17.1 / −0.4 / +18.6 vs
+expected-from-sum +18.6 / −0.4 / +19.8): the servo effect and the coverage
+(non-)effect are independent. At 100 ms every cell sits at 94–100 % on every
+axis. Held-out half only: 535 ticks, 10.7 s; labels official_w1 n=244,
+official_w3 n=181, tip_onset n=49.
+
 ## Multi-step training loss — small, real gain
 
 Same 128×2 net, trained through an H-tick unroll with loss on every step (SPR-style),
