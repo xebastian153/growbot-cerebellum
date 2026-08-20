@@ -116,6 +116,51 @@ Fast-WAM reaches the same conclusion at robot-lab scale.
   information is in the action, not the sensor history. Forecaster ≠ world action model.
 - JEPA-style latent world models. Complexity before the simple thing is validated.
 
+## How the field closes the sim-to-real gap (documented practice)
+
+Two philosophies and a bridge; within the first, one pattern repeats in every recipe
+that transfers well.
+
+**Sim-first, gap-closing machinery:**
+- ETH Zurich / ANYbotics — the open standard: an *actuator network* learned from real
+  data (delays, hysteresis, saturation) inserted into the simulator, plus friction/mass
+  randomization, noisy observations and random pushes during training; zero-shot on mud,
+  snow, rubble. https://github.com/leggedrobotics/legged_gym
+- Boston Dynamics / RAI Institute — open Spot pipeline reaches 5.2 m/s zero-shot by
+  "closely modeling hardware-specific dynamics, including actuator delays and joint
+  torque limits, using custom actuator classes". https://arxiv.org/abs/2504.17857
+- DeepMind, OP3 soccer (Science Robotics 2024) — closest to this project's scale (small
+  servo robots, falls): system identification first, then *targeted* randomization —
+  floor friction, joint orientation, masses, control-loop latency — plus perturbations
+  and high-frequency control; zero-shot transfer.
+  https://www.science.org/doi/10.1126/scirobotics.adi8022
+- OpenAI, Dactyl — Automatic Domain Randomization: the randomization widens itself as
+  the policy improves, a difficulty curriculum; the hand solved the cube in a rubber
+  glove it never trained with. https://arxiv.org/abs/1910.07113
+- Agility Robotics (Digit) / OSU (Cassie) — a bespoke high-fidelity simulator (closed
+  kinematic chains Isaac Gym cannot express) with dynamics, terrain and *delay*
+  randomization; Cassie was the first end-to-end DRL sim-to-real biped (2020).
+  Survey: https://arxiv.org/abs/2404.17070
+
+**Real-data-first, sidestepping the gap:** Tesla (Optimus) and Figure (Helix) train
+VLAs primarily on teleoperation and human video, simulation as a supplement;
+Physical Intelligence runs fleets plus RL post-training. No gap to close because the
+data was never synthetic — the cost is fleets and teleoperators.
+
+**The bridge:** 1X learns a *world model from the robot's own real video* and trains
+and evaluates policies inside it — the simulator itself is learned from reality.
+https://techcrunch.com/2026/01/13/neo-humanoid-maker-1x-releases-world-model-to-help-bots-learn-what-they-see
+
+**The pattern, and how it reads against this repo's measurements:** every sim-first
+recipe that transfers well models the ACTUATOR first (learned actuator nets, custom
+actuator classes, delay randomization, system ID) and randomizes *targeted* factors
+second; none wins by blanket-randomizing mass and friction. That is what the twin
+measured independently: body parameters never reach the IMU, actuator delay and slew
+open the gap, identify it and feed it back. The Real2Sim loop is standard practice at
+the top of the field. One caveat separates this project: the industry's system ID uses
+encoders and torque sensors; `servo_id.py` identifies the actuator from IMU + commands
+alone, because a $30 body carries nothing else — a variant none of the above documents.
+
 ## From talks and tools
 
 Things that came in sideways and left something behind.
