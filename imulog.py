@@ -43,6 +43,8 @@ import json, sys
 import numpy as np
 
 CTRL_HZ = 50
+GAP_MS = 100.0          # IMU dt above this is a dropout: parse() cuts the episode there,
+                        # and sensor_id refuses to interpolate across it
 
 
 def _read_rows(path):
@@ -78,8 +80,23 @@ def _read_rows(path):
                     cmd_t.append(float(row["t"])); cmd_v.append([float(row["l"]), float(row["r"])])
                 elif row.get("s") == "ev":
                     events.append((float(row["t"]), row.get("roll", "")))
-    return header, (np.asarray(imu_t, np.float64), np.asarray(imu_v, np.float32),
-                    np.asarray(cmd_t, np.float64), np.asarray(cmd_v, np.float32)), events
+    imu_t = np.asarray(imu_t, np.float64); imu_v = np.asarray(imu_v, np.float32)
+    cmd_t = np.asarray(cmd_t, np.float64); cmd_v = np.asarray(cmd_v, np.float32)
+    # One timestamp order for every consumer, established here and nowhere else.
+    # np.interp with non-monotonic xp returns nonsense, and a consumer that sorts
+    # only the timestamps decouples them from their values; so the rows are sorted
+    # stably by t per stream, values moving with their timestamps. How many
+    # inversions the file had is reported through the header so preflight can say
+    # so without re-reading the file.
+    n_imu = int((np.diff(imu_t) < 0).sum()) if len(imu_t) > 1 else 0
+    if n_imu:
+        o = np.argsort(imu_t, kind="stable"); imu_t, imu_v = imu_t[o], imu_v[o]
+    n_cmd = int((np.diff(cmd_t) < 0).sum()) if len(cmd_t) > 1 else 0
+    if n_cmd:
+        o = np.argsort(cmd_t, kind="stable"); cmd_t, cmd_v = cmd_t[o], cmd_v[o]
+    events = sorted(events, key=lambda e: e[0])
+    header = {**header, "_sorted_on_read": {"imu_inversions": n_imu, "cmd_inversions": n_cmd}}
+    return header, (imu_t, imu_v, cmd_t, cmd_v), events
 
 
 def _commands_to_rad(cmd_v, header):
@@ -112,7 +129,7 @@ def _mode_per_tick(events, grid, header):
     return np.asarray(mode, dtype=str)
 
 
-def parse(path, gap_ms=100.0):
+def parse(path, gap_ms=GAP_MS):
     header, (imu_t, imu_v, cmd_t, cmd_v), events = _read_rows(path)
     if header.get("imu_units", "rad") == "deg": imu_v = np.deg2rad(imu_v)
     cmd_v = _commands_to_rad(cmd_v, header)
@@ -141,7 +158,8 @@ def parse(path, gap_ms=100.0):
 
 
 def fixture(path, seconds=600, servo_ms=None, seed=0, imu_hz=60.0, cmd_hz=30.0, jitter_ms=2.0,
-            push_prob_s=0.5, fused_lag_ms=None, gyro_arw=None, still_lead_s=0.0, imu_slow=None):
+            push_prob_s=0.5, fused_lag_ms=None, gyro_arw=None, gyro_rrw=None, still_lead_s=0.0,
+            imu_slow=None):
     """Synthetic ?imulog=1 session from the twin: physics at 200 Hz, jittered sampling.
 
     servo_ms: dict(delay_ms=, slew_rad_s=, deadband=) -- delay given in MILLISECONDS
@@ -152,11 +170,19 @@ def fixture(path, seconds=600, servo_ms=None, seed=0, imu_hz=60.0, cmd_hz=30.0, 
 
     Sensor-side secrets, all off by default so the servo round-trip is untouched:
     fused_lag_ms   emit orientation through a causal boxcar FIR on (sin, cos) at
-                   physics rate -- linear phase, so its group delay is exactly
-                   (W-1)/2 * phys_dt at EVERY frequency; the one filter whose lag
-                   a cross-correlation must recover with no spectral caveats.
+                   physics rate. Linear phase, so its group delay is (W-1)/2 *
+                   phys_dt across the passband -- the caveats are that the boxcar
+                   has nulls at multiples of 1/(W*phys_dt) (no phase information
+                   survives there) and that the arctan2 read of the filtered
+                   (sin, cos) is nonlinear, so the exact-lag claim holds for
+                   in-band content, not for every frequency.
     gyro_arw       white noise on the emitted gyro with angle-random-walk density
                    N (rad/s/sqrt(Hz)); per-sample std is N*sqrt(imu_hz).
+    gyro_rrw       rate random walk added to the emitted gyro: a cumulative sum of
+                   white noise with coefficient K (rad/s/sqrt(s)), per-sample step
+                   std K*sqrt(1/imu_hz). Its Allan slope is +1/2, so with gyro_arw
+                   the curve has a V-shaped ARW/RRW crossover and NO flicker floor
+                   -- the negative control for bias-instability extraction.
     still_lead_s   hold neutral commands for this long first (reset untilted, no
                    pushes), labelled still from t=2 s -- the segment Allan needs.
     imu_slow       (start_s, dur_s, factor): IMU period multiplied by factor in
@@ -190,6 +216,7 @@ def fixture(path, seconds=600, servo_ms=None, seed=0, imu_hz=60.0, cmd_hz=30.0, 
     if fused_lag_ms is not None:                    # boxcar FIR on (sin, cos): lag (W-1)/2*phys_dt
         W = int(round(2 * fused_lag_ms / 1000 / phys_dt)) + 1
         hist = np.zeros((W, 6)); nh = 0
+    rrw = np.zeros(3)                               # rate-random-walk state (gyro_rrw)
     n_steps = int(seconds / phys_dt)
     for i in range(n_steps):
         if t >= next_cmd:
@@ -222,9 +249,13 @@ def fixture(path, seconds=600, servo_ms=None, seed=0, imu_hz=60.0, cmd_hz=30.0, 
             if fused_lag_ms is not None:
                 m = hist[:min(nh, W)].mean(0)
                 emit = np.concatenate([np.arctan2(m[:3], m[3:]), obs[3:]])
-            if gyro_arw is not None:
+            if gyro_arw is not None or gyro_rrw is not None:
                 emit = emit.copy()
-                emit[3:] += rng.normal(0, gyro_arw * np.sqrt(imu_hz), 3)
+                if gyro_arw is not None:
+                    emit[3:] += rng.normal(0, gyro_arw * np.sqrt(imu_hz), 3)
+                if gyro_rrw is not None:
+                    rrw += rng.normal(0, gyro_rrw / np.sqrt(imu_hz), 3)
+                    emit[3:] += rrw
             rows.append({"t": round(t * 1000 + rng.normal(0, jitter_ms), 2), "s": "imu",
                          "o": [round(float(v), 5) for v in emit]})
             period = 1.0 / imu_hz * (1 + rng.normal(0, 0.03))
@@ -235,6 +266,16 @@ def fixture(path, seconds=600, servo_ms=None, seed=0, imu_hz=60.0, cmd_hz=30.0, 
             obs = sim.reset(tilt=0.3); prev = np.zeros(2, np.float32)
             if sim.servo is not None: sim.servo.reset()
             t += 0.5  # a real gap: the app was repositioned
+            # KNOWN ARTIFACT, left in place deliberately: next_imu/next_cmd are NOT
+            # advanced past the jump, so both emitters fire on consecutive physics
+            # steps until they catch up and backfill ~30 rows at 200 Hz, a rate no
+            # real session has. Advancing them is a one-line change and it was
+            # measured over four seeds: the servo round-trip then recovers delay 1
+            # instead of the injected 2 on half of them (pre 4/4 PASS, post 2/4),
+            # because the exact-argmin recovery leans on that dense post-reset
+            # sampling. Removing the artifact alone would trade a cosmetic defect for
+            # a silent one, so it stays until the servo round-trip stands without it.
+            # sensor_id is insulated either way by filter_lag's post-gap warm-up guard.
     # rows may be slightly out of order after jitter -- sort like a real file would be
     head, body = rows[0], sorted(rows[1:], key=lambda r: r["t"])
     with open(path, "w") as f:
@@ -293,9 +334,11 @@ def preflight(path):
     if len(imu_t) < 100 or len(cmd_t) < 10:
         return fail(f"too few rows (imu {len(imu_t)}, cmd {len(cmd_t)})"), out
     # --- timestamps: order, units, one clock ---
-    if not (np.diff(imu_t) >= 0).all():
-        warn(f"IMU timestamps not sorted ({int((np.diff(imu_t) < 0).sum())} inversions) -- sorting on parse")
-        imu_t = np.sort(imu_t); cmd_t = np.sort(cmd_t)
+    order = header.get("_sorted_on_read", {})
+    for name, k in (("IMU", "imu_inversions"), ("command", "cmd_inversions")):
+        if order.get(k, 0):
+            warn(f"{name} timestamps not sorted in the file ({order[k]} inversions) -- sorted on read, "
+                 f"values moved with their timestamps")
     dt_i = float(np.median(np.diff(imu_t))); dt_c = float(np.median(np.diff(cmd_t)))
     if dt_i < 1.0:
         F = fail(f"IMU median dt = {dt_i:.4f}: timestamps look like SECONDS, expected milliseconds")
@@ -303,7 +346,7 @@ def preflight(path):
         info(f"effective rates: IMU {1000 / dt_i:.1f} Hz, commands {1000 / dt_c:.1f} Hz")
         if not (10 <= 1000 / dt_i <= 250): warn(f"IMU rate {1000 / dt_i:.1f} Hz far from the expected ~60")
         if not (5 <= 1000 / dt_c <= 100): warn(f"command rate {1000 / dt_c:.1f} Hz far from the expected ~30")
-    from sensor_id import dt_stats
+    from sensor_id import dt_stats, verify_still
     for name, ts in (("IMU", imu_t), ("command", cmd_t)):
         st = dt_stats(ts)
         line = (f"{name} dt: median {st['median_ms']:.1f} ms, p95 {st['p95_ms']:.1f}, "
@@ -314,6 +357,16 @@ def preflight(path):
                  "forward model (reported, never gated)")
         else:
             info(line)
+        # Dropouts inside one file. A stall shorter than p99 hides in the quantiles
+        # above but still splits an episode in parse() and a correlation segment in
+        # sensor_id, so it is counted explicitly. Reported, never a FAIL: a real
+        # Bluetooth session has these.
+        d = np.diff(ts)
+        n_gap = int((d > GAP_MS).sum())
+        if n_gap:
+            warn(f"{name} stream has {n_gap} dt above the {GAP_MS:.0f} ms gap threshold "
+                 f"(max {d.max():.0f} ms) -- these cut episodes in parse() and are excluded "
+                 f"from sensor_id's interpolation, they are not interpolated across")
     lo, hi = max(imu_t[0], cmd_t[0]), min(imu_t[-1], cmd_t[-1])
     overlap = max(0.0, hi - lo) / max(imu_t[-1] - imu_t[0], 1e-9)
     if overlap < 0.5:
@@ -342,13 +395,15 @@ def preflight(path):
         return m
     stillm = seg_mask("still") | seg_mask("idle")
     if stillm.sum() > 50:
-        grms = float(np.sqrt((imu_v[stillm, 3:] ** 2).mean()))
-        astd = float(imu_v[stillm, :2].std())
-        if grms > 0.15 or astd > 0.05:
-            warn(f"'still' segments not still: gyro RMS {grms:.3f} rad/s, roll/pitch std {astd:.3f} rad "
-                 f"-- mislabelled segments or a unit/axis problem")
+        # One implementation, shared with sensor_id, so 'still' cannot mean two
+        # different things in the check and in the analysis it is supposed to guard.
+        vs = verify_still(imu_v[stillm, :3], imu_v[stillm, 3:])
+        nums = (f"gyro RMS {vs['gyro_rms']:.3f} rad/s (max {vs['gyro_rms_max']}), max per-axis "
+                f"roll/pitch std {vs['ang_std']:.4f} rad (max {vs['ang_std_max']})")
+        if not vs["still"]:
+            warn(f"'still' segments not still: {nums} -- mislabelled segments or a unit/axis problem")
         else:
-            info(f"'still' segments check out (gyro RMS {grms:.3f}, orientation std {astd:.4f})")
+            info(f"'still' segments check out ({nums})")
     for name in ("spin", "spin_ccw", "spin_cw"):
         m = seg_mask(name)
         if m.sum() > 50:
@@ -419,7 +474,47 @@ if __name__ == "__main__":
     print("\nROUND-TRIP", "PASS" if ok else "FAIL", "- delay and slew recovered through 60/30 Hz jittered sampling" if ok else "")
 
     # --- sensor-side round-trip: the same standard, applied to sensor_id.py --------
-    from sensor_id import dt_stats, allan_deviation, filter_lag, still_windows
+    from sensor_id import (dt_stats, allan_deviation, filter_lag, still_windows,
+                           euler_rates_to_body, verify_still, segment_rate, BODY_AXES)
+
+    # (1) the euler-rate -> body-rate map, against an INDEPENDENT derivation.
+    # A pure delay commutes with any static mixing of the axes, so a sign-flipped or
+    # transposed kinematic map still recovers the injected lag below: that assert
+    # proves the correlation works, never that the kinematics are right. Ground truth
+    # here is w^ = R^T dR/dt on an analytic trajectory, which shares no line of code
+    # with the formula under test.
+    def _R(phi, th, psi):
+        cz, sz = np.cos(psi), np.sin(psi)
+        cy, sy = np.cos(th), np.sin(th)
+        cx, sx = np.cos(phi), np.sin(phi)
+        return (np.array([[cz, -sz, 0.], [sz, cz, 0.], [0., 0., 1.]])
+                @ np.array([[cy, 0., sy], [0., 1., 0.], [-sy, 0., cy]])
+                @ np.array([[1., 0., 0.], [0., cx, -sx], [0., sx, cx]]))
+
+    def _traj(tt):                       # |pitch| to 1.0 rad, yaw winding through +-pi
+        tt = np.atleast_1d(np.asarray(tt, np.float64))
+        return np.stack([0.9 * np.sin(2 * np.pi * 0.31 * tt + 0.4),
+                         1.0 * np.sin(2 * np.pi * 0.23 * tt),
+                         np.pi * tt], 1)
+
+    dtk = 1 / 60.0
+    tt = np.arange(0.0, 20.0, dtk)
+    h = 1e-6
+    w_true = np.empty((len(tt), 3))
+    for i, ti in enumerate(tt):
+        S = _R(*_traj(ti)[0]).T @ ((_R(*_traj(ti + h)[0]) - _R(*_traj(ti - h)[0])) / (2 * h))
+        w_true[i] = [S[2, 1], S[0, 2], S[1, 0]]
+    ang_true = _traj(tt)
+    wrapped = np.arctan2(np.sin(ang_true), np.cos(ang_true))      # the map must unwrap itself
+    w_pred = euler_rates_to_body(wrapped, dtk)
+    inner = slice(3, -3)                 # np.gradient is one-sided at the ends
+    kerr = np.abs(w_pred[inner] - w_true[inner]).max(0)
+    print(f"\neuler-rate -> body-rate map vs R^T dR/dt, analytic trajectory "
+          f"({tt[-1] * 0.5:.0f} yaw turns, |pitch| <= 1.0 rad, dt {dtk * 1000:.1f} ms):")
+    print("  max |err| " + "  ".join(f"{BODY_AXES[a]} {kerr[a]:.1e}" for a in range(3))
+          + " rad/s   (np.gradient truncation; a sign or convention flip is O(1))")
+    assert (kerr < 5e-3).all(), f"euler->body kinematics wrong on some axis: {kerr}"
+
     SENSOR = dict(fused_lag_ms=60.0, gyro_arw=2e-3, still_lead_s=120.0, imu_slow=(300.0, 30.0, 3.0))
     print("\ngenerating 600 s sensor fixture (hidden: fused-filter lag 60 ms, gyro ARW 2e-3 "
           "rad/s/sqrt(Hz), 30 s of 3x-slow IMU at 300 s)...", flush=True)
@@ -429,23 +524,78 @@ if __name__ == "__main__":
     print(f"dt stats: median {st['median_ms']:.1f} ms  p99 {st['p99_ms']:.1f} ms  "
           f"max {st['max_ms']:.0f} ms  jitter_warn {st['jitter_warn']}")
     assert st["jitter_warn"], "dt_stats missed the injected 3x IMU slowdown"
-    lags = filter_lag(iv[:, :3], it, iv[:, 3:], it)
-    for r in lags:
-        print(f"  filter lag {r['axis']:>5}: " + (f"{r['lag_ms']:+6.1f} ms (corr {r['corr']:.2f})"
-              if r["determined"] else f"undetermined (corr {r['corr']:.2f})"))
-    det = [r for r in lags if r["determined"]]
+    res = filter_lag(iv[:, :3], it, iv[:, 3:], it)
+    print(f"  grid {res['grid_dt_ms']:.1f} ms, {res['segments_used']} segments used / "
+          f"{res['segments_dropped']} dropped, {res['excluded_ms'] / 1000:.1f} s excluded at gaps, "
+          f"gimbal mask keeps {res['gimbal_kept_frac'] * 100:.1f}% of {res['grid_samples']:,} samples")
+    for r in res["axes"]:
+        print(f"  filter lag {r['axis']:>3}: " + (f"{r['lag_ms']:+6.1f} ms (corr {r['corr']:.2f})"
+              if r["determined"] else f"undetermined (corr {r['corr']:.2f}) -- {r['reason']}"))
+    lags = {r["axis"]: r for r in res["axes"]}
+    det = [r for r in res["axes"] if r["determined"]]
     assert len(det) >= 2, f"filter lag determined on only {len(det)} of 3 axes"
+    # wz carries the yaw wrap: if unwrapping or the segment split is wrong, this is the
+    # axis that breaks, and 'two of three determined' would have hidden it.
+    assert lags["wz"]["determined"], (f"wz undetermined (corr {lags['wz']['corr']:.2f}) -- yaw is "
+                                      f"the only wrap-sensitive axis and it must be recovered")
     for r in det:
         assert abs(r["lag_ms"] - SENSOR["fused_lag_ms"]) <= 10.0, \
             f"{r['axis']} lag {r['lag_ms']:.1f} ms vs injected {SENSOR['fused_lag_ms']:.0f} ms"
+        assert r["corr"] >= 0.6, f"{r['axis']} reported a lag on corr {r['corr']:.2f}"
+        assert not r["boundary"], f"{r['axis']} peak pegged at the search boundary"
+
     t0, t1 = max(still_windows(ev, it[-1]), key=lambda w: w[1] - w[0])
     sel = (it >= t0) & (it < t1)
-    fs = 1000.0 / float(np.median(np.diff(it[sel])))
+    vs = verify_still(iv[sel, :3], iv[sel, 3:])
+    fs, rate_ok, rate_why = segment_rate(it[sel])
+    print(f"  still segment {(t1 - t0) / 1000:.0f} s: gyro RMS {vs['gyro_rms']:.4f} rad/s, "
+          f"max per-axis roll/pitch std {vs['ang_std']:.4f} rad, still={vs['still']}; "
+          f"fs {fs:.2f} Hz, one-rate check {'ok' if rate_ok else rate_why}")
+    assert vs["still"], "the fixture's labelled still segment must verify as still"
+    assert rate_ok, f"the still segment must support one fs: {rate_why}"
+    # the gate itself, on timestamps built for it: healthy jitter must pass, and a
+    # stall inside the segment must not, or Allan would integrate at the wrong rate
+    rr = np.random.default_rng(1)
+    clean = np.cumsum(np.full(4000, 16.7) * (1 + rr.normal(0, 0.04, 4000))) + rr.normal(0, 2.0, 4000)
+    stalled = clean + np.concatenate([np.zeros(3000), np.arange(1000) * 33.4])
+    _, ok_clean, _ = segment_rate(np.sort(clean))
+    _, ok_stall, _ = segment_rate(np.sort(stalled))
+    print(f"  one-rate gate: healthy 60 Hz jitter -> {'accepted' if ok_clean else 'REFUSED'}; "
+          f"3x stall over a quarter -> {'ACCEPTED' if ok_stall else 'refused'}")
+    assert ok_clean, "the one-rate gate refuses ordinary phone jitter"
+    assert not ok_stall, "the one-rate gate misses a 3x stall inside the segment"
     for a, r in enumerate(allan_deviation(iv[sel, 3:], fs)):
-        n_est = r["arw"]
-        print(f"  ARW axis {a}: {'undetermined' if n_est is None else f'{n_est:.2e}'} rad/s/sqrt(Hz) "
-              f"(injected {SENSOR['gyro_arw']:.0e})")
+        n_est = r["arw"]; b_est = r["bias_instability"]
+        print(f"  ARW {BODY_AXES[a]}: {'undetermined' if n_est is None else f'{n_est:.2e}'} "
+              f"rad/s/sqrt(Hz) (injected {SENSOR['gyro_arw']:.0e}); bias instability "
+              + ("undetermined" if b_est is None else f"{b_est:.2e} rad/s"))
         assert n_est is not None and abs(n_est / SENSOR["gyro_arw"] - 1) <= 0.20, \
             f"axis {a} ARW {n_est} vs injected {SENSOR['gyro_arw']}"
-    print("\nSENSOR ROUND-TRIP PASS - fused-filter lag, gyro noise density and the timing "
-          "stall all recovered from the file alone")
+        assert r["bias_instability"] is None, \
+            f"white-only gyro reported a bias instability ({r['bias_instability']:.2e})"
+
+    # (2) negative control for bias instability: angle random walk PLUS rate random
+    # walk and no flicker floor anywhere. The Allan curve has a real interior minimum
+    # -- the ARW/RRW crossover -- and B = adev_min / 0.664 there would be a number for
+    # a noise process the sensor does not have. It must come back undetermined while
+    # the ARW, which IS in the data, is still recovered.
+    RRW = dict(gyro_arw=2e-3, gyro_rrw=3.5e-4, still_lead_s=150.0)
+    print("\ngenerating 160 s ARW+RRW fixture (crossover minimum, no flicker floor)...", flush=True)
+    fixture("/tmp/imulog_rrw_fixture.jsonl", seconds=160, seed=5, **RRW)
+    _, (it2, iv2, _, _), ev2 = _read_rows("/tmp/imulog_rrw_fixture.jsonl")
+    t0, t1 = max(still_windows(ev2, it2[-1]), key=lambda w: w[1] - w[0])
+    sel2 = (it2 >= t0) & (it2 < t1)
+    fs2 = 1000.0 / float(np.median(np.diff(it2[sel2])))
+    print(f"  still segment {(t1 - t0) / 1000:.0f} s, {int(sel2.sum()):,} samples at {fs2:.1f} Hz")
+    for a, r in enumerate(allan_deviation(iv2[sel2, 3:], fs2)):
+        n_est = r["arw"]; b_est = r["bias_instability"]
+        print(f"  {BODY_AXES[a]}: ARW {'undetermined' if n_est is None else f'{n_est:.2e}'} "
+              f"(injected {RRW['gyro_arw']:.0e});  bias instability "
+              + (f"undetermined -- {r['bias_reason']}" if b_est is None else f"{b_est:.2e} rad/s"))
+        assert r["bias_instability"] is None, \
+            f"axis {a}: an ARW/RRW crossover was converted into a bias instability"
+        assert n_est is not None and abs(n_est / RRW["gyro_arw"] - 1) <= 0.20, \
+            f"axis {a} ARW {n_est} vs injected {RRW['gyro_arw']} under a rate random walk"
+
+    print("\nSENSOR ROUND-TRIP PASS - kinematics, fused-filter lag (with the yaw axis), gyro "
+          "noise density, the refused bias instability and the timing stall, from the file alone")

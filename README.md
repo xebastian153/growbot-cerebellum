@@ -76,7 +76,7 @@ On a real `?imulog=1` session the whole analysis is:
 
 ```bash
 .venv/bin/python imulog.py session.jsonl            # preflight: units, rates, clock, jitter, labelled-segment physics
-.venv/bin/python sensor_id.py session.jsonl         # sensor side: fusion-filter lag, gyro Allan noise, dt stats
+.venv/bin/python sensor_id.py session.jsonl         # sensor side: fusion-filter lag, gyro Allan noise, dt stats -> results/sensor_id.json
 .venv/bin/python gap_report.py session.jsonl --servo-id   # gap per regime and axis vs the twin floor
 ```
 
@@ -97,7 +97,7 @@ Full write-ups with conditions and per-regime splits: [docs/EXPERIMENTS.md](docs
 | Metadata conditioning | **negative** — a forward model has no quality axis for a tag to separate; one model serves two bodies regardless |
 | TimesFM 2.5 baseline | a 200M-param action-blind forecaster ties persistence; the information is in the action |
 | `?imulog=1` parser | round-trip validated: a hidden servo's delay and slew survive 60/30 Hz jittered sampling into the 50 Hz arrays |
-| Sensor characterisation | round-trip validated: a hidden 60 ms fusion-filter lag recovered to 60.8 ms on the determined axes, gyro noise density within 5%, and an injected timing stall flagged — all from the file alone |
+| Sensor characterisation | round-trip validated: a hidden 60 ms fusion-filter lag recovered on 3 of 3 body-rate axes (+59.9 / +60.4 / +61.9 ms, peak corr 0.88–0.93), gyro noise density within 5%, an injected timing stall flagged, and a bias instability refused on a gyro that has none — all from the file alone |
 
 ## What holds, what doesn't
 
