@@ -96,8 +96,8 @@ Full write-ups with conditions and per-regime splits: [docs/EXPERIMENTS.md](docs
 | PETS | uncertainty is well calibrated per regime; planning through it is neutral-to-harmful |
 | Metadata conditioning | **negative** — a forward model has no quality axis for a tag to separate; one model serves two bodies regardless |
 | TimesFM 2.5 baseline | a 200M-param action-blind forecaster ties persistence; the information is in the action |
-| `?imulog=1` parser | round-trip validated: a hidden servo's delay and slew survive 60/30 Hz jittered sampling into the 50 Hz arrays |
-| Sensor characterisation | round-trip validated: a hidden 60 ms fusion-filter lag recovered on 3 of 3 body-rate axes (+59.9 / +60.4 / +61.9 ms, peak corr 0.88–0.93), gyro noise density within 5%, an injected timing stall flagged, and a bias instability refused on a gyro that has none — all from the file alone |
+| `?imulog=1` parser | round-trip validated: a hidden servo survives 60/30 Hz jittered sampling into the 50 Hz arrays, determined to one grid step — the injected 40 ms delay is inside the determined set on all 5 seeds tested and the set never leaves ±20 ms; slew resolves to within one grid step of the injected 5 rad/s (the set contains it on 4 of 5). The argmin alone is a coin flip here and is no longer the acceptance rule |
+| Sensor characterisation | round-trip validated: a hidden 60 ms fusion-filter lag recovered on 3 of 3 body-rate axes (+61.5 / +61.6 / +62.1 ms, peak corr 0.89–0.92; 60.4–63.5 ms across 5 seeds), gyro noise density within 8%, an injected timing stall flagged, and a bias instability refused on a gyro that has none — all from the file alone |
 
 ## What holds, what doesn't
 

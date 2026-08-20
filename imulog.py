@@ -266,16 +266,15 @@ def fixture(path, seconds=600, servo_ms=None, seed=0, imu_hz=60.0, cmd_hz=30.0, 
             obs = sim.reset(tilt=0.3); prev = np.zeros(2, np.float32)
             if sim.servo is not None: sim.servo.reset()
             t += 0.5  # a real gap: the app was repositioned
-            # KNOWN ARTIFACT, left in place deliberately: next_imu/next_cmd are NOT
-            # advanced past the jump, so both emitters fire on consecutive physics
-            # steps until they catch up and backfill ~30 rows at 200 Hz, a rate no
-            # real session has. Advancing them is a one-line change and it was
-            # measured over four seeds: the servo round-trip then recovers delay 1
-            # instead of the injected 2 on half of them (pre 4/4 PASS, post 2/4),
-            # because the exact-argmin recovery leans on that dense post-reset
-            # sampling. Removing the artifact alone would trade a cosmetic defect for
-            # a silent one, so it stays until the servo round-trip stands without it.
-            # sensor_id is insulated either way by filter_lag's post-gap warm-up guard.
+            # The clock jumped, so the emission schedules jump with it. Left behind,
+            # both emitters fire on every physics step until they catch up and
+            # backfill ~30 rows at 200 Hz -- a rate no real session has, right where
+            # the post-reset transient carries the most servo information. The
+            # round-trip below leaned on exactly that: with the burst removed, the
+            # argmin lands one grid step off the injected delay on half the seeds,
+            # which is why the acceptance rule is now servo_id's determined set
+            # rather than the argmin.
+            next_imu = max(next_imu, t); next_cmd = max(next_cmd, t)
     # rows may be slightly out of order after jitter -- sort like a real file would be
     head, body = rows[0], sorted(rows[1:], key=lambda r: r["t"])
     with open(path, "w") as f:
@@ -429,7 +428,7 @@ if __name__ == "__main__":
     import itertools, time
     from forward import MLP, make_windows
     from sim2real_proxy import K, horizon_within
-    from servo_id import identify, realized_from_commands
+    from servo_id import identify, realized_from_commands, confidence_band, determined_sets
 
     _selfcheck()
 
@@ -470,8 +469,51 @@ if __name__ == "__main__":
         c = horizon_within(model, O[held], A[held], D[held], h=h)[0]
         e = horizon_within(model, O[held], R_est[held], D[held], h=h)[0]
         print(f"  {h*20:>3} ms  within 0.2 rad: commanded {c*100:5.1f}%  identified servo {e*100:5.1f}%")
-    ok = best["delay_ticks"] == round(TRUE["delay_ms"] / 20) and best["slew_rad_s"] == TRUE["slew_rad_s"]
-    print("\nROUND-TRIP", "PASS" if ok else "FAIL", "- delay and slew recovered through 60/30 Hz jittered sampling" if ok else "")
+    # Acceptance is servo_id's own standard -- the determined SET, not the argmin.
+    # The valley here is nearly flat (the top three hypotheses differ by ~2e-4 on
+    # errors of ~0.4), so the argmin is a coin flip, and asserting it was a test that
+    # passed for the wrong reason: it leaned on the ~30 rows the fixture used to
+    # backfill at 200 Hz after every repositioning gap, right where the post-reset
+    # transient is most informative. With that artifact gone the argmin lands one
+    # grid step off the injected delay on two of the five seeds tested (0/3/5/7/11),
+    # while the determined set still contains the truth on all five.
+    #
+    # The bound asserted below is what held on all five seeds, not what looks tidy:
+    #   delay  the injected 2 ticks is IN the set, and the set never leaves 2 +-1
+    #          grid step (measured sets: [1,2,3] [1,2] [2] [1,2] [1,2,3])
+    #   slew   every member of the set is within one grid step of the injected
+    #          5.0 rad/s (measured: [4,5,6] [4,5] [4,5,6] [4] [4,5,6]) -- containment
+    #          is NOT asserted, because seed 7 determines [4.0] and excludes the
+    #          truth. The 200 Hz burst was the fixture's most slew-informative data;
+    #          without it this log resolves slew to one grid step, and claiming more
+    #          would be the same mistake in a new place.
+    # Both clauses still exclude the answers that would make the test vacuous: delay
+    # 0 (no servo at all) and slew 3.0, 8.0 or None (no slew limit).
+    hA, hB = slice(0, half // 2), slice(half // 2, half)
+    sA, _ = identify(model, O[hA], A[hA], O2[hA], D[hA], grid)
+    sB, _ = identify(model, O[hB], A[hB], O2[hB], D[hB], grid)
+    band = confidence_band(sA, sB)
+    delay_set, slew_set = determined_sets(scores, best, grid, band)
+    true_ticks = round(TRUE["delay_ms"] / 20)
+    slews = sorted({s for _, s, _ in grid}, key=lambda v: (v is None, v))
+    si = slews.index(TRUE["slew_rad_s"])
+    near_slew = set(slews[max(0, si - 1):si + 2])
+    delay_ok = (true_ticks in delay_set
+                and set(delay_set) <= {true_ticks - 1, true_ticks, true_ticks + 1})
+    slew_ok = bool(slew_set) and set(slew_set) <= near_slew
+    print(f"\ndetermined sets at the split-half band {band:.5f} (argmin was delay "
+          f"{best['delay_ticks']}, slew {best['slew_rad_s']}):")
+    print(f"  delay {delay_set} ticks -- injected {true_ticks} "
+          f"{'inside the set' if true_ticks in delay_set else 'OUTSIDE the set'}, "
+          f"set within +-1 grid step: {set(delay_set) <= {true_ticks - 1, true_ticks, true_ticks + 1}}")
+    print(f"  slew  {slew_set} rad/s -- injected {TRUE['slew_rad_s']} "
+          f"{'inside the set' if TRUE['slew_rad_s'] in slew_set else 'outside the set'}, "
+          f"every member within one grid step: {slew_ok}")
+    ok = delay_ok and slew_ok
+    print("\nROUND-TRIP", "PASS" if ok else "FAIL",
+          "- delay and slew determined to one grid step through 60/30 Hz jittered sampling" if ok else "")
+    assert delay_ok, f"injected delay {true_ticks} ticks not determined: set {delay_set}"
+    assert slew_ok, f"injected slew {TRUE['slew_rad_s']} rad/s not determined: set {slew_set}"
 
     # --- sensor-side round-trip: the same standard, applied to sensor_id.py --------
     from sensor_id import (dt_stats, allan_deviation, filter_lag, still_windows,

@@ -57,6 +57,45 @@ def identify(model, O, A, O2, D, grid):
     return scores, scores[0][1]
 
 
+def _key(kw):
+    return kw["delay_ticks"], kw["slew_rad_s"], round(float(kw["deadband"]), 5)
+
+
+def confidence_band(scoresA, scoresB):
+    """Estimator noise at the full fit size, from two independent halves of it.
+
+    Each half scores every hypothesis independently, so std(errA - errB) measures
+    the noise at half the data; the full fit uses twice as much, so its noise is
+    about std(diff) / 2. This is the number a separation must beat before an argmin
+    means anything.
+    """
+    eA = {_key(kw): e for e, kw in scoresA}
+    eB = {_key(kw): e for e, kw in scoresB}
+    return float(np.std([eA[k] - eB[k] for k in eA])) / 2.0
+
+
+def determined_sets(scores, best, grid, band):
+    """(delay_set, slew_set): the grid values this log actually separates.
+
+    A value stays in the set when holding the other parameters at `best` costs no
+    more than `band` over the best error -- i.e. the log cannot tell it apart from
+    the winner. A one-element set is an identification; a longer one is the honest
+    answer, and reporting its argmin as though it were the answer is the failure
+    mode this exists to prevent.
+    """
+    fit_err = {_key(kw): e for e, kw in scores}
+    best_e = scores[0][0]
+    db = round(float(best["deadband"]), 5)
+
+    def determined(values, fixed):
+        return sorted({v for v in values if fit_err.get(fixed(v), np.inf) - best_e <= band})
+
+    delays = sorted({d for d, _, _ in grid})
+    slews = sorted({s for _, s, _ in grid}, key=lambda v: (v is None, v))
+    return (determined(delays, lambda v: (v, best["slew_rad_s"], db)),
+            determined(slews, lambda v: (best["delay_ticks"], v, db)))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--epochs", type=int, default=60)
@@ -99,21 +138,8 @@ def main():
     print(f"split-half stability: A=(delay {bestA['delay_ticks']}, slew {bestA['slew_rad_s']})  "
           f"B=(delay {bestB['delay_ticks']}, slew {bestB['slew_rad_s']})  "
           f"{'AGREE' if agree else 'DISAGREE -- log too short or servo outside the model family'}")
-    # Confidence band from the split halves: each half is an independent estimate of
-    # every hypothesis's error, so std(errA - errB) measures estimator noise at half
-    # the data; the full fit uses twice as much, so its noise is ~ std(diff) / 2.
-    key = lambda kw: (kw["delay_ticks"], kw["slew_rad_s"], round(float(kw["deadband"]), 5))
-    eA = {key(kw): e for e, kw in scoresA}; eB = {key(kw): e for e, kw in scoresB}
-    band = float(np.std([eA[k] - eB[k] for k in eA])) / 2.0
-    fit_err = {key(kw): e for e, kw in scores}
-    best_e = scores[0][0]
-    def determined(param_values, fixed):
-        return sorted({v for v in param_values
-                       if fit_err.get(fixed(v), np.inf) - best_e <= band})
-    slews_grid = sorted({s_ for _, s_, _ in grid}, key=lambda v: (v is None, v))
-    delays_grid = sorted({d_ for d_, _, _ in grid})
-    slew_set = determined(slews_grid, lambda v: (best["delay_ticks"], v, round(float(best["deadband"]), 5)))
-    delay_set = determined(delays_grid, lambda v: (v, best["slew_rad_s"], round(float(best["deadband"]), 5)))
+    band = confidence_band(scoresA, scoresB)
+    delay_set, slew_set = determined_sets(scores, best, grid, band)
     def show(name, sset, unit=""):
         if len(sset) == 1:
             print(f"{name} determined: {sset[0]}{unit}")
