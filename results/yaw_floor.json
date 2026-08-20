@@ -1,0 +1,393 @@
+{
+ "config": {
+  "K": 5,
+  "epochs": 30,
+  "n_starts": 2000,
+  "horizons_ms": [
+   500,
+   1000
+  ],
+  "train_seed": 0,
+  "eval_seed": 1,
+  "base_steps": 400000,
+  "eval_steps": 60000,
+  "priv_dim": 18,
+  "rule": "material = yaw within-0.2rad gain @1s > max(3.0 pts, 2x baseline seed spread)",
+  "baseline_yaw_1s": [
+   0.584,
+   0.5745,
+   0.5975
+  ],
+  "seed_spread": 0.02300000000000002,
+  "material_threshold": 0.04600000000000004
+ },
+ "conditions": {
+  "baseline seed 0": {
+   "steps": 400000,
+   "hidden": 128,
+   "params": 24841,
+   "mlp_seed": 0,
+   "privileged": false,
+   "fit_s": 19.0,
+   "horizons": {
+    "500ms": {
+     "within_0.2rad_axis": {
+      "roll": 0.8755,
+      "pitch": 0.8725,
+      "yaw": 0.771
+     },
+     "rmse_axis_rad": {
+      "roll": 0.40121760964393616,
+      "pitch": 0.21751388907432556,
+      "yaw": 0.5475993156433105
+     }
+    },
+    "1000ms": {
+     "within_0.2rad_axis": {
+      "roll": 0.839,
+      "pitch": 0.8285,
+      "yaw": 0.584
+     },
+     "rmse_axis_rad": {
+      "roll": 0.6269511580467224,
+      "pitch": 0.2663654685020447,
+      "yaw": 0.8121764063835144
+     }
+    }
+   }
+  },
+  "baseline seed 1": {
+   "steps": 400000,
+   "hidden": 128,
+   "params": 24841,
+   "mlp_seed": 1,
+   "privileged": false,
+   "fit_s": 16.4,
+   "horizons": {
+    "500ms": {
+     "within_0.2rad_axis": {
+      "roll": 0.874,
+      "pitch": 0.8705,
+      "yaw": 0.7635
+     },
+     "rmse_axis_rad": {
+      "roll": 0.39247024059295654,
+      "pitch": 0.22454479336738586,
+      "yaw": 0.5490063428878784
+     }
+    },
+    "1000ms": {
+     "within_0.2rad_axis": {
+      "roll": 0.833,
+      "pitch": 0.8265,
+      "yaw": 0.5745
+     },
+     "rmse_axis_rad": {
+      "roll": 0.620003879070282,
+      "pitch": 0.2693544328212738,
+      "yaw": 0.8130362033843994
+     }
+    }
+   }
+  },
+  "baseline seed 2": {
+   "steps": 400000,
+   "hidden": 128,
+   "params": 24841,
+   "mlp_seed": 2,
+   "privileged": false,
+   "fit_s": 19.4,
+   "horizons": {
+    "500ms": {
+     "within_0.2rad_axis": {
+      "roll": 0.8725,
+      "pitch": 0.8685,
+      "yaw": 0.775
+     },
+     "rmse_axis_rad": {
+      "roll": 0.4039163589477539,
+      "pitch": 0.2191987931728363,
+      "yaw": 0.5515753030776978
+     }
+    },
+    "1000ms": {
+     "within_0.2rad_axis": {
+      "roll": 0.8345,
+      "pitch": 0.824,
+      "yaw": 0.5975
+     },
+     "rmse_axis_rad": {
+      "roll": 0.6332612037658691,
+      "pitch": 0.27579352259635925,
+      "yaw": 0.8127978444099426
+     }
+    }
+   }
+  },
+  "data 0.5x": {
+   "steps": 200000,
+   "hidden": 128,
+   "params": 24841,
+   "mlp_seed": 0,
+   "privileged": false,
+   "fit_s": 9.4,
+   "horizons": {
+    "500ms": {
+     "within_0.2rad_axis": {
+      "roll": 0.8705,
+      "pitch": 0.8725,
+      "yaw": 0.763
+     },
+     "rmse_axis_rad": {
+      "roll": 0.4021967053413391,
+      "pitch": 0.22834059596061707,
+      "yaw": 0.5518891215324402
+     }
+    },
+    "1000ms": {
+     "within_0.2rad_axis": {
+      "roll": 0.8385,
+      "pitch": 0.832,
+      "yaw": 0.5815
+     },
+     "rmse_axis_rad": {
+      "roll": 0.625547468662262,
+      "pitch": 0.26003748178482056,
+      "yaw": 0.8151346445083618
+     }
+    }
+   }
+  },
+  "data 2x": {
+   "steps": 800000,
+   "hidden": 128,
+   "params": 24841,
+   "mlp_seed": 0,
+   "privileged": false,
+   "fit_s": 37.6,
+   "horizons": {
+    "500ms": {
+     "within_0.2rad_axis": {
+      "roll": 0.88,
+      "pitch": 0.879,
+      "yaw": 0.7835
+     },
+     "rmse_axis_rad": {
+      "roll": 0.40262410044670105,
+      "pitch": 0.22058458626270294,
+      "yaw": 0.5471430420875549
+     }
+    },
+    "1000ms": {
+     "within_0.2rad_axis": {
+      "roll": 0.836,
+      "pitch": 0.83,
+      "yaw": 0.6085
+     },
+     "rmse_axis_rad": {
+      "roll": 0.6259369254112244,
+      "pitch": 0.27029913663864136,
+      "yaw": 0.809087872505188
+     }
+    }
+   }
+  },
+  "data 4x": {
+   "steps": 1600000,
+   "hidden": 128,
+   "params": 24841,
+   "mlp_seed": 0,
+   "privileged": false,
+   "fit_s": 71.1,
+   "horizons": {
+    "500ms": {
+     "within_0.2rad_axis": {
+      "roll": 0.8825,
+      "pitch": 0.882,
+      "yaw": 0.7755
+     },
+     "rmse_axis_rad": {
+      "roll": 0.3929343819618225,
+      "pitch": 0.2162294238805771,
+      "yaw": 0.5481923818588257
+     }
+    },
+    "1000ms": {
+     "within_0.2rad_axis": {
+      "roll": 0.845,
+      "pitch": 0.835,
+      "yaw": 0.594
+     },
+     "rmse_axis_rad": {
+      "roll": 0.6124891042709351,
+      "pitch": 0.2578624188899994,
+      "yaw": 0.8132535815238953
+     }
+    }
+   }
+  },
+  "capacity h90": {
+   "steps": 400000,
+   "hidden": 90,
+   "params": 14049,
+   "mlp_seed": 0,
+   "privileged": false,
+   "fit_s": 14.2,
+   "horizons": {
+    "500ms": {
+     "within_0.2rad_axis": {
+      "roll": 0.8755,
+      "pitch": 0.8715,
+      "yaw": 0.7705
+     },
+     "rmse_axis_rad": {
+      "roll": 0.4001440405845642,
+      "pitch": 0.22339874505996704,
+      "yaw": 0.5491859316825867
+     }
+    },
+    "1000ms": {
+     "within_0.2rad_axis": {
+      "roll": 0.836,
+      "pitch": 0.8245,
+      "yaw": 0.591
+     },
+     "rmse_axis_rad": {
+      "roll": 0.6241070032119751,
+      "pitch": 0.26983538269996643,
+      "yaw": 0.8092999458312988
+     }
+    }
+   }
+  },
+  "capacity h192": {
+   "steps": 400000,
+   "hidden": 192,
+   "params": 49545,
+   "mlp_seed": 0,
+   "privileged": false,
+   "fit_s": 21.8,
+   "horizons": {
+    "500ms": {
+     "within_0.2rad_axis": {
+      "roll": 0.8755,
+      "pitch": 0.872,
+      "yaw": 0.778
+     },
+     "rmse_axis_rad": {
+      "roll": 0.39927393198013306,
+      "pitch": 0.2219609022140503,
+      "yaw": 0.5481368899345398
+     }
+    },
+    "1000ms": {
+     "within_0.2rad_axis": {
+      "roll": 0.8355,
+      "pitch": 0.83,
+      "yaw": 0.6015
+     },
+     "rmse_axis_rad": {
+      "roll": 0.6228905916213989,
+      "pitch": 0.26789191365242004,
+      "yaw": 0.8077261447906494
+     }
+    }
+   }
+  },
+  "capacity h288": {
+   "steps": 400000,
+   "hidden": 288,
+   "params": 101961,
+   "mlp_seed": 0,
+   "privileged": false,
+   "fit_s": 34.4,
+   "horizons": {
+    "500ms": {
+     "within_0.2rad_axis": {
+      "roll": 0.883,
+      "pitch": 0.879,
+      "yaw": 0.7885
+     },
+     "rmse_axis_rad": {
+      "roll": 0.4023774266242981,
+      "pitch": 0.21986263990402222,
+      "yaw": 0.5464707612991333
+     }
+    },
+    "1000ms": {
+     "within_0.2rad_axis": {
+      "roll": 0.842,
+      "pitch": 0.8315,
+      "yaw": 0.598
+     },
+     "rmse_axis_rad": {
+      "roll": 0.631473183631897,
+      "pitch": 0.2585597634315491,
+      "yaw": 0.8084133267402649
+     }
+    }
+   }
+  },
+  "privileged": {
+   "steps": 400000,
+   "hidden": 128,
+   "params": 36361,
+   "mlp_seed": 0,
+   "privileged": true,
+   "fit_s": 21.3,
+   "horizons": {
+    "500ms": {
+     "within_0.2rad_axis": {
+      "roll": 0.895,
+      "pitch": 0.8875,
+      "yaw": 0.794
+     },
+     "rmse_axis_rad": {
+      "roll": 0.3755681812763214,
+      "pitch": 0.18788225948810577,
+      "yaw": 0.46421489119529724
+     }
+    },
+    "1000ms": {
+     "within_0.2rad_axis": {
+      "roll": 0.8445,
+      "pitch": 0.8275,
+      "yaw": 0.6165
+     },
+     "rmse_axis_rad": {
+      "roll": 0.5873522162437439,
+      "pitch": 0.24361464381217957,
+      "yaw": 0.6977997422218323
+     }
+    }
+   }
+  }
+ },
+ "regime_split_1s_yaw": {
+  "calm": {
+   "n": 1715,
+   "baseline": 0.5918367346938775,
+   "privileged": 0.6309037900874636
+  },
+  "fast": {
+   "n": 220,
+   "baseline": 0.5272727272727272,
+   "privileged": 0.5
+  },
+  "fallen": {
+   "n": 65,
+   "baseline": 0.5692307692307692,
+   "privileged": 0.6307692307692307
+  }
+ },
+ "gains_vs_baseline_mean": {
+  "data 4x": 0.0086666666666666,
+  "capacity h288": 0.012666666666666604,
+  "privileged": 0.031166666666666676
+ },
+ "verdict": {
+  "data 4x": "not material",
+  "capacity h288": "not material",
+  "privileged": "not material"
+ }
+}

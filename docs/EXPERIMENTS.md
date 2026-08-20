@@ -57,6 +57,42 @@ So the project's DR does not show up in the IMU at 100 ms — consistent with it
 transfer — and the spin gap is unlikely to be mass/CoM/leg/gain. Contact is the untested
 factor, and contact drives yaw, which drives spin.
 
+## Yaw floor — mostly noise, not model: scaling is flat and privileged state adds little (negative)
+
+The forward model's weakest axis is yaw in the twin itself (58–60 % within 0.2 rad @1 s
+against ~83 % roll/pitch). Before treating that as a modelling problem, `yaw_floor.py`
+decomposes it: is yaw (a) model-limited, (b) information-limited, or (c) intrinsically
+stochastic at this timescale? The decision rule was fixed before the numbers: a gain is
+material only above max(3.0 pts, 2× the baseline seed spread) on yaw within 0.2 rad @1 s.
+Three MLP init seeds at the standard 400 k / 128×2 configuration spread 2.3 pts
+(57.5 / 58.4 / 59.8 %), so the threshold is 4.6 pts.
+
+All data scales are nested prefixes of one 1.6 M-step seed-0 collection whose 400 k prefix
+is asserted equal to `data/train.npz`; evaluation is a privileged re-collection of seed 1
+asserted equal to `data/test.npz` (2000 shared starts, so every number is comparable with
+the forward-model table above).
+
+| condition | yaw @500 ms | yaw @1 s | gain @1 s vs baseline mean 58.6 % |
+|---|---|---|---|
+| data 0.5× / 1× / 2× / 4× | 76.3 / 77.1 / 78.3 / 77.5 % | 58.1 / 58.4 / 60.9 / 59.4 % | 4×: **+0.9 (not material)** |
+| capacity 14 k / 25 k / 50 k / 102 k params | 77.0 / 77.1 / 77.8 / 78.8 % | 59.1 / 58.4 / 60.2 / 59.8 % | 4×: **+1.3 (not material)** |
+| privileged probe (diagnostic) | 79.4 % | 61.7 % | **+3.1 (not material)** |
+
+The privileged probe gives the model 18 features a phone IMU cannot see — linear velocity,
+full joint state, per-foot contact normal forces, contact count — teacher-forced from the
+recorded truth at every rollout step, so it is an upper bound on "the information exists",
+not a deployable model. Even that ceiling moves yaw only +3.1 pts, inside what seed noise
+can produce. Roll/pitch are flat everywhere (83–85 %). By start regime @1 s, privileged
+helps calm starts (59.2 → 63.1 %, n=1715) and does nothing consistent elsewhere
+(fast 52.7 → 50.0 %, n=220; fallen 56.9 → 63.1 %, n=65 — too few starts to weigh).
+
+**Verdict (c): the yaw floor is dominated by contact chatter that is aleatoric at 20 ms
+resolution** — even knowing the true contact forces barely helps. Consistent with the DR
+proxy's R² ≈ 0.2 on yaw gyro, with PETS placing its widest uncertainty exactly here, and
+with the 100 ms replan optimum: the planner should not chase this noise. Sim-only, one
+collection seed, three MLP seeds; the largest gain anywhere (+3.1, privileged) is the one
+to re-test first if more seeds ever tighten the threshold.
+
 ## Actuator dynamics — the sim-to-real signature that *is* there, and how to recover it
 
 Second attempt at a proxy, this time perturbing the actuator's **dynamics** rather than the
