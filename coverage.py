@@ -1,11 +1,40 @@
-"""Coverage experiment: does adding sit<->stand transitions to twin training data
-close the real pitch gap that servo correction never touched?
+"""RETRACTED. Coverage experiment: does adding sit<->stand transitions to twin
+training data close the real pitch gap that servo correction never touched?
 
-The real-log report and real2sim both left pitch open: the tipped walk contains a
-sit-to-stand, the twin's training excitation contains nothing like it, and no servo
-model can supply missing motions. Hypothesis: the pitch gap is a COVERAGE hole.
+*** This experiment is withdrawn. It is invalid twice over, and neither defect is
+*** repairable by rerunning it as written. The code is kept, and the published
+*** results file is kept with its conclusion marked retracted, because the record
+*** of a wrong result belongs in the repository next to the correction.
+***
+*** 1. THE PREMISE IS FALSE. Neither real log contains a sit-to-stand. The header
+***    field this experiment was built on says so in its own words: "legged done
+***    walks fold to a sit act {l:130,r:50,ms:700} AFTER recording ends". The fold
+***    happens after the recording, and it happens on walks that end "done" --
+***    walk-3 ends "tipped" and never sits at all. The -1.0 rad pitch tail that
+***    was read as a sit is a FALL: a 5 g event at t=73044 ms, rate_alpha 124-200
+***    deg/s, ori_beta 1.8 -> 56 deg in 0.6 s, and the recording stops with the
+***    body still down. The sit pose {l:130, r:50} appears in neither file's pose
+***    stream. There was no missing motion to supply.
+***
+*** 2. THE MANIPULATION WAS NULL. The sanity precondition asked whether the
+***    synthesized transitions reach walk-3's pitch excursions. They do -- and so
+***    does the STANDARD data, which the same run measured and then never
+***    compared: standard pitch spans -1.570 to +1.570 rad, transition pitch
+***    -1.568 to +1.459, walk-3 -1.013 to +0.014. The augmented cells added no
+***    pitch range the control did not already have, so the 2x2 varied nothing on
+***    the axis it was built to test and its flat pitch measures nothing. The
+***    precondition as written could not fail: it compared the treatment with the
+***    target and skipped the control. s_std was computed, printed, and left out
+***    of the test.
+***
+*** The check below has been replaced with one that would have caught this (the
+*** treatment must add range the CONTROL lacks, and the target must lie outside
+*** the control's range at all), and a premise check that refuses to run when the
+*** logs do not contain the pose the synthesis is built around. Nothing else is
+*** changed: the numbers this file produced stand as what it produced.
 
-Design: a 2x2 factorial so the coverage effect and the actuator effect separate --
+Original design: a 2x2 factorial so the coverage effect and the actuator effect
+separate --
 
                         standard data          +transition data
     nominal servo       control (= baseline)   coverage-only
@@ -34,12 +63,21 @@ spread measured by real2sim on the same held-out ticks) -- thresholds 7.2 / 3.0 
 A flat pitch under coverage -- with the sanity precondition below satisfied --
 kills the hypothesis, and that negative is published with equal prominence.
 
-Sanity precondition (checked before any conclusion is drawn): the synthesized
-transition collection must actually reach the pitch excursions walk-3 shows;
-if it does not, the synthesis is widened, never the conclusion.
+Sanity preconditions, as they should always have read (checked before any
+conclusion is drawn, and both of them fail on this data):
+  premise      the pose the synthesis is built around must actually occur in the
+               logs the experiment scores. A coverage hole is a motion the real
+               body performed and the twin never saw; if the real body never
+               performed it, there is nothing to cover.
+  manipulation the transition collection must reach pitch the STANDARD collection
+               does not, and the real target must lie outside the standard
+               collection's range. Comparing the treatment against the target
+               while ignoring the control tests nothing.
 
 Discipline: identification used the first half of the concatenated real log, so
-every real-log number is the held-out second half only (535 ticks, 10.7 s).
+every real-log number is the held-out second half only (535 ticks, 10.7 s). That
+concatenation is itself withdrawn -- see real2sim.py, which now scores walk-1
+alone -- and is left here only so this file reproduces what it published.
 """
 from __future__ import annotations
 import json, sys, time
@@ -63,10 +101,18 @@ TIP_WINDOW_S = 1.5
 SIT_ACT_DEG = {"l": 130.0, "r": 50.0}           # header.post_walk act, servo degrees
 SERVO_KW = dict(delay_ticks=4, slew_rad_s=2.0, deadband=float(np.deg2rad(2)))
 
-# 2x seed spread on the control, measured by real2sim on the same held-out ticks
-# (results/real2sim.json control_seed_spread_500ms); rule = max(3.0 pts, 2x spread).
-R2S_SPREAD = json.load(open("results/real2sim.json"))["control_seed_spread_500ms"]
-THRESH = {ax: max(0.03, 2 * R2S_SPREAD[ax]) for ax in AXES}
+
+
+def thresholds():
+    """2x seed spread on the control, measured by real2sim on the same held-out ticks
+    (results/real2sim.json control_seed_spread_500ms); rule = max(3.0 pts, 2x spread).
+
+    Read inside main(), never at import: a module-level json.load makes importing this
+    file fail on any checkout where results/real2sim.json is absent or stale, which is
+    exactly the checkout someone runs the experiments in.
+    """
+    spread = json.load(open("results/real2sim.json"))["control_seed_spread_500ms"]
+    return {ax: max(0.03, 2 * spread[ax]) for ax in AXES}
 
 
 class Tee:
@@ -232,6 +278,7 @@ def splice(std, trans):
 def main():
     sys.stdout = tee = Tee("results/logs/coverage.txt")
     t0 = time.time()
+    THRESH = thresholds()
     Oh, Ah, Dh, labelh, half, total, sit = load_real_heldout()
     print(f"\nreal log: {total} ticks, evaluation = held-out [{half}:{total}] "
           f"({len(Oh)} ticks, {len(Oh)/50:.1f} s), labels "
@@ -263,16 +310,61 @@ def main():
     trans_nom = collect_transitions(TRANS_STEPS, TRANS_SEED, sit, servo=None)
     trans_cor = collect_transitions(TRANS_STEPS, TRANS_SEED, sit, servo=ServoModel(**SERVO_KW))
 
-    print("\n== sanity precondition: does the synthesized data reach walk-3's pitch?")
+    print("\n== sanity preconditions")
+    # (a) PREMISE. The sit pose the synthesis is built around must occur in the logs
+    # this experiment scores. It does not: the header says the fold happens after
+    # recording ends, and the pose stream agrees. The original version never asked.
+    MARGIN = 0.05
+    SIT_TOL_RAD, SIT_DWELL_TICKS = 0.15, 15      # 0.3 s held at the pose, at 50 Hz
+    sit_seen = {}
+    for f in LOGS:
+        _, A_f, _, _, h_f, _ = parse(f)
+        d = np.abs(A_f - sit[None, :]).max(1)
+        near = d <= SIT_TOL_RAD
+        # A HELD pose, not a passing one. An alternating gait sweeps its whole command
+        # range, so isolated ticks near the sit pose are the walk going past it; a
+        # sit-to-stand is a dwell. Counting bare ticks would have called walk-1's 8
+        # scattered near-misses a sit.
+        run = best = 0
+        for v in near:
+            run = run + 1 if v else 0
+            best = max(best, run)
+        sit_seen[f] = {"closest_rad": round(float(d.min()), 3),
+                       "ticks_within_tol": int(near.sum()),
+                       "longest_dwell_ticks": int(best),
+                       "dwell_required": SIT_DWELL_TICKS,
+                       "end_why": h_f.get("end_why")}
+        print(f"  premise: {f} end_why={h_f.get('end_why')!r}, closest command to the sit pose "
+              f"{d.min():.3f} rad away, {int(near.sum())} ticks within {SIT_TOL_RAD} rad, "
+              f"longest HELD run {best} ticks (need {SIT_DWELL_TICKS} = 0.3 s)")
+    premise = any(v["longest_dwell_ticks"] >= SIT_DWELL_TICKS for v in sit_seen.values())
+    print(f"  -> the sit pose {'occurs' if premise else 'NEVER OCCURS'} in these logs: the "
+          f"coverage premise is {'live' if premise else 'FALSE, and no result below means anything'}")
+
+    # (b) MANIPULATION. The treatment must add pitch range the CONTROL lacks, and the
+    # real target must lie outside the control's range at all -- otherwise the 2x2
+    # varies nothing on the axis it exists to test. Comparing the treatment against
+    # the target and skipping the control (what the original check did) cannot fail.
+    print("\n  manipulation: does +transitions add pitch the standard data does not have?")
     s_w3 = pitch_stats(Oh[np.char.startswith(labelh.astype(str), "official_w3") |
                           (labelh == "tip_onset")], "walk-3 (held-out)")
     s_std = pitch_stats(std_nom[0], "standard 400k")
     s_trn = pitch_stats(trans_nom[0], "transitions 100k")
-    covered = s_trn["min"] <= s_w3["min"] + 0.05 and s_trn["max"] >= s_w3["max"] - 0.05
+    adds_range = (s_trn["min"] < s_std["min"] - MARGIN) or (s_trn["max"] > s_std["max"] + MARGIN)
+    target_outside = (s_w3["min"] < s_std["min"]) or (s_w3["max"] > s_std["max"])
+    covered = bool(premise and adds_range and target_outside)
     report["sanity"] = {"walk3_pitch": s_w3, "standard_pitch": s_std,
-                        "transition_pitch": s_trn, "covered": bool(covered)}
-    print(f"  transition data {'REACHES' if covered else 'DOES NOT REACH'} walk-3's excursions"
-          f" -- a negative below is {'interpretable' if covered else 'NOT interpretable'}")
+                        "transition_pitch": s_trn,
+                        "premise_sit_pose_in_logs": bool(premise), "sit_pose_search": sit_seen,
+                        "transitions_add_range_over_standard": bool(adds_range),
+                        "target_outside_standard_range": bool(target_outside),
+                        "covered": covered}
+    print(f"  transitions add range beyond standard: {adds_range} "
+          f"(standard [{s_std['min']:+.2f}, {s_std['max']:+.2f}], "
+          f"transitions [{s_trn['min']:+.2f}, {s_trn['max']:+.2f}])")
+    print(f"  walk-3's pitch lies outside standard's range: {target_outside} "
+          f"(walk-3 [{s_w3['min']:+.2f}, {s_w3['max']:+.2f}])")
+    print(f"  -> a negative below is {'interpretable' if covered else 'NOT interpretable'}")
 
     cells = {
         "control (nominal, standard)": (None, std_nom),
@@ -337,8 +429,22 @@ def main():
 
     pitch_moved = cov["pitch"]["material"] or both["pitch"]["material"]
     if not covered:
-        conclusion = ("sanity precondition FAILED: the synthesized transitions do not reach "
-                      "walk-3's pitch excursions -- no conclusion about the coverage hypothesis")
+        why = []
+        if not premise:
+            why.append("the sit pose the transitions are built around occurs in NEITHER log "
+                       "(the header puts the fold after the recording ends, and the -1.0 rad "
+                       "tail is a fall), so there is no missing motion to supply")
+        if not adds_range:
+            why.append(f"the transitions add no pitch range the standard data lacks "
+                       f"(standard [{s_std['min']:+.2f}, {s_std['max']:+.2f}] vs transitions "
+                       f"[{s_trn['min']:+.2f}, {s_trn['max']:+.2f}]), so the 2x2 varies nothing "
+                       f"on the axis it exists to test")
+        if not target_outside:
+            why.append(f"walk-3's pitch [{s_w3['min']:+.2f}, {s_w3['max']:+.2f}] already lies "
+                       f"inside the standard data's range, so a coverage hole of this kind "
+                       f"cannot exist")
+        conclusion = ("sanity preconditions FAILED -- NO CONCLUSION about the coverage "
+                      "hypothesis can be drawn from these cells: " + "; ".join(why))
     elif pitch_moved:
         conclusion = ("coverage hypothesis CONFIRMED: transition data moves pitch materially "
                       "where servo correction never did")
@@ -346,9 +452,15 @@ def main():
         conclusion = ("coverage hypothesis KILLED (negative): transition data reaches walk-3's "
                       "excursions yet pitch stays under threshold -- the pitch gap is not a "
                       "training-coverage hole of this kind")
-    if cor["roll"]["material"] and cor["yaw"]["material"]:
+    if covered and cor["roll"]["material"] and cor["yaw"]["material"]:
         conclusion += "; corrected-servo replication reproduces real2sim's roll/yaw closure"
     report["conclusion"] = conclusion
+    # Additivity is a difference of differences on a manipulation that changed nothing;
+    # and the differences here (1.5 and 1.2 pts) sit inside one control seed spread.
+    report["additivity_caveat"] = (
+        "the observed-vs-expected differences are within one control MLP seed spread on "
+        "these held-out ticks, so this supports 'consistent with additivity within noise', "
+        "never 'the two effects are additive'")
     print(f"\n  {conclusion}")
 
     json.dump(report, open("results/coverage.json", "w"), indent=1)

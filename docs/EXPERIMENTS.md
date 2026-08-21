@@ -169,101 +169,241 @@ Three findings:
 Sim-only, single seed, and both mismatch shapes are guesses at what a loaded MG90S does —
 a real log decides whether they were the right guesses.
 
-## Real2Sim loop closure — the identified servo, fed back, closes roll and yaw on the real logs
+## The first real logs — read per file, per segment
 
-The real-log report identified the servo as delay 4 ticks (80 ms at the 50 Hz caller),
-slew 2.0 rad/s, deadband 2° — with split-half DISAGREE (A: 4 / 3.0, B: 6 / 1.5), so a
-single point would overclaim. `real2sim.py` therefore runs the whole loop at three
-points spanning the determined band, plus a nominal control through the identical
-pipeline: collect 400 k ticks with the servo inside the twin (seed 0), train the
-standard model (128×2, K=5, 80 epochs, seed 0), evaluate on the real logs. The
-corrected twins train on **commanded** actions — the horn lags inside the twin —
-because commanded angles are all a real log carries.
+Two `?imulog=1` sessions from the upstream app, `growbot-imulog-1` format: walk-1,
+16.2 s, `end_why: done`, agent gain null; walk-3, 5.2 s, `end_why: tipped`, agent gain
+0.8. `real_log_report.py` runs the whole day-of-log chain on them.
 
-Discipline: identification used the first half of the concatenated log, so every
-real-log number here is the held-out second half only (535 ticks, 10.7 s — n is small
-and quoted). The decision rule preceded the numbers: closure on an axis at 500 ms is
-material when it beats max(3.0 pts, 2× the control's spread across 3 MLP seeds). The
-control collection is asserted array-equal to `data/train.npz`, and its real-log
-numbers reproduce the published baseline exactly (60.5 / 40.1 / 43.2 at 500 ms).
+**They are not two samples of one experiment, and are never pooled.** The agent gains
+differ, so the commands that reached the two bodies are scaled differently. The resting
+attitudes differ by 43° — walk-1's body rests at pitch −0.74 rad, walk-3's flat at
++0.01 — so the phone is not in the same place and every attitude-referenced number means
+something different in each. `gap_report.py` now refuses to concatenate files that
+disagree on either. An earlier version of this report published aggregates over the pair;
+they are withdrawn.
 
-| real log held-out, within 0.2 rad @500 ms | roll | pitch | yaw |
+**What the segmenter finds.** `growbot-imulog-1` carries no event rows, so `imulog.py`
+synthesizes regimes from the data (rolling stillness by `sensor_id.verify_still`'s own
+thresholds, command activity, acceleration spikes at stillness boundaries, and a fall
+defined as an excursion from *the file's own* rest attitude that never returns). Before
+this, every tick of both files inherited `header.gait` = "official" and was scored
+against the twin's **walking** floor.
+
+| file | segments |
+|---|---|
+| walk-1 | still 0.00–1.15 s, **walking** 1.15–16.2 s |
+| walk-3 | still 0.00–2.60 s, impact 2.60–3.02 s, **fall** 3.02–5.2 s |
+
+walk-3 contains **no walking at all**. Its first 2.6 s are a body frozen byte-identical
+in orientation (gyro RMS 0.003 rad/s) while the commands swing ±34° — preflight now warns
+about exactly that — and its last 2.2 s are the fall. A 5 g event at t=73044 ms separates
+them.
+
+**walk-1, gap per segment** (within 0.2 rad; twin floor is the regime each segment maps
+to; `n` is rollout starts):
+
+| walk-1 @500 ms | twin floor | n | roll real/twin/gap | pitch | yaw |
+|---|---|---|---|---|---|
+| still | still | 53 | 84.9 / 90.1 / −5.1 | 86.8 / 89.0 / −2.2 | 77.4 / 80.1 / −2.7 |
+| walking | policy | 725 | 50.8 / 87.7 / **−36.9** | 50.1 / 87.2 / **−37.1** | 33.7 / 76.7 / **−43.0** |
+
+At 100 ms the same rows read −0.4 to +2.2 — the model is right about the next 100 ms of a
+real robot and wrong about the next 500. Roll and pitch sit at nearly the same distance
+below their floors, which is not the signature of a pitch-specific problem.
+
+**walk-3, per segment.** Reported separately and never mixed into walk-1:
+
+| walk-3 @500 ms | twin floor | n | roll real/twin/gap | pitch | yaw |
+|---|---|---|---|---|---|
+| still | still | 125 | 91.2 / 90.1 / +1.1 | 4.8 / 89.0 / **−84.2** | 67.2 / 80.1 / −12.9 |
+| impact | (none) | 21 | not reported | not reported | not reported |
+| fall | fallen | 84 | 57.1 / 72.4 / −15.2 | 40.5 / 67.2 / −26.7 | 61.9 / 66.1 / −4.2 |
+
+(`impact` has 21 ticks, below the 30 rollout starts `evaluate_axes` requires, so it is
+left out rather than quoted on 21 samples. The `fallen` twin floor is new: the twin's
+excitation labels say what the *excitation* was doing, never what the body was doing, so
+there was no twin regime to compare a real fall against. It is defined by the same
+excursion-from-rest measure and threshold the real fall is detected with.)
+
+The −84.2 on a *motionless* segment is not a model failure. The model is fed commands
+reaching 34° of horn swing, predicts the motion those commands imply, and the body
+produced none. That number measures the robot — phone off the body, body off the ground,
+or servos not moving — and it is the most useful thing walk-3 contains.
+
+**Servo identification, walk-1 alone** (fit on its first half, evaluated on its held-out
+second half, 252 hypotheses on a grid extended until the argmin is interior): argmin
+delay 5 ticks (100 ms), slew 2.0 rad/s, deadband 2°; split-half **DISAGREE**
+(A: 6 / 5.0, B: 6 / 2.0). The determined sets are delay **[0, 1, 2, 3, 4, 5, 6] ticks —
+the entire grid, i.e. undetermined** — and slew [1.5, 2.0, 3.0, 4.0] rad/s. Eight seconds
+of periodic walking is the excitation `servo_id.py` warns about.
+
+**Fusion-filter lag, walk-1 only**: wx +13.0 ± 0.1 ms (corr 0.87), wy +13.8 ± 0.2 (0.95),
+wz +12.8 ± 0.7 (0.96), split-half AGREE on all three. walk-3 gives +17.9 ± 10.1 / +20.7 ±
+10.5 / +19.5 ms with split-half **DISAGREE** on every axis — 5 s, half of it motionless,
+is not enough, and it is reported as undetermined rather than averaged in.
+
+**Is `header.gain` already inside the logged commands?** The adapter asserted it was.
+The two files are the experiment: same body, same cal, same gait, agent gain null vs 0.8.
+If the gain were applied downstream of the log both files would show the same command
+amplitude; if it is already inside, walk-3's are 0.8× walk-1's. Statistic: p95 of
+|command − 90|, l and r pooled; percentile bootstrap, 4000 resamples.
+
+| | p95 |command − 90| | n |
+|---|---|---|
+| walk-1 (gain null) | 51.00° | 734 |
+| walk-3 (gain 0.8) | 41.46° | 198 |
+| **ratio** | **1.230, 95 % CI [1.171, 1.281]** | |
+
+1/0.8 = 1.25 is inside the interval; 1.00 is far outside. **The gain is baked into the
+logged values**, so only `cal.gain` takes part in the inversion — now measured rather
+than assumed.
+
+**Allan / gyro noise: still undetermined, but for a stated reason.** A still segment
+*does* exist in each file — 1.1 s in walk-1, 2.6 s in walk-3 — and both are far under
+what Allan deviation needs (tens of taus with many independent clusters each: minutes at
+60 Hz, not seconds). The data ask stands, and now says the right thing: the still
+segments are **too short**, not absent.
+
+## Real2Sim loop closure — an actuator model helps on the real walk; *which* actuator model is not identified
+
+> **This section replaces an earlier one.** The previous version scored a
+> concatenation of walk-1 and walk-3 and concluded the loop was "validated robustly to
+> the identification uncertainty". Both halves of that are withdrawn. Roughly half the
+> old held-out slice was walk-3 — 2.6 s of a motionless body under swinging commands,
+> then a fall — so a large part of what the corrected twins were credited with
+> predicting was a robot that was not moving. And "robustly to the identification
+> uncertainty" was inferred from three sampled points out of a seven-wide determined
+> delay set, which is a claim about a band made from a sample of it. Every number below
+> is new: walk-1 only, and the verdict text is computed from which cells pass and from
+> how much of the band they cover.
+
+`servo_id.py` on walk-1 alone leaves the servo at delay **[0, 1, 2, 3, 4, 5, 6] ticks**
+— the entire grid, i.e. undetermined — and slew **[1.5, 2.0, 3.0, 4.0] rad/s**, with
+split-half DISAGREE (A: delay 6 / slew 5.0, B: delay 6 / slew 2.0). `real2sim.py` runs
+the whole loop at four points plus a nominal control through the identical pipeline:
+collect 400 k ticks with the servo inside the twin (seed 0), train the standard model
+(128×2, K=5, 80 epochs, seed 0), evaluate on walk-1's held-out half. The corrected twins
+train on **commanded** actions — the horn lags inside the twin — because commanded
+angles are all a real log carries.
+
+The fourth point is the one the previous design lacked. A "corrected" config changes
+delay, slew *and* deadband at once against a control that has none of them, so its gain
+says "some actuator model helps", not "this one is right". The **smoothing-only** cell
+(delay 0, slew 2.0, deadband 2°) sits inside the determined band and carries no latency
+at all, so it separates identified dynamics from plain action smoothing.
+
+Discipline: identification used the first half of walk-1, so every real-log number is
+its held-out second half only (405 ticks, 8.1 s — n is small and quoted). The decision
+rule preceded the numbers: closure on an axis at 500 ms is material when it beats
+max(3.0 pts, 2× the control's spread across 3 MLP seeds). The control collection is
+asserted array-equal to `data/train.npz`.
+
+| walk-1 held-out, within 0.2 rad @500 ms | roll | pitch | yaw |
 |---|---|---|---|
-| control (nominal servo) | 60.5 | 40.1 | 43.2 |
-| argmin — delay 80 ms, slew 2.0 | 79.1 **(+18.6)** | 40.5 (+0.4) | 58.9 **(+15.6)** |
-| half-A — delay 80 ms, slew 3.0 | 79.5 **(+19.0)** | 39.9 (−0.2) | 56.3 **(+13.1)** |
-| half-B — delay 120 ms, slew 1.5 | 88.2 **(+27.6)** | 42.6 (+2.5) | 63.3 **(+20.0)** |
-| materiality threshold (2× seed spread) | 7.2 | 3.0 | 3.8 |
+| control (nominal servo) | 43.0 | 51.3 | 33.2 |
+| argmin — delay 100 ms, slew 2.0 | 59.1 **(+16.0)** | 54.3 (+2.9) | 45.7 **(+12.6)** |
+| half-A — delay 120 ms, slew 5.0 | 47.6 **(+4.5)** | 50.0 (−1.3) | 36.6 (+3.5) |
+| half-B — delay 120 ms, slew 2.0 | 76.5 **(+33.4)** | 58.6 **(+7.2)** | 45.5 **(+12.3)** |
+| **smoothing only — delay 0, slew 2.0** | 54.0 **(+11.0)** | 52.1 (+0.8) | 43.0 (+9.9) |
+| materiality threshold (2× seed spread) | 3.0 | 3.0 | 10.7 |
 
-Every config in the determined band closes roll and yaw materially — the loop is
-**validated robustly to the identification uncertainty**: it does not matter where in
-the DISAGREE band the true servo sits, retraining against any of it transfers. The
-slowest config reaches its own twin floor on roll (88.2 vs 86.1), and closure grows
-monotonically toward the slow end of the band — weak evidence the truth sits there,
-for the gesture capture to settle. At 100 ms every config stays at the floor (96–100 %),
-so the correction costs nothing at short horizon.
+The yaw threshold is 10.7 pts because the control's own spread across three MLP seeds is
+5.3 pts on these 405 ticks. That is the honest cost of a small held-out slice, and it is
+why yaw's +9.9 and +12.6 are not treated as different from each other.
 
-Pitch does not move (+0.4 / −0.2 / +2.5, all under threshold) — exactly what the
-held-out attribution predicted, and the strongest evidence yet for the coverage
-hypothesis: the tipped walk's sit-to-stand has no counterpart in twin training data,
-and no servo model can supply missing motions.
+Read carefully, this is a weaker and more specific result than the one it replaces:
+
+- **Roll closes at every tested point**, but the four points spread from +4.5 to +33.4
+  pts — a 29-point swing between configs that the identification cannot tell apart. The
+  choice of servo inside the band matters enormously, and the band is not narrowed.
+- **The tested configs visit 43 % of the determined delay set and 25 % of the slew set.**
+  Nothing here supports "robust to the identification uncertainty"; that phrase is
+  retracted.
+- **The smoothing-only cell splits the axes, and the split is the finding.** On **yaw**
+  it closes +9.9 against the best delayed cell's +12.6 — a 2.7-pt difference, inside the
+  10.7-pt threshold — so *this log does not separate "the identified dynamics" from "any
+  action smoothing"* on yaw. On **roll** the best delayed cell beats it by 22.4 pts and
+  on **pitch** by 6.4, both above threshold, so there the latency is carrying something
+  smoothing alone does not.
+- **Delay is unidentified on this log** — the determined set is the whole grid — so none
+  of the above says the servo's real latency is any particular number.
+- **Deadband is never varied on its own**, so its contribution is untested. The cells
+  are not a factorial.
+
+Pitch is no longer read as a coverage hole — see the retraction below. On walk-1, the
+only file that walks, pitch and roll sit at similar distances below their twin floors,
+which is not the signature a pitch-specific missing-motion hole would leave.
 
 Context, not caveat: on the slower servos the policy's realized gait shrinks (horn
-amplitude 0.39 → 0.21–0.25 rad, mean gyro 1.7 → 0.9–1.2 rad/s, falls roughly
+amplitude 0.39 → 0.22–0.27 rad, mean gyro 1.70 → 1.00–1.22 rad/s, falls roughly
 unchanged) — the same policy driven through the identified servo walks noticeably
 more gently than the twin pretends, which is itself an argument for retraining the
-walk policy against the corrected twin upstream.
+walk policy against the corrected twin upstream. It is also a confound worth naming:
+the corrected twins move 40–45 % less than the control, so part of any gain may be a
+gentler training distribution rather than a better actuator model.
 
-## Coverage — transition data does not close the pitch gap (negative)
+## Coverage — **RETRACTED**: the experiment was invalid twice over
 
-The Real2Sim section above read the immovable pitch as "the sit-to-stand coverage
-hole": the tipped walk contains a sit-to-stand, twin training data contains nothing
-like it, and no servo model can supply missing motions. `coverage.py` tests that
-reading directly — and kills it.
+> **Retraction.** This section previously published a negative result — "synthesized
+> sit↔stand transitions move pitch nowhere, so the pitch gap is not a coverage hole".
+> That result is withdrawn. Not because the sign flipped, but because the experiment
+> could not have measured what it claimed to measure. Both defects were in the design,
+> both were visible in the run's own output, and the numbers are preserved in
+> `results/coverage.json` (conclusion field marked retracted) so the record shows the
+> correction rather than a silent deletion.
 
-Design: a 2×2 factorial so the coverage effect and the actuator effect separate —
-{nominal, corrected-argmin servo} × {400 k standard ticks, 300 k standard + 100 k
-synthesized transitions}. The transitions are built around the REAL sit pose from
-the log header (act {l:130, r:50} through the adapter's cal inversion →
-[+0.705, −0.705] rad), glided over 0.3–1.5 s (the app's own 700 ms /act glide sits
-inside the range), held, scaled 0.75–1.20 in depth, and mixed with shipped-policy
-walking bursts so sit→stand→walk chains — the exact shape the tipped walk
-contains — are in the data. Shared seeds everywhere (standard: seed 0, asserted
-array-equal to `data/train.npz`; transitions: seed 10; MLP seed 0); the augmented
-cells' standard part is the exact 300 k prefix of the standard cells' stream, cut
-at the splice. The decision rule preceded the numbers: material = gain over the
-control > max(3.0 pts, 2× the control seed spread real2sim measured) = 7.2 / 3.0 /
-3.8 pts for roll / pitch / yaw.
+**Defect 1 — the premise is false. There is no sit-to-stand in the logs.**
+The hypothesis was built on one header field, and the field says the opposite of what
+was read into it:
 
-Sanity precondition, so the negative is interpretable: the synthesized data must
-actually reach walk-3's pitch excursions. It does — transition pitch spans −1.57
-to +1.46 rad against walk-3's −1.01 to +0.01 (the −1.0 tail is the sit itself).
+> `post_walk`: "legged **done** walks fold to a sit act {l:130,r:50,ms:700} **AFTER
+> recording ends** (act verb, not pose — documented so the tail is explained, never
+> mistaken for mid-stride)"
 
-| real log held-out, within 0.2 rad @500 ms | roll | pitch | yaw |
-|---|---|---|---|
-| control (nominal, standard) | 60.5 | 40.1 | 43.2 |
-| coverage (nominal, +transitions) | 60.5 (+0.0) | 39.2 (−0.8) | 47.5 (+4.2)* |
-| corrected (argmin servo, standard) | 79.1 **(+18.6)** | 40.5 (+0.4) | 58.9 **(+15.6)** |
-| coverage + corrected | 77.6 **(+17.1)** | 39.7 (−0.4) | 61.8 **(+18.6)** |
-| materiality threshold | 7.2 | 3.0 | 3.8 |
+The fold happens after the recording, and only on walks that end `done`. walk-3 ends
+`tipped`. The sit pose {l:130, r:50} appears in neither file's pose stream — the closest
+command in either log is far from it. The −1.0 rad pitch tail that was read as a sit is
+a **fall**: a 5 g event at t=73044 ms, `rate_alpha` 124–200 °/s, `ori_beta` 1.8° → 56°
+in 0.6 s, and the recording stops with the body still down. There was no missing motion
+to supply, so there was no coverage hole to test.
 
-Pitch never moves — not in the aggregate, and not where the sit-to-stand lives:
-walk-3's walking part (n=181) reads 4.4 / 3.3 / 4.4 / 4.4 % across the four cells.
-Training data that demonstrably contains the missing motions changes nothing, so
-**the pitch gap is not a training-coverage hole of this kind**. What the 2×2
-excludes: missing motions in the command/pose repertoire. What it leaves open, as
-questions: the twin never rests its body on the ground the way a seated robot
-does (a contact configuration no pose sequence supplies), and the body model
-itself may be wrong in the folded regime. (*) Coverage alone nudges yaw +4.2
-against a 3.8 threshold — barely material, and worth exactly that much.
+**Defect 2 — the manipulation was null, and the sanity check could not fail.**
+The precondition asked whether the synthesized transitions reach walk-3's pitch
+excursions. They do. So does the **standard** data — which the same run measured,
+printed, and never compared against:
 
-Two replications came free: the corrected-servo cell reproduces real2sim's
-closure (+18.6 / +0.4 / +15.6, same numbers to the decimal — same seeds, same
-code path), and additivity holds (combined observed +17.1 / −0.4 / +18.6 vs
-expected-from-sum +18.6 / −0.4 / +19.8): the servo effect and the coverage
-(non-)effect are independent. At 100 ms every cell sits at 94–100 % on every
-axis. Held-out half only: 535 ticks, 10.7 s; labels official_w1 n=244,
-official_w3 n=181, tip_onset n=49.
+| pitch range, rad | min | max |
+|---|---|---|
+| standard 400 k (the control) | −1.570 | +1.570 |
+| synthesized transitions 100 k (the treatment) | −1.568 | +1.459 |
+| walk-3 held-out (the target) | −1.013 | +0.014 |
+
+The treatment adds no pitch range the control did not already have, and the target lies
+entirely **inside** the control's range. The augmented cells therefore varied nothing on
+the axis the 2×2 existed to test, and their flat pitch measures nothing. The check as
+written compared the treatment with the target and skipped the control, so it could only
+ever return "covered". `s_std` was computed and left out of the test.
+
+A third problem compounds both: roughly half the held-out slice was walk-3, which is
+2.6 s of a motionless body under swinging commands followed by a fall — see the Real2Sim
+section for why that file is no longer scored as a walk.
+
+**What is retracted.** The negative verdict on the coverage hypothesis; the claim that
+the synthesized data "demonstrably contains the missing motions"; the free replication of
+real2sim's roll/yaw closure (it replicates a number that is itself superseded); and the
+additivity claim — its observed-vs-expected differences (1.5 and 1.2 pts) sit inside one
+control seed spread, so at best it was ever "consistent with additivity within noise".
+
+**What survives.** Nothing about the pitch gap's cause. The open question is simply open
+again, and it is now better posed: on walk-1, the only file that walks, pitch and roll sit
+at almost the same distance below their twin floors, which is not the signature a
+pitch-specific coverage hole would leave.
+
+`coverage.py` is kept and its sanity precondition replaced with one that would have caught
+this — the treatment must add range the **control** lacks, the target must lie outside the
+control's range, and the pose the synthesis is built around must actually occur in the logs
+— so that a rerun is honest if the experiment is ever justified again.
 
 ## Multi-step training loss — small, real gain
 

@@ -23,16 +23,54 @@ import numpy as np
 sys.path.insert(0, "."); sys.path.insert(0, "sim")
 from forward import MLP, make_windows, encode_obs, decode_obs
 from sim2real_proxy import K
-from imulog import parse, run_preflight
+from imulog import CTRL_HZ
+from imulog import (parse, run_preflight, rest_attitude, attitude_excursion,
+                    SEG_FALL_EXCURSION_RAD)
 from servo_id import identify, realized_from_commands
 
 AXES = ("roll", "pitch", "yaw")
 REGIME_MAP = {"walk": "policy", "spin": "policy", "gesture": "keyframe",
               "handling": "ou", "idle": "still", "still": "still",
               "policy": "policy", "sine": "sine", "keyframe": "keyframe", "ou": "ou",
-              # the app's walk lane labels its gait "official"; the nearest twin regime
-              # is policy walking (the same alternating gait family)
+              # growbot-imulog-1 regimes, synthesized from the data by imulog's
+              # segmenter. Only 'walking' -- commands active AND the body responding --
+              # earns the twin's policy floor. 'impact' and 'unknown' are deliberately
+              # ABSENT: they have no twin counterpart, so they fall back to the twin's
+              # overall row and are printed as such rather than credited to a regime.
+              "walking": "policy", "fall": "fallen",
+              # a gait name from a file that DOES carry event rows; the nearest twin
+              # regime is policy walking (the same alternating gait family). For
+              # growbot-imulog-1 this is now unreachable: the segmenter labels every
+              # tick, so header.gait is no longer anyone's default.
               "official": "policy"}
+REST_MISMATCH_RAD = 0.35     # 20 deg. Above this, two logs are not the same setup.
+
+
+def twin_regimes(obs, mode):
+    """Twin excitation labels, plus the attitude-derived 'fallen' class.
+
+    The twin's own mode labels say what the EXCITATION was doing, never what the
+    body was doing, so there is no twin regime to compare a real fall against.
+    This adds one: a tick whose attitude has left the twin's resting attitude by
+    more than SEG_FALL_EXCURSION_RAD, the same threshold and the same
+    excursion-from-rest measure the real fall is detected with.
+
+    Rest is measured from the twin's own still ticks rather than assumed upright,
+    because this body does not rest upright: at neutral commands it settles at
+    pitch about -0.6 rad, and calling that 0.6 rad of fall would be an artefact of
+    the assumption, not a property of the data.
+
+    The threshold is looser than GrowBotSim.fallen()'s 1.2 rad, and deliberately:
+    the real fall in these logs tops out at 0.99 rad of excursion, so 1.2 would
+    leave the class empty and send the fall silently back to the twin's overall row.
+    """
+    obs = np.asarray(obs)
+    t = np.arange(len(obs)) * (1000.0 / CTRL_HZ)
+    rest = rest_attitude(t, obs[:, :3], obs[:, 3:])
+    m = np.array(mode, dtype=object)
+    if rest is not None:
+        m[attitude_excursion(obs[:, :3], rest) > SEG_FALL_EXCURSION_RAD] = "fallen"
+    return m.astype(str), rest
 
 
 def evaluate_axes(model, O, A, D, mode, horizons, n_starts=4000, seed=0):
@@ -82,18 +120,47 @@ def main():
     ap.add_argument("--servo-id", action="store_true", help="add the after-identified-servo column")
     args = ap.parse_args()
 
-    parts, header = [], None
+    parts, header, first, rest0 = [], None, None, None
     for f in args.log:
         print(f"--- {f}")
         if not run_preflight(f):
             raise SystemExit(f"preflight FAIL on {f}: fix the contract before analysing")
         Oi, Ai, O2i, Di, hi, mi = parse(f)
+        ti = np.arange(len(Oi)) * (1000.0 / CTRL_HZ)
+        resti = rest_attitude(ti, Oi[:, :3], Oi[:, 3:])
         if header is None:
-            header = hi
+            header, first, rest0 = hi, f, resti
         else:
-            for k in ("imu_units", "pose_units", "trims_in_values", "l_sign", "r_sign", "l_off", "r_off", "gain"):
+            # Concatenating two files asserts they are the same experiment. The trim
+            # keys below were already checked; these two were not, and both of them
+            # were violated by the very first pair of real logs this report was run on.
+            for k in ("imu_units", "pose_units", "trims_in_values", "l_sign", "r_sign",
+                      "l_off", "r_off", "gain", "gain_agent"):
                 if hi.get(k) != header.get(k):
-                    raise SystemExit(f"header mismatch across files on {k!r}: {header.get(k)} vs {hi.get(k)} in {f}")
+                    raise SystemExit(
+                        f"header mismatch across files on {k!r}: {header.get(k)} in {first} vs "
+                        f"{hi.get(k)} in {f}. These are different experiments; run them "
+                        f"separately (agent gain scales the commands the body actually got, "
+                        f"so pooling the two mixes two action distributions into one row).")
+            # Resting attitude. Two files whose bodies rest tens of degrees apart are in
+            # different mounting or placement states, and every attitude-referenced
+            # number -- stance, excursion, the fall threshold, the gap per axis -- means
+            # something different in each. The header cannot say so; the data can.
+            if rest0 is not None and resti is not None:
+                d = max(abs(np.arctan2(np.sin(resti[a] - rest0[a]),
+                                       np.cos(resti[a] - rest0[a]))) for a in range(2))
+                if d > REST_MISMATCH_RAD:
+                    raise SystemExit(
+                        f"resting attitude mismatch across files: {first} rests at "
+                        f"(roll {rest0[0]:+.2f}, pitch {rest0[1]:+.2f}) rad, {f} at "
+                        f"(roll {resti[0]:+.2f}, pitch {resti[1]:+.2f}) -- {np.rad2deg(d):.0f} deg "
+                        f"apart, above the {np.rad2deg(REST_MISMATCH_RAD):.0f} deg limit. The "
+                        f"phone is not in the same place on the two bodies; run them separately.")
+            elif (rest0 is None) != (resti is None):
+                raise SystemExit(
+                    f"one of {first} / {f} contains no still segment at all, so their resting "
+                    f"attitudes cannot be compared -- refusing to concatenate on the assumption "
+                    f"that they match.")
         parts.append((Oi, Ai, O2i, Di, mi))     # parse sets D[-1]=True: automatic cut at file boundary
     O, A, O2, D, mode = (np.concatenate(x) for x in zip(*parts))
     print(f"log: {len(args.log)} file(s), {len(O):,} ticks, {int(D.sum())} cuts, "
@@ -103,7 +170,11 @@ def main():
     tr = np.load("data/train.npz"); te = np.load("data/test.npz")
     Xtr, Ytr, *_ = make_windows(tr["obs"], tr["act"], tr["next_obs"], tr["done"], K)
     model = MLP(hidden=128, epochs=args.epochs).fit(Xtr, Ytr)
-    twin = evaluate_axes(model, te["obs"], te["act"], te["done"], te["mode"].astype(str), args.horizons)
+    tw_mode, tw_rest = twin_regimes(te["obs"], te["mode"].astype(str))
+    print(f"twin floor regimes (rest attitude roll {tw_rest[0]:+.2f}, pitch {tw_rest[1]:+.2f} rad; "
+          f"'fallen' = excursion > {SEG_FALL_EXCURSION_RAD} rad): "
+          f"{ {m: int((tw_mode == m).sum()) for m in sorted(set(tw_mode))} }")
+    twin = evaluate_axes(model, te["obs"], te["act"], te["done"], tw_mode, args.horizons)
 
     corrected = None
     if args.servo_id:

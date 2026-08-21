@@ -24,6 +24,12 @@ Accepted file format (one JSON object per line):
   rows    {"t": <ms>, "s": "imu", "o": [roll, pitch, yaw, gr, gp, gy]}
           {"t": <ms>, "s": "cmd", "l": <deg>, "r": <deg>}
           {"t": <ms>, "s": "ev",  "name": "walk_start" | ...}   (optional)
+
+The upstream growbot-imulog-1 dialect carries NO event rows, so this module
+synthesizes them from the data (segment_growbot_v1: still / walking / impact /
+fall). Without that, every tick of every real file inherits header.gait and is
+scored against the twin's walking floor whatever the body was doing -- which is
+how a motionless phone and a fall once came to be compared with a walk.
 CSV fallback (auto-detected): columns t,s,roll,pitch,yaw,gr,gp,gy,l,r with the
 same meanings; an optional first line `# {json}` carries the header.
 
@@ -46,6 +52,12 @@ CTRL_HZ = 50
 GAP_MS = 100.0          # IMU dt above this is a dropout: parse() cuts the episode there,
                         # and sensor_id refuses to interpolate across it
 
+# Stillness thresholds. Defined HERE and imported by sensor_id.verify_still, so
+# "still" means one thing in the preflight, in the analysis, and in the
+# growbot-imulog-1 segmenter below -- three places that would otherwise drift.
+STILL_GYRO_RMS_MAX = 0.15      # rad/s, RMS over the three body rates
+STILL_ANG_STD_MAX = 0.05       # rad, largest PER-AXIS roll/pitch std (a tilt is not motion)
+
 # ----------------------------------------------------------------------------
 # growbot-imulog-1: the upstream app's own per-walk format (one JSON object with
 # header + imu[] + pose[] arrays), converted here to the internal representation.
@@ -67,7 +79,13 @@ GAP_MS = 100.0          # IMU dt above this is a dropout: parse() cuts the episo
 GROWBOT_V1_MOUNT = np.array([[0.0, -1.0, 0.0],
                              [1.0,  0.0, 0.0],
                              [0.0,  0.0, 1.0]])
-GROWBOT_V1_UNITS = {"accel": "m/s^2", "rate": "deg/s", "t": "ms"}
+GROWBOT_V1_UNITS = {"accel": "m/s^2", "rate": "deg/s", "t": "ms", "ori": "deg"}
+# The calibration this adapter's evidence was established under. Upstream ships at
+# least one other build with IMU_SIGN [1, -1, 1]; applying the mount above to a
+# sign-flipped device stream silently inverts pitch, and nothing downstream would
+# say so. SWAP exchanges the l/r pose columns for a mirrored chassis. Neither can
+# be validated from the file, so a non-default value is refused rather than guessed.
+GROWBOT_V1_CAL_DEFAULTS = {"IMU_SIGN": [1, 1, 1], "SWAP": 0}
 
 
 def _rz(a):
@@ -112,6 +130,221 @@ def _R_to_zyx_rpy(R):
     return np.stack([roll, pitch, yaw], -1)
 
 
+# ----------------------------------------------------------------------------
+# Motion-based segmentation for growbot-imulog-1.
+#
+# The format carries NO event rows. Before this existed the adapter returned an
+# empty event list, so _mode_per_tick fell back to header.gait -- every tick of
+# every file was labelled "official" and mapped to the twin's POLICY-WALKING
+# floor, and preflight's physics-on-labelled-segments block was unreachable on
+# real files. That is how a motionless phone and a fall came to be scored against
+# a walking floor. The regimes are therefore synthesized from the DATA.
+#
+# The four classes, and what each one claims:
+#   still     the BODY is not moving, by sensor_id.verify_still's own thresholds
+#             applied in a rolling window. It claims nothing about the commands:
+#             a still window under active commands is a real and important state
+#             (unattached phone, robot off the ground, dead servos), reported by
+#             preflight rather than hidden inside a "walking" label.
+#   walking   commands are active AND the body is responding (the window fails
+#             the stillness test). This is the only class mapped to the twin's
+#             policy floor.
+#   impact    an acceleration spike at a stillness boundary -- the transition
+#             event itself. The magnitude alone cannot carry this: walk-1's foot
+#             strikes reach 6.9 g in the middle of ordinary walking, higher than
+#             walk-3's 5.1 g collision, so the class is defined by WHERE the
+#             spike sits, not by how large it is.
+#   fall      only in a file whose header says end_why == "tipped": the attitude
+#             leaves the file's OWN resting attitude by more than
+#             SEG_FALL_EXCURSION_RAD and never comes back before the recording
+#             ends, with a body-rate onset to match. Excursion is measured from
+#             each file's own rest because the two real logs sit in different
+#             mounting/placement states -- walk-1 rests at pitch -0.74 rad and
+#             walk-3 flat at 0.00, so any ABSOLUTE tilt threshold would label one
+#             of them wrongly.
+#   unknown   everything the three tests above do not explain (moving with no
+#             command, or a window that is neither still nor driven). Left
+#             unmapped, so it is scored against the twin's overall row and
+#             printed as such rather than silently credited to a regime.
+SEG_WIN_MS = 400.0             # rolling window for the stillness / activity tests
+SEG_MIN_MS = 240.0             # runs shorter than this are absorbed (impact is exempt)
+SEG_IMPACT_G = 3.0             # |accel| / g at a stillness boundary = impact
+SEG_CMD_ACTIVE_DEG = 5.0       # |command - 90| above which the agent is driving the servos
+SEG_FALL_WIN_MS = 500.0        # window the fall excursion is held over (a fall oscillates)
+SEG_FALL_EXCURSION_RAD = 0.7   # 40 deg from the file's own rest attitude. Between walk-1's
+                               # largest walking excursion (0.50) and walk-3's fall (0.99).
+SEG_FALL_RELEASE_RAD = 0.35    # the fall is over only if the body comes back INSIDE this.
+                               # A fallen body oscillates: walk-3's tail dips to 0.62 rad of
+                               # excursion and rises again, so a single-threshold test would
+                               # place the onset at the last dip, two seconds after the
+                               # collision that caused it. Hysteresis, not a tighter threshold.
+SEG_FALL_RATE_RAD_S = 1.5      # body rate the departure must contain somewhere
+TIP_SETTLE_S = 5.0             # fixture only: quiet walking before the injected tip
+
+
+def _win_bounds(t, win_ms):
+    """[lo, hi) index bounds of a centred +-win_ms/2 window around every sample."""
+    h = win_ms / 2.0
+    return np.searchsorted(t, t - h, "left"), np.searchsorted(t, t + h, "right")
+
+
+def _win_mean(x, lo, hi):
+    """Windowed mean of x (1-D) for every sample, via one cumulative sum."""
+    c = np.concatenate([[0.0], np.cumsum(np.asarray(x, np.float64))])
+    return (c[hi] - c[lo]) / np.maximum(hi - lo, 1)
+
+
+def _win_any(flag, lo, hi):
+    """True where any sample inside the window has flag set."""
+    c = np.concatenate([[0], np.cumsum(np.asarray(flag, np.int64))])
+    return (c[hi] - c[lo]) > 0
+
+
+def rolling_still(t, rpy, gyro, win_ms=SEG_WIN_MS):
+    """Per-sample stillness, verify_still's two thresholds in a rolling window.
+
+    Returns (still, gyro_rms, ang_std). The angle statistic is the LARGEST
+    PER-AXIS roll/pitch std, never the pooled std, for the reason
+    sensor_id.verify_still documents: pooled, a motionless robot standing on a
+    slope scores its own tilt and fails.
+    """
+    t = np.asarray(t, np.float64)
+    lo, hi = _win_bounds(t, win_ms)
+    grms = np.sqrt(_win_mean((np.asarray(gyro, np.float64) ** 2).sum(1), lo, hi))
+    astd = np.zeros(len(t))
+    for a in range(2):                       # roll, pitch
+        x = np.asarray(rpy, np.float64)[:, a]
+        m = _win_mean(x, lo, hi)
+        astd = np.maximum(astd, np.sqrt(np.maximum(_win_mean(x ** 2, lo, hi) - m ** 2, 0.0)))
+    return (grms <= STILL_GYRO_RMS_MAX) & (astd <= STILL_ANG_STD_MAX), grms, astd
+
+
+def rest_attitude(t, rpy, gyro, win_ms=SEG_WIN_MS, first_run=False):
+    """(roll, pitch) the body rests at: the median over its verified-still samples.
+
+    None when the record contains no still sample at all -- the honest answer,
+    and the caller must not invent a rest attitude for a body that never rested.
+
+    first_run=True takes only the FIRST still run instead of pooling all of them.
+    A record that ends tipped over ends motionless too, so its later still samples
+    are the FALL, not the rest: pooled, a session with a 10 s upright prefix and a
+    10 s upside-down tail returns a median attitude the body never held, and the
+    fall it is supposed to detect vanishes into its own reference.
+    """
+    still, _, _ = rolling_still(t, rpy, gyro, win_ms)
+    if not still.any():
+        return None
+    r = np.asarray(rpy, np.float64)
+    sel = still
+    if first_run:
+        for a, b, on in _runs(still.astype(int)):
+            if on and t[b - 1] - t[a] >= SEG_MIN_MS:
+                sel = np.zeros(len(still), bool); sel[a:b] = True
+                break
+        else:
+            return None
+    return float(np.median(r[sel, 0])), float(np.median(r[sel, 1]))
+
+
+def attitude_excursion(rpy, rest):
+    """Largest per-axis roll/pitch departure from a rest attitude, wrapped to +-pi."""
+    r = np.asarray(rpy, np.float64)
+    d = np.stack([np.arctan2(np.sin(r[:, a] - rest[a]), np.cos(r[:, a] - rest[a]))
+                  for a in range(2)], 1)
+    return np.abs(d).max(1)
+
+
+def _runs(label):
+    """[(start, stop_exclusive, name)] for every maximal run of equal labels."""
+    out, i = [], 0
+    while i < len(label):
+        j = i
+        while j + 1 < len(label) and label[j + 1] == label[i]:
+            j += 1
+        out.append((i, j + 1, label[i]))
+        i = j + 1
+    return out
+
+
+def segment_growbot_v1(imu_t, rpy, gyro, acc, cmd_t, cmd_lr, end_why=None):
+    """Synthesize regime events for a growbot-imulog-1 record from its own data.
+
+    Returns [(t_ms, "<regime>_start"), ...] in _mode_per_tick's dialect, one per
+    segment, covering the record from its first sample. Thresholds are the stated
+    SEG_* constants above; every one of them is a number this file's docstring
+    justifies, not a tuned knob.
+
+    Order of precedence, loosest claim first: still -> walking -> fall -> impact.
+    The impact windows sit on top because they ARE the boundaries the other
+    classes meet at, and runs shorter than SEG_MIN_MS are absorbed into their
+    predecessor so a single noisy sample cannot manufacture a regime.
+    """
+    imu_t = np.asarray(imu_t, np.float64)
+    rpy = np.asarray(rpy, np.float64)
+    gyro = np.asarray(gyro, np.float64)
+    n = len(imu_t)
+    if n < 8:
+        return []
+    lo, hi = _win_bounds(imu_t, SEG_WIN_MS)
+    still, _, _ = rolling_still(imu_t, rpy, gyro)
+
+    # commands, zero-order held onto the IMU clock, then "active anywhere in the window"
+    if len(cmd_t):
+        k = np.clip(np.searchsorted(np.asarray(cmd_t, np.float64), imu_t, "right") - 1, 0, None)
+        dev = np.abs(np.asarray(cmd_lr, np.float64)[k] - 90.0).max(1)
+        dev[np.searchsorted(np.asarray(cmd_t, np.float64), imu_t, "right") == 0] = 0.0
+    else:
+        dev = np.zeros(n)
+    cmd_active = _win_any(dev >= SEG_CMD_ACTIVE_DEG, lo, hi)
+
+    label = np.full(n, "unknown", dtype=object)
+    label[still] = "still"
+    label[(~still) & cmd_active] = "walking"
+
+    # fall: only where the header says the session ended tipped, and only when the
+    # attitude leaves this file's own rest and stays away until the recording ends
+    if str(end_why) == "tipped":
+        rest = rest_attitude(imu_t, rpy, gyro, first_run=True)
+        if rest is not None:
+            exc = attitude_excursion(rpy, rest)
+            flo, fhi = _win_bounds(imu_t, SEG_FALL_WIN_MS)
+            departed = _win_any(exc > SEG_FALL_RELEASE_RAD, flo, fhi)
+            tipped = _win_any(exc > SEG_FALL_EXCURSION_RAD, flo, fhi)
+            # the fall is the FINAL departure that never comes back: the last run of
+            # `departed` reaching the end of the record, which must also have tipped
+            # past the full threshold and must contain a real body-rate event -- a
+            # body that only leans slowly has not fallen.
+            if departed[-1] and tipped[-1]:
+                at_rest = np.flatnonzero(~departed)
+                start = int(at_rest[-1]) + 1 if len(at_rest) else 0
+                if start < n and np.abs(gyro[start:]).max(initial=0.0) >= SEG_FALL_RATE_RAD_S:
+                    label[start:] = "fall"
+
+    # impact: an acceleration spike sitting on a stillness boundary
+    if acc is not None and len(acc) == n:
+        spike = np.linalg.norm(np.asarray(acc, np.float64), axis=1) >= SEG_IMPACT_G * 9.81
+        edge = np.zeros(n, bool)
+        edge[1:] = still[:-1] != still[1:]
+        near_edge = _win_any(edge, lo, hi)
+        # the spike and the SEG_WIN_MS transient AFTER it -- forward, not centred, so an
+        # impact never eats the tail of the still segment that led up to it
+        imp_hi = np.searchsorted(imu_t, imu_t + SEG_WIN_MS, "right")
+        for i in np.flatnonzero(spike & near_edge):
+            label[i:imp_hi[i]] = "impact"
+
+    # absorb runs too short to be a regime (impact is exempt: it is an event)
+    runs = _runs(label)
+    for a, b, name in runs:
+        if name == "impact" or a == 0:
+            continue
+        if imu_t[b - 1] - imu_t[a] < SEG_MIN_MS:
+            label[a:b] = label[a - 1]
+
+    ev = [(float(imu_t[a]), f"{name}_start") for a, _, name in _runs(label)]
+    ev[0] = (float(imu_t[0]), ev[0][1])
+    return ev
+
+
 def _convert_growbot_v1(obj):
     """One growbot-imulog-1 object -> (header, imu_t, imu_v, cmd_t, cmd_v, events).
 
@@ -141,6 +374,11 @@ def _convert_growbot_v1(obj):
                      body, so the previous command stayed in force: the row is
                      dropped from the stream (zero-order hold then does the right
                      thing) and counted in the header.
+      IMU_SIGN/SWAP  refused unless default -- see GROWBOT_V1_CAL_DEFAULTS.
+      events         the format carries none, so they are SYNTHESIZED from the
+                     data by segment_growbot_v1 (still / walking / impact / fall).
+                     Without them every tick inherits header.gait and is scored
+                     against the twin's walking floor whatever the body was doing.
     """
     h = dict(obj.get("header", {}))
     for k, want in GROWBOT_V1_UNITS.items():
@@ -168,6 +406,15 @@ def _convert_growbot_v1(obj):
     imu_v = np.concatenate([rpy, gyro], 1).astype(np.float32)
 
     cal = dict(h.get("cal", {}))
+    for k, default in GROWBOT_V1_CAL_DEFAULTS.items():
+        got = cal.get(k, default)
+        if list(np.atleast_1d(got)) != list(np.atleast_1d(default)):
+            raise ValueError(
+                f"growbot-imulog-1 cal[{k!r}] = {got!r}, expected the default {default!r}. "
+                f"The mount, rate-axis assignment and l/r assignment this adapter applies "
+                f"were established on the default calibration; under {k} = {got!r} they are "
+                f"a silent sign or side flip that no downstream number would reveal. "
+                f"Refusing to guess: re-derive the conventions on a log from that build.")
     ls, rs = float(cal.get("L_SIGN", 1)), float(cal.get("R_SIGN", 1))
     lo, ro = float(cal.get("L_OFF", 0)), float(cal.get("R_OFF", 0))
     g, turn = float(cal.get("gain", 1.0)), float(cal.get("turn", 0.0))
@@ -185,7 +432,11 @@ def _convert_growbot_v1(obj):
               "body_id": h.get("body_id"), "app": h.get("app"), "anchor": h.get("anchor"),
               "send_ok_dropped": int((~ok).sum()), "n_pose_rows": int(len(pose)),
               "dropped_imu": h.get("dropped_imu"), "dropped_pose": h.get("dropped_pose")}
-    return header, imu_t, list(imu_v), cmd_t, list(cmd_v), []
+    events = segment_growbot_v1(imu_t, rpy, gyro, imu[:, 2:5],
+                                pose[ok, 1].astype(np.float64), pose[ok, 2:4],
+                                h.get("end_why"))
+    header["segments"] = [(round(t, 1), n) for t, n in events]
+    return header, imu_t, list(imu_v), cmd_t, list(cmd_v), events
 
 
 def _read_rows(path):
@@ -309,7 +560,7 @@ def parse(path, gap_ms=GAP_MS):
 
 def fixture(path, seconds=600, servo_ms=None, seed=0, imu_hz=60.0, cmd_hz=30.0, jitter_ms=2.0,
             push_prob_s=0.5, fused_lag_ms=None, gyro_arw=None, gyro_rrw=None, still_lead_s=0.0,
-            imu_slow=None):
+            imu_slow=None, tip_at_s=None):
     """Synthetic ?imulog=1 session from the twin: physics at 200 Hz, jittered sampling.
 
     servo_ms: dict(delay_ms=, slew_rad_s=, deadband=) -- delay given in MILLISECONDS
@@ -337,6 +588,10 @@ def fixture(path, seconds=600, servo_ms=None, seed=0, imu_hz=60.0, cmd_hz=30.0, 
                    pushes), labelled still from t=2 s -- the segment Allan needs.
     imu_slow       (start_s, dur_s, factor): IMU period multiplied by factor in
                    that window -- the timing stall dt_stats must flag.
+    tip_at_s       shove the body hard at this time and never reposition it
+                   again, so the session ends tipped over: the fall the v1
+                   segmenter has to find. Random pushes stop at the same moment,
+                   so the tail is a fall and not a shaking.
     """
     sys.path.insert(0, "sim")
     from growbot_sim import GrowBotSim, ServoModel, Excitation
@@ -367,6 +622,7 @@ def fixture(path, seconds=600, servo_ms=None, seed=0, imu_hz=60.0, cmd_hz=30.0, 
         W = int(round(2 * fused_lag_ms / 1000 / phys_dt)) + 1
         hist = np.zeros((W, 6)); nh = 0
     rrw = np.zeros(3)                               # rate-random-walk state (gyro_rrw)
+    tipped = settled = False
     n_steps = int(seconds / phys_dt)
     for i in range(n_steps):
         if t >= next_cmd:
@@ -391,7 +647,21 @@ def fixture(path, seconds=600, servo_ms=None, seed=0, imu_hz=60.0, cmd_hz=30.0, 
         if fused_lag_ms is not None:
             o6 = sim.obs()
             hist[nh % W] = np.concatenate([np.sin(o6[:3]), np.cos(o6[:3])]); nh += 1
-        if t >= still_lead_s and rng.random() < push_prob_s * phys_dt:
+        if tip_at_s is not None and not settled and t >= tip_at_s - TIP_SETTLE_S:
+            # stand the body back up and leave it alone for TIP_SETTLE_S, so the tip
+            # below is unambiguously THE fall of this session and not a random push
+            # that happened to land first
+            obs = sim.reset(tilt=0.0); prev = np.zeros(2, np.float32)
+            settled = True
+        if tip_at_s is not None and not tipped and t >= tip_at_s:
+            # a roll-over impulse, not a teleport: the body physically turns past its
+            # own tipping point, so the fall carries the rate onset and the impact the
+            # segmenter is supposed to find. 20 rad/s about x tips this body and it
+            # does not get back up (two legs, no arms).
+            sim.d.qvel[3] += 20.0; sim.d.qvel[2] += 1.0
+            tipped = True
+        quiet = tip_at_s is not None and t >= tip_at_s - TIP_SETTLE_S
+        if t >= still_lead_s and not quiet and rng.random() < push_prob_s * phys_dt:
             sim.push()
         if t >= next_imu:
             obs = sim.obs()
@@ -412,7 +682,7 @@ def fixture(path, seconds=600, servo_ms=None, seed=0, imu_hz=60.0, cmd_hz=30.0, 
             if imu_slow is not None and imu_slow[0] <= t < imu_slow[0] + imu_slow[1]:
                 period *= imu_slow[2]
             next_imu += period
-        if sim.fallen() and rng.random() < 0.002:
+        if sim.fallen() and not quiet and rng.random() < 0.002:
             obs = sim.reset(tilt=0.3); prev = np.zeros(2, np.float32)
             if sim.servo is not None: sim.servo.reset()
             t += 0.5  # a real gap: the app was repositioned
@@ -462,7 +732,7 @@ def _jsonl_to_csv(src, dst):
                 f.write(f"{r['t']},ev,{r['name']},,,,,,,\n")
 
 
-def _jsonl_to_growbot_v1(src, dst, cal=None, gait=None):
+def _jsonl_to_growbot_v1(src, dst, cal=None, gait=None, end_why="done"):
     """Re-emit an internal-dialect session as growbot-imulog-1, inverting every conversion.
 
     The equivalence standard of _jsonl_to_csv, applied to the real upstream format:
@@ -502,7 +772,7 @@ def _jsonl_to_growbot_v1(src, dst, cal=None, gait=None):
             pose.append([pseq, r["t"], round(float(l), 6), round(float(r_), 6), 1])
             pseq += 1
     out = {"header": {"format": "growbot-imulog-1", "app": "fixture",
-                      "walk": 0, "end_why": "done",
+                      "walk": 0, "end_why": end_why,
                       "units": {"accel": "m/s^2", "rate": "deg/s",
                                 "ori": "deg (deviceorientation alpha,beta,gamma)",
                                 "pose": "servo/wheel command deg 0-180, 90 = neutral/stopped",
@@ -571,9 +841,19 @@ def preflight(path):
         d = np.diff(ts)
         n_gap = int((d > GAP_MS).sum())
         if n_gap:
+            # What a gap costs depends on WHICH stream has it, and the two are not the
+            # same. parse() cuts episodes on IMU gaps only; a command gap costs nothing
+            # of the sort, because commands are zero-order held -- the last command
+            # stays in force, which is what the robot actually did. Saying "these cut
+            # episodes" of both streams was simply false for one of them.
+            consequence = ("these cut episodes in parse() and are excluded from "
+                           "sensor_id's interpolation, they are not interpolated across"
+                           if name == "IMU" else
+                           "the last command is zero-order held across them, which is what "
+                           "the body did; they do not cut episodes, but a held command is "
+                           "an assumption about a stretch the log does not observe")
             warn(f"{name} stream has {n_gap} dt above the {GAP_MS:.0f} ms gap threshold "
-                 f"(max {d.max():.0f} ms) -- these cut episodes in parse() and are excluded "
-                 f"from sensor_id's interpolation, they are not interpolated across")
+                 f"(max {d.max():.0f} ms) -- {consequence}")
     lo, hi = max(imu_t[0], cmd_t[0]), min(imu_t[-1], cmd_t[-1])
     overlap = max(0.0, hi - lo) / max(imu_t[-1] - imu_t[0], 1e-9)
     if overlap < 0.5:
@@ -602,24 +882,60 @@ def preflight(path):
              f"of {header.get('n_pose_rows')} pose rows, app-side drops "
              f"imu={header.get('dropped_imu')} pose={header.get('dropped_pose')}")
     # --- physics on labelled segments ---
-    def seg_mask(name):
-        m = np.zeros(len(imu_t), bool); ev = sorted(events)
+    def seg_spans(name):
+        out = []; ev = sorted(events)
         for i, (t0, n) in enumerate(ev):
             if n.removesuffix("_start") == name and not n.endswith("_stop"):
-                t1 = ev[i + 1][0] if i + 1 < len(ev) else imu_t[-1]
-                m |= (imu_t >= t0) & (imu_t < t1)
+                t1 = ev[i + 1][0] if i + 1 < len(ev) else imu_t[-1] + 1.0
+                out.append((t0, t1))
+        return out
+
+    def seg_mask(name):
+        m = np.zeros(len(imu_t), bool)
+        for t0, t1 in seg_spans(name):
+            m |= (imu_t >= t0) & (imu_t < t1)
         return m
-    stillm = seg_mask("still") | seg_mask("idle")
-    if stillm.sum() > 50:
-        # One implementation, shared with sensor_id, so 'still' cannot mean two
-        # different things in the check and in the analysis it is supposed to guard.
-        vs = verify_still(imu_v[stillm, :3], imu_v[stillm, 3:])
-        nums = (f"gyro RMS {vs['gyro_rms']:.3f} rad/s (max {vs['gyro_rms_max']}), max per-axis "
-                f"roll/pitch std {vs['ang_std']:.4f} rad (max {vs['ang_std_max']})")
-        if not vs["still"]:
-            warn(f"'still' segments not still: {nums} -- mislabelled segments or a unit/axis problem")
+    # Each still segment is verified SEPARATELY. Pooled, two motionless segments held
+    # at different poses report the offset between them as motion -- the same mistake
+    # verify_still's docstring rejects for the roll/pitch pair, one level up.
+    still_spans = seg_spans("still") + seg_spans("idle")
+    verdicts = []
+    for t0, t1 in still_spans:
+        m = (imu_t >= t0) & (imu_t < t1)
+        if m.sum() > 50:
+            verdicts.append(((t1 - t0) / 1000.0, verify_still(imu_v[m, :3], imu_v[m, 3:])))
+    if verdicts:
+        bad = [(d, v) for d, v in verdicts if not v["still"]]
+        worst = max(verdicts, key=lambda dv: dv[1]["gyro_rms"])[1]
+        nums = (f"worst gyro RMS {worst['gyro_rms']:.3f} rad/s (max {worst['gyro_rms_max']}), "
+                f"max per-axis roll/pitch std {worst['ang_std']:.4f} rad (max {worst['ang_std_max']})")
+        if bad:
+            warn(f"{len(bad)} of {len(verdicts)} 'still' segments are not still: {nums} "
+                 f"-- mislabelled segments or a unit/axis problem")
         else:
-            info(f"'still' segments check out ({nums})")
+            info(f"{len(verdicts)} 'still' segment(s), longest {max(d for d, _ in verdicts):.1f} s, "
+                 f"all check out ({nums})")
+        # A still body under active commands is not a quiet moment: it is a body that
+        # is not doing what it is told. walk-3 spends its first 2.6 s exactly there,
+        # commands swinging +-30 deg against an orientation frozen byte-identical.
+        if len(cmd_t):
+            for t0, t1 in still_spans:
+                m = (imu_t >= t0) & (imu_t < t1)
+                if m.sum() <= 50: continue
+                if not len(cmd_v): continue
+                k = np.clip(np.searchsorted(cmd_t, imu_t[m], "right") - 1, 0, None)
+                # cmd_v is whatever the file speaks: raw servo degrees around 90, or
+                # (growbot-imulog-1) horn radians around 0. Compare in the file's units.
+                if header.get("pose_units", "deg") == "deg":
+                    drive = float(np.abs(cmd_v[k] - 90.0).max())
+                else:
+                    drive = float(np.rad2deg(np.abs(cmd_v[k]).max()))
+                if drive >= SEG_CMD_ACTIVE_DEG:
+                    warn(f"still segment {(t1 - t0) / 1000:.1f} s at t={t0:.0f} ms runs under "
+                         f"ACTIVE commands (peak {drive:.0f} deg off neutral): the body is not "
+                         f"responding to what it is sent -- phone not on the robot, robot not on "
+                         f"the ground, or the servos are not moving. Nothing downstream can tell "
+                         f"this from a quiet moment, so it is said here")
     for name in ("spin", "spin_ccw", "spin_cw"):
         m = seg_mask(name)
         if m.sum() > 50:
@@ -680,6 +996,63 @@ if __name__ == "__main__":
           f"gyro {gyro_err:.1e} rad/s, action {act_err:.1e} rad through mount + W3C angles + servo cal "
           f"(signs, offsets, gain 0.99, turn 1.5)")
     assert same_g, "growbot-imulog-1 dialect does not round-trip"
+
+    # --- growbot-imulog-1 segmentation: the regimes the format does not carry -------
+    # Hidden secrets: a 10 s motionless prefix, driven walking after it, and a tip at
+    # 34.0 s that the body never gets up from. The file the segmenter sees carries no
+    # event row at all -- only end_why in the header -- so every boundary below has to
+    # come out of the IMU and pose streams.
+    SEG = dict(still_lead_s=10.0, tip_at_s=34.0, seconds=45.0, seed=11)
+    print(f"\ngenerating {SEG['seconds']:.0f} s segmentation fixture (hidden: still prefix "
+          f"{SEG['still_lead_s']:.0f} s, tip at {SEG['tip_at_s']:.0f} s)...", flush=True)
+    fixture("/tmp/imulog_seg_fixture.jsonl", seconds=SEG["seconds"], seed=SEG["seed"],
+            still_lead_s=SEG["still_lead_s"], tip_at_s=SEG["tip_at_s"])
+    _jsonl_to_growbot_v1("/tmp/imulog_seg_fixture.jsonl", "/tmp/imulog_seg_v1.json",
+                         end_why="tipped")
+    from sensor_id import verify_still
+    hs, (its, ivs, _, _), evs = _read_rows("/tmp/imulog_seg_v1.json")
+    t0 = its[0]
+    segs = [((t - t0) / 1000.0, n.removesuffix("_start")) for t, n in evs]
+    span = [(a, b, n) for (a, n), (b, _) in zip(segs, segs[1:] + [((its[-1] - t0) / 1000.0, "")])]
+    print("  segments: " + " | ".join(f"{a:.1f}-{b:.1f}s {n}" for a, b, n in span))
+    first_end = span[0][1]
+    fall = [s for s in span if s[2] == "fall"]
+    still_ok = span[0][2] == "still" and abs(first_end - SEG["still_lead_s"]) <= 0.5
+    walk_ok = any(n == "walking" and b - a >= 2.0 for a, b, n in span)
+    fall_ok = (len(fall) == 1 and fall[0] is span[-1]
+               and abs(fall[0][0] - SEG["tip_at_s"]) <= 1.0)
+    print(f"  still prefix {span[0][2]!r} ends {first_end:.2f} s (injected "
+          f"{SEG['still_lead_s']:.1f}): {'ok' if still_ok else 'WRONG'}")
+    print(f"  a driven walking segment of >= 2 s exists: {'ok' if walk_ok else 'MISSING'}")
+    print(f"  fall {'at %.2f s to the end' % fall[0][0] if fall else 'NOT FOUND'} (injected tip "
+          f"{SEG['tip_at_s']:.1f}): {'ok' if fall_ok else 'WRONG'}")
+    assert still_ok, f"the motionless prefix did not come out as one still segment: {span[:2]}"
+    assert walk_ok, f"no driven walking segment recovered: {span}"
+    assert fall_ok, f"the injected tip did not come out as the final fall segment: {span}"
+    # the labels must survive their own physics check, or they are decoration.
+    # PER SEGMENT, never pooled: two still segments held at different poses pool into
+    # the offset between them, which verify_still's docstring calls a tilt, not motion.
+    checks = {"still": [], "walking": []}
+    for a, b, n in span:
+        if n not in checks: continue
+        m = ((its - t0) / 1000.0 >= a) & ((its - t0) / 1000.0 < b)
+        if m.sum() >= 20:
+            checks[n].append(verify_still(ivs[m, :3], ivs[m, 3:])["still"])
+    print(f"  labelled still verifies still on {sum(checks['still'])}/{len(checks['still'])} "
+          f"segments; labelled walking on {sum(checks['walking'])}/{len(checks['walking'])} "
+          f"(must be 0)")
+    assert checks["still"] and all(checks["still"]), "a labelled still segment is not still"
+    assert not any(checks["walking"]), "a labelled walking segment verifies as still"
+    # negative control: the SAME bytes with end_why 'done' must produce NO fall. The
+    # class is gated on the header's own claim, never invented from attitude alone.
+    _jsonl_to_growbot_v1("/tmp/imulog_seg_fixture.jsonl", "/tmp/imulog_seg_v1_done.json",
+                         end_why="done")
+    _, _, ev_done = _read_rows("/tmp/imulog_seg_v1_done.json")
+    n_fall_done = sum(1 for _, n in ev_done if n == "fall_start")
+    print(f"  same session with end_why='done': {n_fall_done} fall segments (must be 0)")
+    assert n_fall_done == 0, "a fall was invented on a session the header does not call tipped"
+    print("SEGMENTATION PASS - still prefix, driven walking and the tip recovered from a "
+          "format that carries no event rows")
     # permanent detector for the cut-boundary bug family: no valid window may have a
     # target that crosses a cut, and every cut must cost at least one window
     *_, valid = make_windows(O, A, O2, D, K)

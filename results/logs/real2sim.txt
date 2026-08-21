@@ -1,49 +1,65 @@
   [  ok] effective rates: IMU 59.9 Hz, commands 24.8 Hz
   [  ok] IMU dt: median 16.7 ms, p95 18.5, p99 20.5, max 71; 3.2% of ticks >20% off the median
   [WARN] command dt: median 40.3 ms, p95 44.4, p99 101.5, max 134; 4.0% of ticks >20% off the median -- p99 above 1.5x median: timing jitter degrades the fixed-dt forward model (reported, never gated)
-  [WARN] command stream has 12 dt above the 100 ms gap threshold (max 134 ms) -- these cut episodes in parse() and are excluded from sensor_id's interpolation, they are not interpolated across
+  [WARN] command stream has 12 dt above the 100 ms gap threshold (max 134 ms) -- the last command is zero-order held across them, which is what the body did; they do not cut episodes, but a held command is an assumption about a stretch the log does not observe
   [  ok] growbot-imulog walk 1, end_why='done', gait='official', agent gain=None, cal gain=0.99, send_ok dropped 0 of 379 pose rows, app-side drops imu=0 pose=0
-preflight: PASS
-  [  ok] effective rates: IMU 59.9 Hz, commands 24.7 Hz
-  [  ok] IMU dt: median 16.7 ms, p95 18.0, p99 20.3, max 71; 2.2% of ticks >20% off the median
-  [WARN] command dt: median 40.5 ms, p95 100.7, p99 102.1, max 102; 11.8% of ticks >20% off the median -- p99 above 1.5x median: timing jitter degrades the fixed-dt forward model (reported, never gated)
-  [WARN] command stream has 12 dt above the 100 ms gap threshold (max 102 ms) -- these cut episodes in parse() and are excluded from sensor_id's interpolation, they are not interpolated across
-  [  ok] growbot-imulog walk 3, end_why='tipped', gait='official', agent gain=0.8, cal gain=0.99, send_ok dropped 0 of 111 pose rows, app-side drops imu=0 pose=0
+  [  ok] 1 'still' segment(s), longest 1.1 s, all check out (worst gyro RMS 0.013 rad/s (max 0.15), max per-axis roll/pitch std 0.0067 rad (max 0.05))
 preflight: PASS
 
-real log: 1070 ticks concatenated, identification half = [0:535], evaluation = held-out [535:1070] (535 ticks, 10.7 s)
+real log: imu-walk-1-2026-08-20T17-50-14-713Z.json
+  EXCLUDED imu-walk-3-2026-08-20T17-38-19-478Z.json: no walking segment (2.6 s motionless under active commands, then a fall), different agent gain (0.8 vs null) and a different resting attitude
+  809 ticks, identification half = [0:404], evaluation = held-out [404:809] (405 ticks, 8.1 s), segments {np.str_('walking'): 405}
+
+determined band from walk-1 alone: delay [0, 1, 2, 3, 4, 5, 6] ticks, slew [1.5, 2.0, 3.0, 4.0] rad/s
+  tested delays [0, 5, 6] -> 43% of the delay set; tested slews [2.0, 5.0] -> 25% of the slew set
 
 == control nominal
   gait sanity (policy mode): {'policy_ticks': 77199, 'horn_tracking_err_rad': 0.0, 'cmd_amplitude_rad': 0.392, 'horn_amplitude_rad': 0.392, 'gyro_norm_mean': 1.704, 'fallen_frac': 0.0884}
   control collection asserted equal to data/train.npz
-  real held-out @100ms  roll  96.2 (floor  95.2)  pitch  95.8 (floor  96.7)  yaw  98.1 (floor  95.4)
-  real held-out @500ms  roll  60.5 (floor  86.2)  pitch  40.1 (floor  84.0)  yaw  43.2 (floor  75.3)
+  real held-out all      @100ms  roll  94.4  pitch  96.0  yaw  97.6   (twin all:  96.8   97.2   96.3)
+  real held-out all      @500ms  roll  43.0  pitch  51.3  yaw  33.2   (twin all:  87.1   87.2   77.9)
+  real held-out walking  @100ms  roll  94.4  pitch  96.0  yaw  97.6   (twin policy:  96.0   97.1   95.8)
+  real held-out walking  @500ms  roll  43.0  pitch  51.3  yaw  33.2   (twin policy:  87.7   87.2   76.7)
 
-== argmin d4 s2.0 (80 ms, 2.0 rad/s)
-  gait sanity (policy mode): {'policy_ticks': 79685, 'horn_tracking_err_rad': 0.1972, 'cmd_amplitude_rad': 0.293, 'horn_amplitude_rad': 0.224, 'gyro_norm_mean': 0.939, 'fallen_frac': 0.0826}
-  real held-out @100ms  roll  97.9 (floor  95.6)  pitch  96.2 (floor  97.6)  yaw  99.8 (floor  95.8)
-  real held-out @500ms  roll  79.1 (floor  88.3)  pitch  40.5 (floor  89.7)  yaw  58.9 (floor  80.8)
+== argmin d5 s2.0 (100 ms, 2.0 rad/s)
+  gait sanity (policy mode): {'policy_ticks': 80791, 'horn_tracking_err_rad': 0.2028, 'cmd_amplitude_rad': 0.295, 'horn_amplitude_rad': 0.224, 'gyro_norm_mean': 1.055, 'fallen_frac': 0.1062}
+  real held-out all      @100ms  roll  96.5  pitch  97.9  yaw  99.7   (twin all:  96.8   97.3   96.5)
+  real held-out all      @500ms  roll  59.1  pitch  54.3  yaw  45.7   (twin all:  85.2   87.6   76.7)
+  real held-out walking  @100ms  roll  96.5  pitch  97.9  yaw  99.7   (twin policy:  96.2   97.6   96.4)
+  real held-out walking  @500ms  roll  59.1  pitch  54.3  yaw  45.7   (twin policy:  89.1   90.3   80.3)
 
-== half-A d4 s3.0 (80 ms, 3.0 rad/s)
-  gait sanity (policy mode): {'policy_ticks': 83095, 'horn_tracking_err_rad': 0.231, 'cmd_amplitude_rad': 0.319, 'horn_amplitude_rad': 0.249, 'gyro_norm_mean': 1.18, 'fallen_frac': 0.1001}
-  real held-out @100ms  roll  97.5 (floor  96.5)  pitch  94.3 (floor  97.1)  yaw  99.8 (floor  96.3)
-  real held-out @500ms  roll  79.5 (floor  88.1)  pitch  39.9 (floor  86.3)  yaw  56.3 (floor  77.8)
+== half-A d6 s5.0 (120 ms, 5.0 rad/s)
+  gait sanity (policy mode): {'policy_ticks': 77050, 'horn_tracking_err_rad': 0.2504, 'cmd_amplitude_rad': 0.322, 'horn_amplitude_rad': 0.265, 'gyro_norm_mean': 1.215, 'fallen_frac': 0.0882}
+  real held-out all      @100ms  roll  97.9  pitch  94.4  yaw  99.7   (twin all:  96.3   97.0   96.0)
+  real held-out all      @500ms  roll  47.6  pitch  50.0  yaw  36.6   (twin all:  84.3   87.1   74.0)
+  real held-out walking  @100ms  roll  97.9  pitch  94.4  yaw  99.7   (twin policy:  95.8   97.2   96.9)
+  real held-out walking  @500ms  roll  47.6  pitch  50.0  yaw  36.6   (twin policy:  86.2   88.2   77.7)
 
-== half-B d6 s1.5 (120 ms, 1.5 rad/s)
-  gait sanity (policy mode): {'policy_ticks': 74971, 'horn_tracking_err_rad': 0.1991, 'cmd_amplitude_rad': 0.287, 'horn_amplitude_rad': 0.212, 'gyro_norm_mean': 0.965, 'fallen_frac': 0.0996}
-  real held-out @100ms  roll  97.0 (floor  96.6)  pitch  96.4 (floor  97.4)  yaw  99.2 (floor  96.6)
-  real held-out @500ms  roll  88.2 (floor  86.1)  pitch  42.6 (floor  88.4)  yaw  63.3 (floor  80.9)
+== half-B d6 s2.0 (120 ms, 2.0 rad/s)
+  gait sanity (policy mode): {'policy_ticks': 74781, 'horn_tracking_err_rad': 0.2094, 'cmd_amplitude_rad': 0.289, 'horn_amplitude_rad': 0.22, 'gyro_norm_mean': 1.032, 'fallen_frac': 0.0924}
+  real held-out all      @100ms  roll  96.5  pitch  97.1  yaw  99.7   (twin all:  96.4   97.5   96.4)
+  real held-out all      @500ms  roll  76.5  pitch  58.6  yaw  45.5   (twin all:  84.1   88.0   76.1)
+  real held-out walking  @100ms  roll  96.5  pitch  97.1  yaw  99.7   (twin policy:  97.5   98.2   97.4)
+  real held-out walking  @500ms  roll  76.5  pitch  58.6  yaw  45.5   (twin policy:  89.3   91.4   81.1)
+
+== smoothing only d0 s2.0 (no delay)
+  gait sanity (policy mode): {'policy_ticks': 80862, 'horn_tracking_err_rad': 0.1538, 'cmd_amplitude_rad': 0.289, 'horn_amplitude_rad': 0.222, 'gyro_norm_mean': 0.996, 'fallen_frac': 0.1011}
+  real held-out all      @100ms  roll  96.0  pitch  98.4  yaw  99.2   (twin all:  96.8   97.3   95.9)
+  real held-out all      @500ms  roll  54.0  pitch  52.1  yaw  43.0   (twin all:  86.9   88.1   78.2)
+  real held-out walking  @100ms  roll  96.0  pitch  98.4  yaw  99.2   (twin policy:  97.8   98.0   96.2)
+  real held-out walking  @500ms  roll  54.0  pitch  52.1  yaw  43.0   (twin policy:  91.7   92.0   82.7)
 
 == control seed spread (extra MLP seeds on the control data)
-  roll: seeds ['60.5', '58.9', '57.0'] -> spread 3.6 pts
-  pitch: seeds ['40.1', '40.1', '39.9'] -> spread 0.2 pts
-  yaw: seeds ['43.2', '44.7', '45.1'] -> spread 1.9 pts
+  roll: seeds ['43.0', '42.8', '43.3'] -> spread 0.5 pts
+  pitch: seeds ['51.3', '51.1', '50.5'] -> spread 0.8 pts
+  yaw: seeds ['33.2', '35.3', '38.5'] -> spread 5.3 pts
 
-== closure @500 ms vs control (within 0.2 rad; threshold = max(3.0, 2x spread) pts)
-  argmin d4 s2.0 (80 ms, 2.0 rad/s)       roll +18.6 (thr 7.2) MATERIAL  pitch  +0.4 (thr 3.0)  yaw +15.6 (thr 3.8) MATERIAL
-  half-A d4 s3.0 (80 ms, 3.0 rad/s)       roll +19.0 (thr 7.2) MATERIAL  pitch  -0.2 (thr 3.0)  yaw +13.1 (thr 3.8) MATERIAL
-  half-B d6 s1.5 (120 ms, 1.5 rad/s)      roll +27.6 (thr 7.2) MATERIAL  pitch  +2.5 (thr 3.0)  yaw +20.0 (thr 3.8) MATERIAL
+== closure @500 ms vs control (all row; within 0.2 rad; threshold = max(3.0, 2x spread) pts)
+  argmin d5 s2.0 (100 ms, 2.0 rad/s)      roll +16.0 (thr 3.0) MATERIAL  pitch  +2.9 (thr 3.0)  yaw +12.6 (thr 10.7) MATERIAL
+  half-A d6 s5.0 (120 ms, 5.0 rad/s)      roll  +4.5 (thr 3.0) MATERIAL  pitch  -1.3 (thr 3.0)  yaw  +3.5 (thr 10.7)
+  half-B d6 s2.0 (120 ms, 2.0 rad/s)      roll +33.4 (thr 3.0) MATERIAL  pitch  +7.2 (thr 3.0) MATERIAL  yaw +12.3 (thr 10.7) MATERIAL
+  smoothing only d0 s2.0 (no delay)       roll +11.0 (thr 3.0) MATERIAL  pitch  +0.8 (thr 3.0)  yaw  +9.9 (thr 10.7)
 
-  loop VALIDATED robustly to the identification uncertainty on roll+yaw: every config in the determined band closes materially there; pitch stays open in every config, as the attribution predicted -- the coverage hypothesis (sit-to-stand) stands
+  closure holds at EVERY tested point on roll; closure holds at some but not all tested points on pitch+yaw ({'pitch': ['half-B d6 s2.0 (120 ms, 2.0 rad/s)'], 'yaw': ['argmin d5 s2.0 (100 ms, 2.0 rad/s)', 'half-B d6 s2.0 (120 ms, 2.0 rad/s)']}); this says nothing about the BAND: the tested configs visit 43% of the determined delay set and 25% of the determined slew set, so 'robust to the identification uncertainty' is not a claim these cells support; on roll smoothing alone closes +11.0 pts and the best delayed cell +33.4 -- +22.4 more, above the 3.0-pt threshold, so part of the closure needs the latency and part does not; the 3 delayed cells span +4.5 to +33.4 pts (3 of 3 material); on pitch no zero-delay cell clears the threshold (+0.8 pts) while the best delayed cell reaches +7.2 -- +6.4 more, above the 3.0-pt threshold; the 3 delayed cells span -1.3 to +7.2 pts (1 of 3 material); on yaw the zero-delay smoothing-only cell closes +9.9 pts and the best delayed cell +12.6 -- a difference of +2.7, INSIDE the 10.7-pt threshold, so this log does not separate 'the identified dynamics' from 'any action smoothing' there; the 3 delayed cells span +3.5 to +12.6 pts (2 of 3 material); delay remains UNIDENTIFIED on this log (determined set [0, 1, 2, 3, 4, 5, 6] ticks, the whole grid); deadband is never varied on its own in these cells, so its contribution is untested
 
-wrote results/real2sim.json   total 7.0 min
+wrote results/real2sim.json   total 9.2 min

@@ -35,6 +35,7 @@ from __future__ import annotations
 import argparse, json
 import numpy as np
 from imulog import GAP_MS          # the same dropout threshold parse() cuts episodes at
+from imulog import STILL_GYRO_RMS_MAX, STILL_ANG_STD_MAX   # one definition, three users
 
 BODY_AXES = ("wx", "wy", "wz")       # Body rates: what the gyro measures, and what the
                                      # fused ZYX angles predict through the kinematics.
@@ -43,8 +44,9 @@ BODY_AXES = ("wx", "wy", "wz")       # Body rates: what the gyro measures, and w
                                      # while the robot is upright.
 GIMBAL_PITCH_RAD = 1.2               # |pitch| beyond this is gimbal territory (and is
                                      # also what fall_recovery calls fallen())
-STILL_GYRO_RMS_MAX = 0.15            # thresholds shared with imulog.preflight, so that
-STILL_ANG_STD_MAX = 0.05             # "still" means the same thing in both places
+                                     # STILL_GYRO_RMS_MAX / STILL_ANG_STD_MAX are imported
+                                     # from imulog above: one definition shared by the
+                                     # preflight, this module, and the v1 segmenter.
 MIN_REGIME_SAMPLES = 600             # 10 s at 60 Hz: below this a per-regime lag is noise
 ALLAN_RATE_TOL = 0.05                # mean/median dt mismatch above which one fs is a fiction
 

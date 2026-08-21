@@ -1,120 +1,227 @@
-== 1. convention evidence (the adapter's mount and mappings, audited on this data)
+== 0. what the two files are, before anything is compared
   imu-walk-1-2026-08-20T17-50-14-713Z.json
-    gravity via W3C composition: earth mean [-0.17, 0.35, 9.88] m/s^2
-    rate-axis diag corr [0.798, 0.697, 0.886] vs max off-diag 0.179 -- logged rate_alpha/beta/gamma are about device x/y/z in that order, positive -- NOT the W3C rotationRate naming
-    stance roll -0.06, pitch -0.74 +- 0.16 rad (twin policy -0.52, edge-rest geometry -0.81)
-    action-response real {'mean_cmd_vs_pitch': -0.212, 'diff_cmd_vs_roll': 0.28} vs twin {'mean_cmd_vs_pitch': -0.179, 'diff_cmd_vs_roll': 0.188}
+    walk 1, end_why='done', agent gain=None, 809 ticks (16.2 s)
+    rest attitude: roll +0.03, pitch -0.74 rad
+    segments: 0.00s still | 1.15s walking
+    regimes: {np.str_('still'): 58, np.str_('walking'): 751}
   imu-walk-3-2026-08-20T17-38-19-478Z.json
-    gravity via W3C composition: earth mean [-0.0, 0.04, 9.73] m/s^2
-    rate-axis diag corr [0.73, 0.287, 0.783] vs max off-diag 0.242 -- logged rate_alpha/beta/gamma are about device x/y/z in that order, positive -- NOT the W3C rotationRate naming
-    stance roll -0.01, pitch -0.38 +- 0.43 rad (twin policy -0.52, edge-rest geometry -0.81)
-    action-response real {'mean_cmd_vs_pitch': -0.726, 'diff_cmd_vs_roll': 0.525} vs twin {'mean_cmd_vs_pitch': -0.179, 'diff_cmd_vs_roll': 0.188}
+    walk 3, end_why='tipped', agent gain=0.8, 261 ticks (5.2 s)
+    rest attitude: roll +0.01, pitch +0.01 rad
+    segments: 0.00s still | 2.60s impact | 3.02s fall
+    regimes: {np.str_('fall'): 110, np.str_('impact'): 21, np.str_('still'): 130}
 
-== 2. the day-of-log commands, verbatim
+  These files are NOT pooled. Agent gains [None, 0.8] differ, and the resting attitudes
+  [(0.03, -0.74), (0.01, 0.01)] put the phone in different places. gap_report.py refuses to
+  concatenate them; so does this report. Every table below names one file.
 
-$ python gap_report.py imu-walk-1-2026-08-20T17-50-14-713Z.json imu-walk-3-2026-08-20T17-38-19-478Z.json --servo-id
+== 1. convention evidence (the adapter's mount and mappings, audited on this data)
+  twin resting geometry, MEASURED: roll +0.000, pitch -0.604 rad (GrowBotSim(seed 0).reset(tilt=0) then 5 s of neutral commands at 50 Hz, final rpy; residual gyro 0.0005 rad/s)
+
+  imu-walk-1-2026-08-20T17-50-14-713Z.json
+    gravity via W3C composition: earth mean [-0.17, 0.35, 9.88] m/s^2 (expected [0.0, 0.0, 9.81])
+    rate-axis diag corr [0.798, 0.697, 0.886] vs max off-diag 0.179; separation 3.9x, need 1.5x
+      -> logged rate_alpha/beta/gamma ARE the device x/y/z body rates in that order, positive -- every diagonal beats the largest off-diagonal (0.179) by at least 1.5x on this file
+    stance over 751 WALKING ticks: roll -0.06, pitch -0.74 +- 0.16 rad (twin policy -0.58 +- 0.13, twin measured rest -0.60)
+    action-response over 751 ticks:
+      upstream l/r {'mean_cmd_vs_pitch': -0.217, 'diff_cmd_vs_roll': 0.252}  swapped {'mean_cmd_vs_pitch': -0.217, 'diff_cmd_vs_roll': -0.252}  twin {'mean_cmd_vs_pitch': -0.161, 'diff_cmd_vs_roll': 0.228}
+      -> the upstream l/r assignment agrees with the twin on both signatures and the swap disagrees on roll (-0.252 vs the twin's +0.228); the pitch signature is INVARIANT under the swap (the mean of the two commands does not change) and decides nothing
+
+  imu-walk-3-2026-08-20T17-38-19-478Z.json
+    gravity via W3C composition: earth mean [-0.0, 0.04, 9.73] m/s^2 (expected [0.0, 0.0, 9.81])
+    rate-axis diag corr [0.73, 0.287, 0.783] vs max off-diag 0.242; separation 1.18x, need 1.5x
+      -> NOT SEPARATED ON THIS FILE: the weakest diagonal (y, 0.287) is only 1.18x the largest off-diagonal (0.242), below the 1.5x this report requires. The assignment is not established BY THIS FILE; it rests on the file(s) where the test passes
+    stance: NO STANCE EVIDENCE FROM THIS FILE: only 0 walking ticks. Its body rests at pitch +0.01 rad, a different placement from the file that does walk, so its attitudes are not evidence about the walking mount
+    action-response over 261 ticks:
+      upstream l/r {'mean_cmd_vs_pitch': -0.726, 'diff_cmd_vs_roll': 0.525}  swapped {'mean_cmd_vs_pitch': -0.726, 'diff_cmd_vs_roll': -0.525}  twin {'mean_cmd_vs_pitch': -0.161, 'diff_cmd_vs_roll': 0.228}
+      -> NO ACTION-RESPONSE EVIDENCE FROM THIS FILE: it has no walking segment, so these correlations are between the commands and a body that was first motionless and then falling. They are printed so that nobody reads the adapter's l/r assignment out of them
+
+== 2. the day-of-log commands, verbatim, ONE FILE AT A TIME
+
+$ python gap_report.py imu-walk-1-2026-08-20T17-50-14-713Z.json --servo-id
 --- imu-walk-1-2026-08-20T17-50-14-713Z.json
   [  ok] effective rates: IMU 59.9 Hz, commands 24.8 Hz
   [  ok] IMU dt: median 16.7 ms, p95 18.5, p99 20.5, max 71; 3.2% of ticks >20% off the median
   [WARN] command dt: median 40.3 ms, p95 44.4, p99 101.5, max 134; 4.0% of ticks >20% off the median -- p99 above 1.5x median: timing jitter degrades the fixed-dt forward model (reported, never gated)
-  [WARN] command stream has 12 dt above the 100 ms gap threshold (max 134 ms) -- these cut episodes in parse() and are excluded from sensor_id's interpolation, they are not interpolated across
+  [WARN] command stream has 12 dt above the 100 ms gap threshold (max 134 ms) -- the last command is zero-order held across them, which is what the body did; they do not cut episodes, but a held command is an assumption about a stretch the log does not observe
   [  ok] growbot-imulog walk 1, end_why='done', gait='official', agent gain=None, cal gain=0.99, send_ok dropped 0 of 379 pose rows, app-side drops imu=0 pose=0
+  [  ok] 1 'still' segment(s), longest 1.1 s, all check out (worst gyro RMS 0.013 rad/s (max 0.15), max per-axis roll/pitch std 0.0067 rad (max 0.05))
 preflight: PASS
---- imu-walk-3-2026-08-20T17-38-19-478Z.json
-  [  ok] effective rates: IMU 59.9 Hz, commands 24.7 Hz
-  [  ok] IMU dt: median 16.7 ms, p95 18.0, p99 20.3, max 71; 2.2% of ticks >20% off the median
-  [WARN] command dt: median 40.5 ms, p95 100.7, p99 102.1, max 102; 11.8% of ticks >20% off the median -- p99 above 1.5x median: timing jitter degrades the fixed-dt forward model (reported, never gated)
-  [WARN] command stream has 12 dt above the 100 ms gap threshold (max 102 ms) -- these cut episodes in parse() and are excluded from sensor_id's interpolation, they are not interpolated across
-  [  ok] growbot-imulog walk 3, end_why='tipped', gait='official', agent gain=0.8, cal gain=0.99, send_ok dropped 0 of 111 pose rows, app-side drops imu=0 pose=0
-preflight: PASS
-log: 2 file(s), 1,070 ticks, 2 cuts, surface=?, regimes={np.str_('official'): 1070}
+log: 1 file(s), 809 ticks, 1 cuts, surface=?, regimes={np.str_('still'): 58, np.str_('walking'): 751}
+twin floor regimes (rest attitude roll +0.00, pitch -0.57 rad; 'fallen' = excursion > 0.7 rad): {np.str_('fallen'): 8967, np.str_('keyframe'): 14633, np.str_('ou'): 10458, np.str_('policy'): 11334, np.str_('sine'): 9481, np.str_('still'): 5127}
 identified servo: delay 3 ticks, slew 3.0 rad/s (grid points; run servo_id.py for determined-set diagnostics)
-evaluation restricted to the held-out half (535 ticks); identification used the first half
+evaluation restricted to the held-out half (405 ticks); identification used the first half
 
 within 0.2 rad; gap = real - twin floor (matched regime); gap* = after identified servo; negative gap = worse than floor
 regime         n   axis                       @100ms                       @500ms
 ---------------------------------------------------------------------------------
-all          474   roll   96.2%  96.8%  -0.6   +0.5   60.5%  87.1% -26.6  -17.9
-                  pitch   95.8%  97.2%  -1.4   -2.0   40.1%  87.2% -47.1  -47.9
-                    yaw   98.1%  96.3%  +1.8   +3.5   43.2%  77.9% -34.6  -30.0
-official     474   roll   96.2%  95.2%  +1.0   +2.1   60.5%  86.2% -25.6  -17.0
-                  pitch   95.8%  96.7%  -0.9   -1.5   40.1%  84.0% -43.9  -44.8
-                    yaw   98.1%  95.4%  +2.7   +4.4   43.2%  75.3% -32.1  -27.4
+all          374   roll   94.4%  96.8%  -2.4   -0.3   43.0%  87.1% -44.1  -38.4
+                  pitch   96.0%  97.2%  -1.2   -1.2   51.3%  87.2% -35.8  -36.6
+                    yaw   97.6%  96.3%  +1.3   +3.4   33.2%  77.9% -44.7  -39.9
+walking      374   roll   94.4%  96.0%  -1.6   +0.5   43.0%  87.7% -44.7  -39.0
+                  pitch   96.0%  97.1%  -1.1   -1.1   51.3%  87.2% -35.9  -36.7
+                    yaw   97.6%  95.8%  +1.8   +4.0   33.2%  76.7% -43.5  -38.7
 
 wrote results/gap_report.json
 
-$ python sensor_id.py imu-walk-1-2026-08-20T17-50-14-713Z.json imu-walk-3-2026-08-20T17-38-19-478Z.json
+$ python sensor_id.py imu-walk-1-2026-08-20T17-50-14-713Z.json
 --- imu-walk-1-2026-08-20T17-50-14-713Z.json
   [  ok] effective rates: IMU 59.9 Hz, commands 24.8 Hz
   [  ok] IMU dt: median 16.7 ms, p95 18.5, p99 20.5, max 71; 3.2% of ticks >20% off the median
   [WARN] command dt: median 40.3 ms, p95 44.4, p99 101.5, max 134; 4.0% of ticks >20% off the median -- p99 above 1.5x median: timing jitter degrades the fixed-dt forward model (reported, never gated)
-  [WARN] command stream has 12 dt above the 100 ms gap threshold (max 134 ms) -- these cut episodes in parse() and are excluded from sensor_id's interpolation, they are not interpolated across
+  [WARN] command stream has 12 dt above the 100 ms gap threshold (max 134 ms) -- the last command is zero-order held across them, which is what the body did; they do not cut episodes, but a held command is an assumption about a stretch the log does not observe
   [  ok] growbot-imulog walk 1, end_why='done', gait='official', agent gain=None, cal gain=0.99, send_ok dropped 0 of 379 pose rows, app-side drops imu=0 pose=0
-preflight: PASS
---- imu-walk-3-2026-08-20T17-38-19-478Z.json
-  [  ok] effective rates: IMU 59.9 Hz, commands 24.7 Hz
-  [  ok] IMU dt: median 16.7 ms, p95 18.0, p99 20.3, max 71; 2.2% of ticks >20% off the median
-  [WARN] command dt: median 40.5 ms, p95 100.7, p99 102.1, max 102; 11.8% of ticks >20% off the median -- p99 above 1.5x median: timing jitter degrades the fixed-dt forward model (reported, never gated)
-  [WARN] command stream has 12 dt above the 100 ms gap threshold (max 102 ms) -- these cut episodes in parse() and are excluded from sensor_id's interpolation, they are not interpolated across
-  [  ok] growbot-imulog walk 3, end_why='tipped', gait='official', agent gain=0.8, cal gain=0.99, send_ok dropped 0 of 111 pose rows, app-side drops imu=0 pose=0
+  [  ok] 1 'still' segment(s), longest 1.1 s, all check out (worst gyro RMS 0.013 rad/s (max 0.15), max per-axis roll/pitch std 0.0067 rad (max 0.05))
 preflight: PASS
 
-clock (2 file(s); dt within files only, 1000 ms seam between files)
-  imu  dt ms: median 16.7  p95 18.4  p99 20.5  max 71  >20% off-median 3.0%
-  cmd  dt ms: median 40.4  p95 84.3  p99 101.8  max 134  >20% off-median 5.7%   JITTER above 1.5x median at p99
+clock (1 file(s); dt within files only, 1000 ms seam between files)
+  imu  dt ms: median 16.7  p95 18.5  p99 20.5  max 71  >20% off-median 3.2%
+  cmd  dt ms: median 40.3  p95 44.4  p99 101.5  max 134  >20% off-median 4.0%   JITTER above 1.5x median at p99
 
 fused-orientation lag behind the raw gyro (cross-correlation, whole session)
   axes are BODY rates wx/wy/wz -- the fused ZYX angles through the euler-rate
   kinematics, NOT gap_report's roll/pitch/yaw angles (wx = roll rate only upright)
-  grid 16.7 ms | 2 segments used, 0 dropped | 1.0 s excluded at gaps/seams, 1.0 s to post-gap filter warm-up
-  gimbal mask |pitch|>1.2 rad keeps 100.0% of 1,286 grid samples; 1,224 (95.2%) enter the correlation
+  grid 16.7 ms | 1 segments used, 0 dropped | 0.0 s excluded at gaps/seams, 0.5 s to post-gap filter warm-up
+  gimbal mask |pitch|>1.2 rad keeps 100.0% of 971 grid samples; 940 (96.8%) enter the correlation
   search +-500 ms, min corr 0.50; band from the split halves (|A - B| / 2), as in servo_id.py
-     wx    +13.3 +- 0.1 ms   peak corr 0.87   split-half AGREE
-     wy    +14.5 +- 0.9 ms   peak corr 0.95   split-half AGREE
-     wz    +13.5 +- 1.6 ms   peak corr 0.97   split-half AGREE
+     wx    +13.0 +- 0.1 ms   peak corr 0.87   split-half AGREE
+     wy    +13.8 +- 0.2 ms   peak corr 0.95   split-half AGREE
+     wz    +12.8 +- 0.7 ms   peak corr 0.96   split-half AGREE
 
-no still/idle segment labelled in the log -- Allan analysis skipped; record one still segment per session to characterise the gyro noise (a '_stop' event does not count: dead time is not verified stillness)
+  per regime (>= 600 IMU rows); lag ms (peak corr), '--' = undetermined
+    regime          rows                 wx              wy              wz
+    walking          896       +13.2 (0.88)    +13.9 (0.95)    +12.7 (0.96)
+
+Allan deviation on the longest still/idle segment (1 s, 69 samples, t = 0.0..1.1 s)
+  segment dt ms: median 16.6  p95 16.9  p99 18.7  max 22; stillness check: gyro RMS 0.013 rad/s (max 0.15), max per-axis roll/pitch std 0.0067 rad (max 0.05)
+  segment shorter than 60 s -- expect undetermined parameters; reporting only what the curve supports
+  fs 60.24 Hz from the segment's median dt
+     wx  ARW undetermined (no -1/2 slope around tau = 1 s);  bias instability undetermined (minimum at the edge of the tau range (0.28 s): not a minimum)
+     wy  ARW undetermined (no -1/2 slope around tau = 1 s);  bias instability undetermined (minimum at tau 0.23 s is a 1.4x-wide notch, not a flicker plateau (needs 5x within 10%): looks like an ARW / rate-random-walk crossover)
+     wz  ARW undetermined (no -1/2 slope around tau = 1 s);  bias instability undetermined (minimum at tau 0.15 s is a 1.2x-wide notch, not a flicker plateau (needs 5x within 10%): looks like an ARW / rate-random-walk crossover)
 
 wrote results/sensor_id.json
 
-== 3. per-file gap, and the tip onset separated
+$ python gap_report.py imu-walk-3-2026-08-20T17-38-19-478Z.json --servo-id
+--- imu-walk-3-2026-08-20T17-38-19-478Z.json
+  [  ok] effective rates: IMU 59.9 Hz, commands 24.7 Hz
+  [  ok] IMU dt: median 16.7 ms, p95 18.0, p99 20.3, max 71; 2.2% of ticks >20% off the median
+  [WARN] command dt: median 40.5 ms, p95 100.7, p99 102.1, max 102; 11.8% of ticks >20% off the median -- p99 above 1.5x median: timing jitter degrades the fixed-dt forward model (reported, never gated)
+  [WARN] command stream has 12 dt above the 100 ms gap threshold (max 102 ms) -- the last command is zero-order held across them, which is what the body did; they do not cut episodes, but a held command is an assumption about a stretch the log does not observe
+  [  ok] growbot-imulog walk 3, end_why='tipped', gait='official', agent gain=0.8, cal gain=0.99, send_ok dropped 0 of 111 pose rows, app-side drops imu=0 pose=0
+  [  ok] 1 'still' segment(s), longest 2.6 s, all check out (worst gyro RMS 0.003 rad/s (max 0.15), max per-axis roll/pitch std 0.0000 rad (max 0.05))
+  [WARN] still segment 2.6 s at t=70445 ms runs under ACTIVE commands (peak 34 deg off neutral): the body is not responding to what it is sent -- phone not on the robot, robot not on the ground, or the servos are not moving. Nothing downstream can tell this from a quiet moment, so it is said here
+preflight: PASS
+log: 1 file(s), 261 ticks, 1 cuts, surface=?, regimes={np.str_('fall'): 110, np.str_('impact'): 21, np.str_('still'): 130}
+twin floor regimes (rest attitude roll +0.00, pitch -0.57 rad; 'fallen' = excursion > 0.7 rad): {np.str_('fallen'): 8967, np.str_('keyframe'): 14633, np.str_('ou'): 10458, np.str_('policy'): 11334, np.str_('sine'): 9481, np.str_('still'): 5127}
+identified servo: delay 2 ticks, slew 4.0 rad/s (grid points; run servo_id.py for determined-set diagnostics)
+evaluation restricted to the held-out half (131 ticks); identification used the first half
+
+within 0.2 rad; gap = real - twin floor (matched regime); gap* = after identified servo; negative gap = worse than floor
+regime         n   axis                       @100ms                       @500ms
+---------------------------------------------------------------------------------
+all          100   roll  100.0%  96.8%  +3.2   +3.2   51.0%  87.1% -36.1  -36.1
+                  pitch   90.0%  97.2%  -7.2   -8.2   34.0%  87.2% -53.2  -55.2
+                    yaw  100.0%  96.3%  +3.7   +3.7   58.0%  77.9% -19.9  -15.9
+fall          84   roll  100.0%  93.3%  +6.7   +6.7   57.1%  72.4% -15.2  -12.8
+                  pitch   91.7%  95.0%  -3.4   -2.2   40.5%  67.2% -26.7  -29.1
+                    yaw  100.0%  93.5%  +6.5   +6.5   61.9%  66.1%  -4.2   +0.6
+
+wrote results/gap_report.json
+
+$ python sensor_id.py imu-walk-3-2026-08-20T17-38-19-478Z.json
+--- imu-walk-3-2026-08-20T17-38-19-478Z.json
+  [  ok] effective rates: IMU 59.9 Hz, commands 24.7 Hz
+  [  ok] IMU dt: median 16.7 ms, p95 18.0, p99 20.3, max 71; 2.2% of ticks >20% off the median
+  [WARN] command dt: median 40.5 ms, p95 100.7, p99 102.1, max 102; 11.8% of ticks >20% off the median -- p99 above 1.5x median: timing jitter degrades the fixed-dt forward model (reported, never gated)
+  [WARN] command stream has 12 dt above the 100 ms gap threshold (max 102 ms) -- the last command is zero-order held across them, which is what the body did; they do not cut episodes, but a held command is an assumption about a stretch the log does not observe
+  [  ok] growbot-imulog walk 3, end_why='tipped', gait='official', agent gain=0.8, cal gain=0.99, send_ok dropped 0 of 111 pose rows, app-side drops imu=0 pose=0
+  [  ok] 1 'still' segment(s), longest 2.6 s, all check out (worst gyro RMS 0.003 rad/s (max 0.15), max per-axis roll/pitch std 0.0000 rad (max 0.05))
+  [WARN] still segment 2.6 s at t=70445 ms runs under ACTIVE commands (peak 34 deg off neutral): the body is not responding to what it is sent -- phone not on the robot, robot not on the ground, or the servos are not moving. Nothing downstream can tell this from a quiet moment, so it is said here
+preflight: PASS
+
+clock (1 file(s); dt within files only, 1000 ms seam between files)
+  imu  dt ms: median 16.7  p95 18.0  p99 20.3  max 71  >20% off-median 2.2%
+  cmd  dt ms: median 40.5  p95 100.7  p99 102.1  max 102  >20% off-median 11.8%   JITTER above 1.5x median at p99
+
+fused-orientation lag behind the raw gyro (cross-correlation, whole session)
+  axes are BODY rates wx/wy/wz -- the fused ZYX angles through the euler-rate
+  kinematics, NOT gap_report's roll/pitch/yaw angles (wx = roll rate only upright)
+  grid 16.7 ms | 1 segments used, 0 dropped | 0.0 s excluded at gaps/seams, 0.5 s to post-gap filter warm-up
+  gimbal mask |pitch|>1.2 rad keeps 100.0% of 315 grid samples; 284 (90.2%) enter the correlation
+  search +-500 ms, min corr 0.50; band from the split halves (|A - B| / 2), as in servo_id.py
+     wx    +17.9 +- 10.1 ms   peak corr 0.75   split-half DISAGREE -- halves differ by more than one grid sample
+     wy    +20.7 +- 10.5 ms   peak corr 0.96   split-half DISAGREE -- halves differ by more than one grid sample
+     wz    +19.5 ms   peak corr 0.98   split-half DISAGREE -- undetermined on the first half
+
+Allan deviation on the longest still/idle segment (3 s, 153 samples, t = 0.0..2.6 s)
+  segment dt ms: median 16.7  p95 18.3  p99 21.8  max 71; stillness check: gyro RMS 0.003 rad/s (max 0.15), max per-axis roll/pitch std 0.0000 rad (max 0.05)
+  segment shorter than 60 s -- expect undetermined parameters; reporting only what the curve supports
+  fs 59.90 Hz from the segment's median dt
+     wx  ARW 2.15e-04 rad/s/sqrt(Hz);  bias instability undetermined (minimum at the edge of the tau range (0.58 s): not a minimum)
+     wy  ARW undetermined (no -1/2 slope around tau = 1 s);  bias instability undetermined (minimum at the edge of the tau range (0.63 s): not a minimum)
+     wz  ARW undetermined (no -1/2 slope around tau = 1 s);  bias instability undetermined (minimum at the edge of the tau range (0.63 s): not a minimum)
+
+wrote results/sensor_id.json
+
+== 3. per-file gap, per segment, against the twin floor each segment maps to
+  twin floor regimes (rest roll +0.00, pitch -0.57 rad): {'all': 4000, np.str_('fallen'): 463, np.str_('keyframe'): 993, np.str_('ou'): 722, np.str_('policy'): 781, np.str_('sine'): 649, np.str_('still'): 392}
 
   imu-walk-1-2026-08-20T17-50-14-713Z.json -- 809 ticks (16.2 s), end_why='done', agent gain=None
-    regime           n   axis      @100ms real|twin|gap      @500ms real|twin|gap
-    all            778   roll         96.4  96.8   -0.4         53.1  87.1  -34.0   
-                        pitch         95.4  97.2   -1.8         52.6  87.2  -34.6   
-                          yaw         98.1  96.3   +1.8         36.6  77.9  -41.2   
-    official       778   roll         96.4  95.2   +1.2         53.1  86.2  -33.1   
-                        pitch         95.4  96.7   -1.3         52.6  84.0  -31.4   
-                          yaw         98.1  95.4   +2.6         36.6  75.3  -38.7   
+    segment   twin floor       n   axis      @100ms real|twin|gap      @500ms real|twin|gap
+    all       all            778   roll         96.4  96.8   -0.4         53.1  87.1  -34.0   
+                                  pitch         95.4  97.2   -1.8         52.6  87.2  -34.6   
+                                    yaw         98.1  96.3   +1.8         36.6  77.9  -41.2   
+    still     still           53   roll        100.0  95.9   +4.1         84.9  90.1   -5.1   
+                                  pitch        100.0  96.7   +3.3         86.8  89.0   -2.2   
+                                    yaw        100.0  95.7   +4.3         77.4  80.1   -2.7   
+    walking   policy         725   roll         96.1  96.0   +0.1         50.8  87.7  -36.9   
+                                  pitch         95.0  97.1   -2.0         50.1  87.2  -37.1   
+                                    yaw         97.9  95.8   +2.2         33.7  76.7  -43.0   
 
   imu-walk-3-2026-08-20T17-38-19-478Z.json -- 261 ticks (5.2 s), end_why='tipped', agent gain=0.8
-    regime           n   axis      @100ms real|twin|gap      @500ms real|twin|gap
-    all            230   roll        100.0  96.8   +3.2         71.7  87.1  -15.4   
-                        pitch         95.7  97.2   -1.5         17.4  87.2  -69.8   
-                          yaw        100.0  96.3   +3.7         61.7  77.9  -16.1   
-    official       181   roll        100.0  95.2   +4.8         68.0  86.2  -18.2   
-                        pitch         95.6  96.7   -1.1          4.4  84.0  -79.6   
-                          yaw        100.0  95.4   +4.6         67.4  75.3   -7.9   
-    tip_onset       49   roll        100.0  96.8   +3.2         85.7  87.1   -1.4   
-                        pitch         95.9  97.2   -1.3         65.3  87.2  -21.8   
-                          yaw        100.0  96.3   +3.7         40.8  77.9  -37.1   
+    segment   twin floor       n   axis      @100ms real|twin|gap      @500ms real|twin|gap
+    all       all            230   roll        100.0  96.8   +3.2         71.7  87.1  -15.4   
+                                  pitch         95.7  97.2   -1.5         17.4  87.2  -69.8   
+                                    yaw        100.0  96.3   +3.7         61.7  77.9  -16.1   
+    fall      fallen          84   roll        100.0  93.3   +6.7         57.1  72.4  -15.2   
+                                  pitch         91.7  95.0   -3.4         40.5  67.2  -26.7   
+                                    yaw        100.0  93.5   +6.5         61.9  66.1   -4.2   
+    still     still          125   roll        100.0  95.9   +4.1         91.2  90.1   +1.1   
+                                  pitch        100.0  96.7   +3.3          4.8  89.0  -84.2   
+                                    yaw        100.0  95.7   +4.3         67.2  80.1  -12.9   
+    (impact: 21 ticks, fewer than the 30 rollout starts evaluate_axes requires -- not reported)
+    NOTE: the still segment scores 4.8% on pitch at 500 ms while the commands reach 34 deg of horn swing. The model predicts the motion those commands imply; the body produced none. That gap measures the ROBOT (phone off the body, body off the ground, or servos not moving), not the forward model.
 
-== 4. servo determined sets on the concatenated log (fit = first half, evaluation = held-out second half)
-  535 ticks fit (10.7 s), 252 hypotheses, split-half band 0.0142
-  argmin: delay 4 ticks, slew 2.0 rad/s, deadband 2 deg
-  split-half: A=(delay 4, slew 3.0)  B=(delay 6, slew 1.5)  DISAGREE -- log too short or servo outside the model family
-  delay determined set [0, 1, 2, 3, 4, 5, 6] ticks; slew determined set [1.5, 2.0, 3.0] rad/s
-  argmin is INTERIOR to the extended grid (delay 0-6 ticks, slew 1.0-8.0 rad/s or none)
-  (the fixture's 480 s of mixed excitation determines both to +-1 grid step; 11 s of periodic walking is the excitation servo_id.py warns about: 'near-ties mean the excitation never hit the slew limit')
-  held-out half with the extended-grid servo (within 0.2 rad; twin floor = policy regime):
-      roll  @100ms  96.2 ->  96.2 (floor  95.2)  @500ms  60.5 ->  71.9 (floor  86.2)
-     pitch  @100ms  95.8 ->  94.9 (floor  96.7)  @500ms  40.1 ->  39.0 (floor  84.0)
-       yaw  @100ms  98.1 ->  99.8 (floor  95.4)  @500ms  43.2 ->  51.3 (floor  75.3)
+== 4. servo determined sets on imu-walk-1-2026-08-20T17-50-14-713Z.json ALONE (fit = its first half, evaluation = its held-out second half)
+  The other file(s) ['imu-walk-3-2026-08-20T17-38-19-478Z.json'] are NOT in this fit and NOT in this evaluation. Concatenating
+  them would identify one servo from two different action distributions and score it on a body
+  that spent its recording motionless and then falling.
+  404 ticks fit (8.1 s), 252 hypotheses, split-half band 0.0124
+  argmin: delay 5 ticks, slew 2.0 rad/s, deadband 2 deg
+  split-half: A=(delay 6, slew 5.0)  B=(delay 6, slew 2.0)  DISAGREE -- log too short or servo outside the model family
+  delay determined set [0, 1, 2, 3, 4, 5, 6] ticks; slew determined set [1.5, 2.0, 3.0, 4.0] rad/s
+  argmin is INTERIOR to the extended grid (delay 0-6 ticks, slew 1.0-8.0 rad/s or none; 'none' = no slew limit counts as the boundary, not as an interior point)
+  (the fixture's 480 s of mixed excitation determines both to +-1 grid step; 8 s of periodic walking is the excitation servo_id.py warns about: 'near-ties mean the excitation never hit the slew limit')
+  held-out half (405 ticks) with the extended-grid servo (within 0.2 rad; twin floor per segment):
+    all         roll  @100ms  94.4 ->  94.9 (floor  96.8)  @500ms  43.0 ->  46.5 (floor  87.1)
+               pitch  @100ms  96.0 ->  95.2 (floor  97.2)  @500ms  51.3 ->  50.0 (floor  87.2)
+                 yaw  @100ms  97.6 ->  99.7 (floor  96.3)  @500ms  33.2 ->  40.9 (floor  77.9)
+    walking     roll  @100ms  94.4 ->  94.9 (floor  96.0)  @500ms  43.0 ->  46.5 (floor  87.7)
+               pitch  @100ms  96.0 ->  95.2 (floor  97.1)  @500ms  51.3 ->  50.0 (floor  87.2)
+                 yaw  @100ms  97.6 ->  99.7 (floor  95.8)  @500ms  33.2 ->  40.9 (floor  76.7)
 
-== 5. the data ask, from these numbers
-  - pose-sequence (gesture) capture, 3-5 min: the walk lane alone leaves the servo at delay [0, 1, 2, 3, 4, 5, 6] ticks / slew [1.5, 2.0, 3.0] rad/s; varied large and small steps are what separate slew and deadband (the twin fixture determines both to one grid step from 8 min of mixed excitation)
-  - one still capture, 2-5 min (robot on the floor, untouched): unlocks the Allan read of the phone gyro's noise -- no still segment exists in the walk lane, so ARW and bias instability are currently unmeasurable
+== 5. is header.gain already inside the logged commands? (the test, not the assumption)
+  statistic: p95 of |command - 90| deg, l and r pooled
+  imu-walk-1-2026-08-20T17-50-14-713Z.json (gain null): 51.00 deg, n=734
+  imu-walk-3-2026-08-20T17-38-19-478Z.json (gain 0.8): 41.46 deg, n=198
+  ratio 1.230, bootstrap 95% CI [1.171, 1.281] (4000 resamples)
+  hypotheses: baked into the log -> 1.25; applied downstream -> 1.00
+  -> BAKED IN: the ratio is consistent with 1/0.8 = 1.25 and excludes 1.00, so header.gain is already inside the logged values and only cal.gain takes part in the inversion
+
+== 6. the data ask, from these numbers
+  - pose-sequence (gesture) capture, 3-5 min: imu-walk-1-2026-08-20T17-50-14-713Z.json alone leaves the servo at delay [0, 1, 2, 3, 4, 5, 6] ticks / slew [1.5, 2.0, 3.0, 4.0] rad/s; varied large and small steps are what separate slew and deadband (the twin fixture determines both to one grid step from 8 min of mixed excitation)
+  - one still capture, 2-5 min (robot on the floor, untouched). A still segment DOES exist -- the longest here is 2.6 s -- but Allan deviation needs tens of taus with many independent clusters each, and at 60 Hz that means minutes, not seconds. ARW and bias instability stay unmeasurable because the still segments are TOO SHORT, not because none was recorded
+  - a walk lane where the robot actually walks the whole time: walk-3 contributed 0.0 s of walking out of 5.2 s -- 2.6 s of it is a motionless body under swinging commands, which is a hardware or placement report, not walk data
   - the same walk lane twice, battery fresh vs low: the twin predicts a split-half DISAGREE on slew if the battery sags (model_mismatch.py); this is the free real actuator experiment
 
 wrote results/real_log_report.json

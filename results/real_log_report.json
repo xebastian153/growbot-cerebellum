@@ -11,11 +11,85 @@
    500
   ],
   "model": "MLP h128 seed 0 on data/train.npz",
-  "tip_window_s": 1.5
+  "analysis": "per file; nothing pooled across files"
+ },
+ "files_summary": {
+  "imu-walk-1-2026-08-20T17-50-14-713Z.json": {
+   "walk": 1,
+   "end_why": "done",
+   "gain_agent": null,
+   "ticks": 809,
+   "rest_attitude": [
+    0.033,
+    -0.742
+   ],
+   "segments": [
+    [
+     22148.4,
+     "still_start"
+    ],
+    [
+     23296.4,
+     "walking_start"
+    ]
+   ],
+   "regimes": {
+    "still": 58,
+    "walking": 751
+   }
+  },
+  "imu-walk-3-2026-08-20T17-38-19-478Z.json": {
+   "walk": 3,
+   "end_why": "tipped",
+   "gain_agent": 0.8,
+   "ticks": 261,
+   "rest_attitude": [
+    0.014,
+    0.014
+   ],
+   "segments": [
+    [
+     70444.6,
+     "still_start"
+    ],
+    [
+     73044.4,
+     "impact_start"
+    ],
+    [
+     73461.2,
+     "fall_start"
+    ]
+   ],
+   "regimes": {
+    "fall": 110,
+    "impact": 21,
+    "still": 130
+   }
+  }
+ },
+ "twin_measured_rest": {
+  "procedure": "GrowBotSim(seed 0).reset(tilt=0) then 5 s of neutral commands at 50 Hz, final rpy",
+  "roll": 0.0,
+  "pitch": -0.604,
+  "residual_gyro": 0.0005
  },
  "mapping_evidence": [
   {
    "file": "imu-walk-1-2026-08-20T17-50-14-713Z.json",
+   "walk": 1,
+   "end_why": "done",
+   "gain_agent": null,
+   "segments": [
+    [
+     22148.4,
+     "still_start"
+    ],
+    [
+     23296.4,
+     "walking_start"
+    ]
+   ],
    "gravity": {
     "earth_mean": [
      -0.17,
@@ -52,29 +126,75 @@
      0.886
     ],
     "max_offdiag": 0.179,
-    "reading": "logged rate_alpha/beta/gamma are about device x/y/z in that order, positive -- NOT the W3C rotationRate naming"
+    "separation_factor_required": 1.5,
+    "separation_observed": 3.9,
+    "separated": true,
+    "reading": "logged rate_alpha/beta/gamma ARE the device x/y/z body rates in that order, positive -- every diagonal beats the largest off-diagonal (0.179) by at least 1.5x on this file"
    },
    "stance": {
-    "roll_mean": -0.056,
-    "pitch_mean": -0.738,
-    "pitch_std": 0.157,
-    "twin_policy_pitch_mean": -0.522,
-    "twin_geometry_edge_rest": -0.81
+    "n_walking_ticks": 751,
+    "roll_mean": -0.063,
+    "pitch_mean": -0.737,
+    "pitch_std": 0.163,
+    "twin_policy_pitch_mean": -0.58,
+    "twin_policy_pitch_std": 0.128,
+    "twin_measured_rest": {
+     "procedure": "GrowBotSim(seed 0).reset(tilt=0) then 5 s of neutral commands at 50 Hz, final rpy",
+     "roll": 0.0,
+     "pitch": -0.604,
+     "residual_gyro": 0.0005
+    },
+    "rest_attitude": [
+     0.033,
+     -0.742
+    ],
+    "reading": "walking stance under this mount, from THIS file's placement only"
    },
    "action_response": {
     "real": {
-     "mean_cmd_vs_pitch": -0.212,
-     "diff_cmd_vs_roll": 0.28
+     "mean_cmd_vs_pitch": -0.217,
+     "diff_cmd_vs_roll": 0.252
+    },
+    "swapped_lr": {
+     "mean_cmd_vs_pitch": -0.217,
+     "diff_cmd_vs_roll": -0.252
     },
     "twin_policy": {
-     "mean_cmd_vs_pitch": -0.179,
-     "diff_cmd_vs_roll": 0.188
+     "mean_cmd_vs_pitch": -0.161,
+     "diff_cmd_vs_roll": 0.228
     },
-    "reading": "same signs as the twin under the upstream l/r assignment; swapping l and r flips the roll signature into disagreement"
+    "n_ticks": 751,
+    "over_walking_ticks": true,
+    "upstream_signs_agree": [
+     true,
+     true
+    ],
+    "swapped_signs_agree": [
+     true,
+     false
+    ],
+    "reading": "the upstream l/r assignment agrees with the twin on both signatures and the swap disagrees on roll (-0.252 vs the twin's +0.228); the pitch signature is INVARIANT under the swap (the mean of the two commands does not change) and decides nothing"
    }
   },
   {
    "file": "imu-walk-3-2026-08-20T17-38-19-478Z.json",
+   "walk": 3,
+   "end_why": "tipped",
+   "gain_agent": 0.8,
+   "segments": [
+    [
+     70444.6,
+     "still_start"
+    ],
+    [
+     73044.4,
+     "impact_start"
+    ],
+    [
+     73461.2,
+     "fall_start"
+    ]
+   ],
    "gravity": {
     "earth_mean": [
      -0.0,
@@ -111,241 +231,880 @@
      0.783
     ],
     "max_offdiag": 0.242,
-    "reading": "logged rate_alpha/beta/gamma are about device x/y/z in that order, positive -- NOT the W3C rotationRate naming"
+    "separation_factor_required": 1.5,
+    "separation_observed": 1.18,
+    "separated": false,
+    "reading": "NOT SEPARATED ON THIS FILE: the weakest diagonal (y, 0.287) is only 1.18x the largest off-diagonal (0.242), below the 1.5x this report requires. The assignment is not established BY THIS FILE; it rests on the file(s) where the test passes"
    },
    "stance": {
-    "roll_mean": -0.006,
-    "pitch_mean": -0.384,
-    "pitch_std": 0.428,
-    "twin_policy_pitch_mean": -0.522,
-    "twin_geometry_edge_rest": -0.81
+    "n_walking_ticks": 0,
+    "rest_attitude": [
+     0.014,
+     0.014
+    ],
+    "twin_measured_rest": {
+     "procedure": "GrowBotSim(seed 0).reset(tilt=0) then 5 s of neutral commands at 50 Hz, final rpy",
+     "roll": 0.0,
+     "pitch": -0.604,
+     "residual_gyro": 0.0005
+    },
+    "reading": "NO STANCE EVIDENCE FROM THIS FILE: only 0 walking ticks. Its body rests at pitch +0.01 rad, a different placement from the file that does walk, so its attitudes are not evidence about the walking mount"
    },
    "action_response": {
     "real": {
      "mean_cmd_vs_pitch": -0.726,
      "diff_cmd_vs_roll": 0.525
     },
-    "twin_policy": {
-     "mean_cmd_vs_pitch": -0.179,
-     "diff_cmd_vs_roll": 0.188
+    "swapped_lr": {
+     "mean_cmd_vs_pitch": -0.726,
+     "diff_cmd_vs_roll": -0.525
     },
-    "reading": "same signs as the twin under the upstream l/r assignment; swapping l and r flips the roll signature into disagreement"
+    "twin_policy": {
+     "mean_cmd_vs_pitch": -0.161,
+     "diff_cmd_vs_roll": 0.228
+    },
+    "n_ticks": 261,
+    "over_walking_ticks": false,
+    "upstream_signs_agree": [
+     true,
+     true
+    ],
+    "swapped_signs_agree": [
+     true,
+     false
+    ],
+    "reading": "NO ACTION-RESPONSE EVIDENCE FROM THIS FILE: it has no walking segment, so these correlations are between the commands and a body that was first motionless and then falling. They are printed so that nobody reads the adapter's l/r assignment out of them"
    }
   }
  ],
  "gap_report": {
-  "header": {
-   "format": "growbot-imulog-1",
-   "imu_units": "rad",
-   "pose_units": "rad",
-   "trims_in_values": true,
-   "l_sign": -1.0,
-   "r_sign": -1.0,
-   "l_off": 0.0,
-   "r_off": 0.0,
-   "gain": 0.99,
-   "turn": 0.0,
-   "gait": "official",
-   "gain_agent": null,
-   "walk": 1,
-   "end_why": "done",
-   "body_id": "growbot-85mm-2leg",
-   "app": "v3/next.html",
-   "send_ok_dropped": 0,
-   "n_pose_rows": 379,
-   "dropped_imu": 0,
-   "dropped_pose": 0
-  },
-  "report": {
-   "all": {
-    "5": {
-     "roll": {
-      "real": 0.9620253164556962,
-      "twin": 0.968,
-      "gap": -0.005974683544303749,
-      "gap_after_servo": 0.004573839662447288
+  "imu-walk-1-2026-08-20T17-50-14-713Z.json": {
+   "header": {
+    "format": "growbot-imulog-1",
+    "imu_units": "rad",
+    "pose_units": "rad",
+    "trims_in_values": true,
+    "l_sign": -1.0,
+    "r_sign": -1.0,
+    "l_off": 0.0,
+    "r_off": 0.0,
+    "gain": 0.99,
+    "turn": 0.0,
+    "gait": "official",
+    "gain_agent": null,
+    "walk": 1,
+    "end_why": "done",
+    "body_id": "growbot-85mm-2leg",
+    "app": "v3/next.html",
+    "send_ok_dropped": 0,
+    "n_pose_rows": 379,
+    "dropped_imu": 0,
+    "dropped_pose": 0
+   },
+   "report": {
+    "all": {
+     "5": {
+      "roll": {
+       "real": 0.9438502673796791,
+       "twin": 0.968,
+       "gap": -0.02414973262032083,
+       "gap_after_servo": -0.002759358288770053
+      },
+      "pitch": {
+       "real": 0.9598930481283422,
+       "twin": 0.97175,
+       "gap": -0.011856951871657806,
+       "gap_after_servo": -0.011856951871657806
+      },
+      "yaw": {
+       "real": 0.9759358288770054,
+       "twin": 0.963,
+       "gap": 0.012935828877005395,
+       "gap_after_servo": 0.03432620320855617
+      }
      },
-     "pitch": {
-      "real": 0.9578059071729957,
-      "twin": 0.97175,
-      "gap": -0.013944092827004262,
-      "gap_after_servo": -0.020273206751054818
-     },
-     "yaw": {
-      "real": 0.9810126582278481,
-      "twin": 0.963,
-      "gap": 0.018012658227848144,
-      "gap_after_servo": 0.03489029535864985
+     "25": {
+      "roll": {
+       "real": 0.4304812834224599,
+       "twin": 0.871,
+       "gap": -0.4405187165775401,
+       "gap_after_servo": -0.38436898395721925
+      },
+      "pitch": {
+       "real": 0.5133689839572193,
+       "twin": 0.8715,
+       "gap": -0.35813101604278075,
+       "gap_after_servo": -0.36615240641711233
+      },
+      "yaw": {
+       "real": 0.3315508021390374,
+       "twin": 0.77875,
+       "gap": -0.4471991978609626,
+       "gap_after_servo": -0.3990708556149733
+      }
      }
     },
-    "25": {
-     "roll": {
-      "real": 0.6054852320675106,
-      "twin": 0.871,
-      "gap": -0.2655147679324894,
-      "gap_after_servo": -0.1790168776371308
+    "walking": {
+     "5": {
+      "roll": {
+       "real": 0.9438502673796791,
+       "twin": 0.9603072983354674,
+       "gap": -0.01645703095578821,
+       "gap_after_servo": 0.004933343375762567
+      },
+      "pitch": {
+       "real": 0.9598930481283422,
+       "twin": 0.970550576184379,
+       "gap": -0.010657528056036814,
+       "gap_after_servo": -0.010657528056036814
+      },
+      "yaw": {
+       "real": 0.9759358288770054,
+       "twin": 0.9577464788732394,
+       "gap": 0.01818935000376598,
+       "gap_after_servo": 0.03957972433531676
+      }
      },
-     "pitch": {
-      "real": 0.4008438818565401,
-      "twin": 0.8715,
-      "gap": -0.47065611814346,
-      "gap_after_servo": -0.47909493670886083
-     },
-     "yaw": {
-      "real": 0.43248945147679324,
-      "twin": 0.77875,
-      "gap": -0.3462605485232068,
-      "gap_after_servo": -0.2998470464135022
+     "25": {
+      "roll": {
+       "real": 0.4304812834224599,
+       "twin": 0.8770806658130602,
+       "gap": -0.4465993823906003,
+       "gap_after_servo": -0.39044964977027946
+      },
+      "pitch": {
+       "real": 0.5133689839572193,
+       "twin": 0.8719590268886044,
+       "gap": -0.3585900429313851,
+       "gap_after_servo": -0.36661143330571666
+      },
+      "yaw": {
+       "real": 0.3315508021390374,
+       "twin": 0.7669654289372599,
+       "gap": -0.4354146267982225,
+       "gap_after_servo": -0.3872862845522332
+      }
      }
     }
+   }
+  },
+  "imu-walk-3-2026-08-20T17-38-19-478Z.json": {
+   "header": {
+    "format": "growbot-imulog-1",
+    "imu_units": "rad",
+    "pose_units": "rad",
+    "trims_in_values": true,
+    "l_sign": -1.0,
+    "r_sign": -1.0,
+    "l_off": 0.0,
+    "r_off": 0.0,
+    "gain": 0.99,
+    "turn": 0.0,
+    "gait": "official",
+    "gain_agent": 0.8,
+    "walk": 3,
+    "end_why": "tipped",
+    "body_id": "growbot-85mm-2leg",
+    "app": "v3/next.html",
+    "send_ok_dropped": 0,
+    "n_pose_rows": 111,
+    "dropped_imu": 0,
+    "dropped_pose": 0
    },
-   "official": {
-    "5": {
-     "roll": {
-      "real": 0.9620253164556962,
-      "twin": 0.952,
-      "gap": 0.010025316455696265,
-      "gap_after_servo": 0.020573839662447302
+   "report": {
+    "all": {
+     "5": {
+      "roll": {
+       "real": 1.0,
+       "twin": 0.968,
+       "gap": 0.03200000000000003,
+       "gap_after_servo": 0.03200000000000003
+      },
+      "pitch": {
+       "real": 0.9,
+       "twin": 0.97175,
+       "gap": -0.07174999999999998,
+       "gap_after_servo": -0.08174999999999999
+      },
+      "yaw": {
+       "real": 1.0,
+       "twin": 0.963,
+       "gap": 0.03700000000000003,
+       "gap_after_servo": 0.03700000000000003
+      }
      },
-     "pitch": {
-      "real": 0.9578059071729957,
-      "twin": 0.9668571428571429,
-      "gap": -0.009051235684147119,
-      "gap_after_servo": -0.015380349608197674
-     },
-     "yaw": {
-      "real": 0.9810126582278481,
-      "twin": 0.9542857142857143,
-      "gap": 0.02672694394213382,
-      "gap_after_servo": 0.04360458107293552
+     "25": {
+      "roll": {
+       "real": 0.51,
+       "twin": 0.871,
+       "gap": -0.361,
+       "gap_after_servo": -0.361
+      },
+      "pitch": {
+       "real": 0.34,
+       "twin": 0.8715,
+       "gap": -0.5315000000000001,
+       "gap_after_servo": -0.5515000000000001
+      },
+      "yaw": {
+       "real": 0.58,
+       "twin": 0.77875,
+       "gap": -0.1987500000000001,
+       "gap_after_servo": -0.15875000000000006
+      }
      }
     },
-    "25": {
-     "roll": {
-      "real": 0.6054852320675106,
-      "twin": 0.8617142857142858,
-      "gap": -0.2562290536467752,
-      "gap_after_servo": -0.16973116335141658
+    "fall": {
+     "5": {
+      "roll": {
+       "real": 1.0,
+       "twin": 0.9330453563714903,
+       "gap": 0.06695464362850967,
+       "gap_after_servo": 0.06695464362850967
+      },
+      "pitch": {
+       "real": 0.9166666666666666,
+       "twin": 0.9503239740820735,
+       "gap": -0.033657307415406845,
+       "gap_after_servo": -0.021752545510644872
+      },
+      "yaw": {
+       "real": 1.0,
+       "twin": 0.9352051835853131,
+       "gap": 0.06479481641468687,
+       "gap_after_servo": 0.06479481641468687
+      }
      },
-     "pitch": {
-      "real": 0.4008438818565401,
-      "twin": 0.84,
-      "gap": -0.4391561181434599,
-      "gap_after_servo": -0.44759493670886075
-     },
-     "yaw": {
-      "real": 0.43248945147679324,
-      "twin": 0.7531428571428571,
-      "gap": -0.3206534056660639,
-      "gap_after_servo": -0.27423990355635924
+     "25": {
+      "roll": {
+       "real": 0.5714285714285714,
+       "twin": 0.7235421166306696,
+       "gap": -0.1521135452020982,
+       "gap_after_servo": -0.12830402139257435
+      },
+      "pitch": {
+       "real": 0.40476190476190477,
+       "twin": 0.67170626349892,
+       "gap": -0.2669443587370153,
+       "gap_after_servo": -0.2907538825465391
+      },
+      "yaw": {
+       "real": 0.6190476190476191,
+       "twin": 0.6609071274298056,
+       "gap": -0.04185950838218655,
+       "gap_after_servo": 0.005759539236861011
+      }
      }
     }
    }
   }
  },
  "sensor_id": {
-  "files": [
-   "imu-walk-1-2026-08-20T17-50-14-713Z.json",
-   "imu-walk-3-2026-08-20T17-38-19-478Z.json"
-  ],
-  "conditions": {
-   "n_files": 2,
-   "seam_ms": 1000.0,
-   "gap_ms": 100.0,
-   "max_lag_ms": 500.0,
-   "min_corr": 0.5,
-   "min_still_s": 60.0,
-   "gimbal_pitch_rad": 1.2,
-   "still_gyro_rms_max": 0.15,
-   "still_ang_std_max": 0.05,
-   "imu_rows": 1279,
-   "session_span_s": 22.465001953125
-  },
-  "dt": {
-   "imu": {
-    "median_ms": 16.69921875,
-    "p95_ms": 18.400390625,
-    "p99_ms": 20.5,
-    "max_ms": 71.19921875,
-    "frac_dev20": 0.02975724353954581,
-    "jitter_warn": false
-   },
-   "cmd": {
-    "median_ms": 40.3984375,
-    "p95_ms": 84.2849609374997,
-    "p99_ms": 101.7647265625,
-    "max_ms": 134.5,
-    "frac_dev20": 0.05737704918032787,
-    "jitter_warn": true
-   }
-  },
-  "filter_lag": {
-   "axes": [
-    {
-     "axis": "wx",
-     "lag_ms": 13.267094348707925,
-     "corr": 0.8685739012321387,
-     "determined": true,
-     "boundary": false,
-     "reason": ""
-    },
-    {
-     "axis": "wy",
-     "lag_ms": 14.5476221529419,
-     "corr": 0.9488377562725671,
-     "determined": true,
-     "boundary": false,
-     "reason": ""
-    },
-    {
-     "axis": "wz",
-     "lag_ms": 13.468200394415998,
-     "corr": 0.965532964796507,
-     "determined": true,
-     "boundary": false,
-     "reason": ""
-    }
+  "imu-walk-1-2026-08-20T17-50-14-713Z.json": {
+   "files": [
+    "imu-walk-1-2026-08-20T17-50-14-713Z.json"
    ],
-   "grid_dt_ms": 16.69921875,
-   "max_lag_ms": 500.0,
-   "min_corr": 0.5,
-   "gap_ms": 100.0,
-   "gimbal_pitch_rad": 1.2,
-   "segments_used": 2,
-   "segments_dropped": 0,
-   "excluded_ms": 1000.0,
-   "warmup_excluded_ms": 1035.3515625,
-   "grid_samples": 1286,
-   "usable_samples": 1224,
-   "usable_frac": 0.9517884914463453,
-   "gimbal_kept_frac": 1.0,
-   "split_half": [
+   "conditions": {
+    "n_files": 1,
+    "seam_ms": 1000.0,
+    "gap_ms": 100.0,
+    "max_lag_ms": 500.0,
+    "min_corr": 0.5,
+    "min_still_s": 60.0,
+    "gimbal_pitch_rad": 1.2,
+    "still_gyro_rms_max": 0.15,
+    "still_ang_std_max": 0.05,
+    "imu_rows": 966,
+    "session_span_s": 16.213400390625
+   },
+   "dt": {
+    "imu": {
+     "median_ms": 16.69921875,
+     "p95_ms": 18.480078124999995,
+     "p99_ms": 20.5,
+     "max_ms": 71.19921875,
+     "frac_dev20": 0.03212435233160622,
+     "jitter_warn": false
+    },
+    "cmd": {
+     "median_ms": 40.30078125,
+     "p95_ms": 44.413671875,
+     "p99_ms": 101.46912109375,
+     "max_ms": 134.5,
+     "frac_dev20": 0.03968253968253968,
+     "jitter_warn": true
+    }
+   },
+   "filter_lag": {
+    "axes": [
+     {
+      "axis": "wx",
+      "lag_ms": 12.969551846517403,
+      "corr": 0.8742515403481929,
+      "determined": true,
+      "boundary": false,
+      "reason": ""
+     },
+     {
+      "axis": "wy",
+      "lag_ms": 13.821987998442179,
+      "corr": 0.9467669321923055,
+      "determined": true,
+      "boundary": false,
+      "reason": ""
+     },
+     {
+      "axis": "wz",
+      "lag_ms": 12.758781962685788,
+      "corr": 0.9642258554403093,
+      "determined": true,
+      "boundary": false,
+      "reason": ""
+     }
+    ],
+    "grid_dt_ms": 16.69921875,
+    "max_lag_ms": 500.0,
+    "min_corr": 0.5,
+    "gap_ms": 100.0,
+    "gimbal_pitch_rad": 1.2,
+    "segments_used": 1,
+    "segments_dropped": 0,
+    "excluded_ms": 0.0,
+    "warmup_excluded_ms": 517.67578125,
+    "grid_samples": 971,
+    "usable_samples": 940,
+    "usable_frac": 0.9680741503604532,
+    "gimbal_kept_frac": 1.0,
+    "split_half": [
+     {
+      "axis": "wx",
+      "half_a": 13.110545392658482,
+      "half_b": 12.932073572009223,
+      "band_ms": 0.08923591032462941,
+      "verdict": "AGREE"
+     },
+     {
+      "axis": "wy",
+      "half_a": 13.710045911533978,
+      "half_b": 14.03001487745429,
+      "band_ms": 0.159984482960156,
+      "verdict": "AGREE"
+     },
+     {
+      "axis": "wz",
+      "half_a": 12.116262531839245,
+      "half_b": 13.537427832889042,
+      "band_ms": 0.7105826505248984,
+      "verdict": "AGREE"
+     }
+    ]
+   },
+   "filter_lag_per_regime": {
+    "walking": {
+     "rows": 896,
+     "axes": [
+      {
+       "axis": "wx",
+       "lag_ms": 13.188447708306533,
+       "corr": 0.8829368665595642,
+       "determined": true,
+       "boundary": false,
+       "reason": ""
+      },
+      {
+       "axis": "wy",
+       "lag_ms": 13.883188338785661,
+       "corr": 0.9512342190876193,
+       "determined": true,
+       "boundary": false,
+       "reason": ""
+      },
+      {
+       "axis": "wz",
+       "lag_ms": 12.739802736970102,
+       "corr": 0.9636728623651146,
+       "determined": true,
+       "boundary": false,
+       "reason": ""
+      }
+     ],
+     "grid_dt_ms": 16.69921875,
+     "max_lag_ms": 500.0,
+     "min_corr": 0.5,
+     "gap_ms": 100.0,
+     "gimbal_pitch_rad": 1.2,
+     "segments_used": 1,
+     "segments_dropped": 0,
+     "excluded_ms": 0.0,
+     "warmup_excluded_ms": 517.67578125,
+     "grid_samples": 902,
+     "usable_samples": 871,
+     "usable_frac": 0.9656319290465631,
+     "gimbal_kept_frac": 1.0
+    }
+   },
+   "still_segment": {
+    "t0_ms": 0.0,
+    "t1_ms": 1148.0,
+    "span_s": 1.148,
+    "samples": 69,
+    "fs_hz": 60.23529411764706,
+    "rate_ok": true,
+    "dt": {
+     "median_ms": 16.6015625,
+     "p95_ms": 16.900390625,
+     "p99_ms": 18.68386718749999,
+     "max_ms": 21.900390625,
+     "frac_dev20": 0.029411764705882353,
+     "jitter_warn": false
+    },
+    "stillness": {
+     "still": true,
+     "gyro_rms": 0.013437376290465914,
+     "ang_std": 0.006654266385928286,
+     "gyro_rms_max": 0.15,
+     "ang_std_max": 0.05,
+     "n": 69
+    },
+    "undetermined_reasons": []
+   },
+   "allan": [
     {
      "axis": "wx",
-     "half_a": 13.523922998260183,
-     "half_b": 13.311629611095805,
-     "band_ms": 0.10614669358218887,
-     "verdict": "AGREE"
+     "arw": null,
+     "bias_instability": null,
+     "bias_reason": "minimum at the edge of the tau range (0.28 s): not a minimum",
+     "tau_s": [
+      0.0166015625,
+      0.033203125,
+      0.0498046875,
+      0.06640625,
+      0.0830078125,
+      0.099609375,
+      0.1162109375,
+      0.1328125,
+      0.1494140625,
+      0.166015625,
+      0.1826171875,
+      0.19921875,
+      0.2158203125,
+      0.232421875,
+      0.2490234375,
+      0.265625,
+      0.2822265625
+     ],
+     "adev": [
+      0.013982158064004983,
+      0.010327209191070622,
+      0.009867630336612723,
+      0.009525219184726735,
+      0.00904202871468424,
+      0.008329726076205616,
+      0.007493117576242145,
+      0.006772306802277499,
+      0.0058791040082736045,
+      0.0050548487178909765,
+      0.004555755431325861,
+      0.004199981026550552,
+      0.003985046959150411,
+      0.0038850059001391372,
+      0.003807722216448953,
+      0.0037598930791084163,
+      0.003656609483479245
+     ]
     },
     {
      "axis": "wy",
-     "half_a": 13.897760856357952,
-     "half_b": 15.615206065859232,
-     "band_ms": 0.85872260475064,
-     "verdict": "AGREE"
+     "arw": null,
+     "bias_instability": null,
+     "bias_reason": "minimum at tau 0.23 s is a 1.4x-wide notch, not a flicker plateau (needs 5x within 10%): looks like an ARW / rate-random-walk crossover",
+     "tau_s": [
+      0.0166015625,
+      0.033203125,
+      0.0498046875,
+      0.06640625,
+      0.0830078125,
+      0.099609375,
+      0.1162109375,
+      0.1328125,
+      0.1494140625,
+      0.166015625,
+      0.1826171875,
+      0.19921875,
+      0.2158203125,
+      0.232421875,
+      0.2490234375,
+      0.265625,
+      0.2822265625
+     ],
+     "adev": [
+      0.007780554566978037,
+      0.009010999722759313,
+      0.008733876962544254,
+      0.0069291511495763085,
+      0.005433136900665892,
+      0.00473374919572085,
+      0.004297909081769847,
+      0.003983188349220973,
+      0.003948695151908332,
+      0.0038206531542792957,
+      0.003425486349452357,
+      0.0031075761913179046,
+      0.003023345493128004,
+      0.0029814906063137503,
+      0.0030408030896056483,
+      0.003230630467371565,
+      0.0031889926333470973
+     ]
     },
     {
      "axis": "wz",
-     "half_a": 12.338270948539959,
-     "half_b": 15.45473159622944,
-     "band_ms": 1.5582303238447404,
-     "verdict": "AGREE"
+     "arw": null,
+     "bias_instability": null,
+     "bias_reason": "minimum at tau 0.15 s is a 1.2x-wide notch, not a flicker plateau (needs 5x within 10%): looks like an ARW / rate-random-walk crossover",
+     "tau_s": [
+      0.0166015625,
+      0.033203125,
+      0.0498046875,
+      0.06640625,
+      0.0830078125,
+      0.099609375,
+      0.1162109375,
+      0.1328125,
+      0.1494140625,
+      0.166015625,
+      0.1826171875,
+      0.19921875,
+      0.2158203125,
+      0.232421875,
+      0.2490234375,
+      0.265625,
+      0.2822265625
+     ],
+     "adev": [
+      0.012151070586209354,
+      0.011162710111706345,
+      0.009184080048956217,
+      0.007250080704106177,
+      0.005418387540196414,
+      0.004111975828432743,
+      0.0036699760627360747,
+      0.003416943719563211,
+      0.003259278528553323,
+      0.003366222958289565,
+      0.003615074996465866,
+      0.003586179556396404,
+      0.0034637152545810945,
+      0.0033466509617858975,
+      0.0034602688410627774,
+      0.0035599669202324427,
+      0.0035415346817268016
+     ]
     }
    ]
   },
-  "filter_lag_per_regime": {},
-  "still_segment": null,
-  "allan": null
+  "imu-walk-3-2026-08-20T17-38-19-478Z.json": {
+   "files": [
+    "imu-walk-3-2026-08-20T17-38-19-478Z.json"
+   ],
+   "conditions": {
+    "n_files": 1,
+    "seam_ms": 1000.0,
+    "gap_ms": 100.0,
+    "max_lag_ms": 500.0,
+    "min_corr": 0.5,
+    "min_still_s": 60.0,
+    "gimbal_pitch_rad": 1.2,
+    "still_gyro_rms_max": 0.15,
+    "still_ang_std_max": 0.05,
+    "imu_rows": 313,
+    "session_span_s": 5.2516015625
+   },
+   "dt": {
+    "imu": {
+     "median_ms": 16.6953125,
+     "p95_ms": 18.035546874999998,
+     "p99_ms": 20.282343749999995,
+     "max_ms": 70.6015625,
+     "frac_dev20": 0.022435897435897436,
+     "jitter_warn": false
+    },
+    "cmd": {
+     "median_ms": 40.453125,
+     "p95_ms": 100.653125,
+     "p99_ms": 102.112421875,
+     "max_ms": 102.3984375,
+     "frac_dev20": 0.11818181818181818,
+     "jitter_warn": true
+    }
+   },
+   "filter_lag": {
+    "axes": [
+     {
+      "axis": "wx",
+      "lag_ms": 17.85035994990834,
+      "corr": 0.7512198559340708,
+      "determined": true,
+      "boundary": false,
+      "reason": ""
+     },
+     {
+      "axis": "wy",
+      "lag_ms": 20.69564317916903,
+      "corr": 0.9590381433450237,
+      "determined": true,
+      "boundary": false,
+      "reason": ""
+     },
+     {
+      "axis": "wz",
+      "lag_ms": 19.451346969528533,
+      "corr": 0.976656457598898,
+      "determined": true,
+      "boundary": false,
+      "reason": ""
+     }
+    ],
+    "grid_dt_ms": 16.6953125,
+    "max_lag_ms": 500.0,
+    "min_corr": 0.5,
+    "gap_ms": 100.0,
+    "gimbal_pitch_rad": 1.2,
+    "segments_used": 1,
+    "segments_dropped": 0,
+    "excluded_ms": 0.0,
+    "warmup_excluded_ms": 517.5546875,
+    "grid_samples": 315,
+    "usable_samples": 284,
+    "usable_frac": 0.9015873015873016,
+    "gimbal_kept_frac": 1.0,
+    "split_half": [
+     {
+      "axis": "wx",
+      "half_a": -2.8123926033314577,
+      "half_b": 17.42796276457382,
+      "band_ms": 10.120177683952639,
+      "verdict": "DISAGREE -- halves differ by more than one grid sample"
+     },
+     {
+      "axis": "wy",
+      "half_a": -1.3616927861995216,
+      "half_b": 19.600024287619686,
+      "band_ms": 10.480858536909604,
+      "verdict": "DISAGREE -- halves differ by more than one grid sample"
+     },
+     {
+      "axis": "wz",
+      "half_a": null,
+      "half_b": 19.256158904689748,
+      "band_ms": null,
+      "verdict": "DISAGREE -- undetermined on the first half"
+     }
+    ]
+   },
+   "filter_lag_per_regime": {},
+   "still_segment": {
+    "t0_ms": 0.0,
+    "t1_ms": 2599.796875,
+    "span_s": 2.599796875,
+    "samples": 153,
+    "fs_hz": 59.89705194197473,
+    "rate_ok": true,
+    "dt": {
+     "median_ms": 16.6953125,
+     "p95_ms": 18.296875,
+     "p99_ms": 21.84250000000005,
+     "max_ms": 70.6015625,
+     "frac_dev20": 0.02631578947368421,
+     "jitter_warn": false
+    },
+    "stillness": {
+     "still": true,
+     "gyro_rms": 0.003093525191449848,
+     "ang_std": 0.0,
+     "gyro_rms_max": 0.15,
+     "ang_std_max": 0.05,
+     "n": 153
+    },
+    "undetermined_reasons": []
+   },
+   "allan": [
+    {
+     "axis": "wx",
+     "arw": 0.0002148476557300755,
+     "bias_instability": null,
+     "bias_reason": "minimum at the edge of the tau range (0.58 s): not a minimum",
+     "tau_s": [
+      0.0166953125,
+      0.033390625,
+      0.050085937500000004,
+      0.06678125,
+      0.0834765625,
+      0.10017187500000001,
+      0.1168671875,
+      0.1335625,
+      0.1502578125,
+      0.166953125,
+      0.1836484375,
+      0.20034375000000001,
+      0.233734375,
+      0.2504296875,
+      0.267125,
+      0.300515625,
+      0.33390625,
+      0.367296875,
+      0.40068750000000003,
+      0.434078125,
+      0.4841640625,
+      0.53425,
+      0.5843359375,
+      0.634421875
+     ],
+     "adev": [
+      0.0029809990201156876,
+      0.0024991356843132046,
+      0.0018584165860757783,
+      0.0013928268094107877,
+      0.0010947355222226925,
+      0.0009242624190233227,
+      0.0008284291504539967,
+      0.0007577009468229484,
+      0.000700203548212465,
+      0.0006620118757467911,
+      0.0006064056904274165,
+      0.0005625014651533334,
+      0.00048667811466481794,
+      0.0004610849121065543,
+      0.0004482827461810815,
+      0.0004167633833794536,
+      0.0003682325228404446,
+      0.0003507786626842865,
+      0.0003373476228627885,
+      0.00032963810129605053,
+      0.0003054772850560762,
+      0.0002855796808080478,
+      0.0002807837491237399,
+      0.00028529866446322453
+     ]
+    },
+    {
+     "axis": "wy",
+     "arw": null,
+     "bias_instability": null,
+     "bias_reason": "minimum at the edge of the tau range (0.63 s): not a minimum",
+     "tau_s": [
+      0.0166953125,
+      0.033390625,
+      0.050085937500000004,
+      0.06678125,
+      0.0834765625,
+      0.10017187500000001,
+      0.1168671875,
+      0.1335625,
+      0.1502578125,
+      0.166953125,
+      0.1836484375,
+      0.20034375000000001,
+      0.233734375,
+      0.2504296875,
+      0.267125,
+      0.300515625,
+      0.33390625,
+      0.367296875,
+      0.40068750000000003,
+      0.434078125,
+      0.4841640625,
+      0.53425,
+      0.5843359375,
+      0.634421875
+     ],
+     "adev": [
+      0.0025328091232839868,
+      0.0016605423914043975,
+      0.001154613765700459,
+      0.0009354777338299662,
+      0.0007609113770426774,
+      0.0006541258744034024,
+      0.0005650944415914808,
+      0.0005243877752417811,
+      0.0004972240840014254,
+      0.000487937048963774,
+      0.0004803193887417462,
+      0.0004575216785394176,
+      0.0004249642497268945,
+      0.00040361231660961236,
+      0.0003822734219306959,
+      0.00036191429151004285,
+      0.00034872781793912237,
+      0.00032466266928755287,
+      0.0003048383905677571,
+      0.00029130543515453275,
+      0.00026911457216864887,
+      0.0002369312737539923,
+      0.0002056778978537197,
+      0.00019224470330973765
+     ]
+    },
+    {
+     "axis": "wz",
+     "arw": null,
+     "bias_instability": null,
+     "bias_reason": "minimum at the edge of the tau range (0.63 s): not a minimum",
+     "tau_s": [
+      0.0166953125,
+      0.033390625,
+      0.050085937500000004,
+      0.06678125,
+      0.0834765625,
+      0.10017187500000001,
+      0.1168671875,
+      0.1335625,
+      0.1502578125,
+      0.166953125,
+      0.1836484375,
+      0.20034375000000001,
+      0.233734375,
+      0.2504296875,
+      0.267125,
+      0.300515625,
+      0.33390625,
+      0.367296875,
+      0.40068750000000003,
+      0.434078125,
+      0.4841640625,
+      0.53425,
+      0.5843359375,
+      0.634421875
+     ],
+     "adev": [
+      0.002058252117014802,
+      0.0010323032300549584,
+      0.0007556545528549044,
+      0.0005683304750186415,
+      0.00045503258303947533,
+      0.0004043894592036531,
+      0.00036230638826924896,
+      0.00034995054036734676,
+      0.0003465026963914519,
+      0.00033294633302201023,
+      0.0003201962589963022,
+      0.00031510721449883055,
+      0.00030044338160903415,
+      0.00028131831216857996,
+      0.00025849933773776086,
+      0.00022836749270185893,
+      0.0002094588179861024,
+      0.00019639465923617527,
+      0.00017713953648318336,
+      0.00016738755228511428,
+      0.0001500470710789701,
+      0.00014255556660776352,
+      0.00013722174020785785,
+      0.0001292216455335994
+     ]
+    }
+   ]
+  }
  },
  "twin_floor": {
   "all": {
@@ -379,158 +1138,189 @@
     }
    }
   },
-  "keyframe": {
-   "n": 1134,
+  "fallen": {
+   "n": 463,
    "5": {
     "roll": {
-     "within": 0.9788359788359788,
-     "rmse": 0.06382598727941513
+     "within": 0.9330453563714903,
+     "rmse": 0.1469792276620865
     },
     "pitch": {
-     "within": 0.9805996472663139,
-     "rmse": 0.06984301656484604
+     "within": 0.9503239740820735,
+     "rmse": 0.10792773216962814
     },
     "yaw": {
-     "within": 0.9691358024691358,
-     "rmse": 0.11102809756994247
+     "within": 0.9352051835853131,
+     "rmse": 0.14865326881408691
     }
    },
    "25": {
     "roll": {
-     "within": 0.8950617283950617,
-     "rmse": 0.3275180160999298
+     "within": 0.7235421166306696,
+     "rmse": 0.5542189478874207
     },
     "pitch": {
-     "within": 0.8765432098765432,
-     "rmse": 0.216096431016922
+     "within": 0.67170626349892,
+     "rmse": 0.33607688546180725
     },
     "yaw": {
-     "within": 0.808641975308642,
-     "rmse": 0.4632548689842224
+     "within": 0.6609071274298056,
+     "rmse": 0.6024490594863892
+    }
+   }
+  },
+  "keyframe": {
+   "n": 993,
+   "5": {
+    "roll": {
+     "within": 0.9828801611278952,
+     "rmse": 0.05123141035437584
+    },
+    "pitch": {
+     "within": 0.9828801611278952,
+     "rmse": 0.059791482985019684
+    },
+    "yaw": {
+     "within": 0.972809667673716,
+     "rmse": 0.10406426340341568
+    }
+   },
+   "25": {
+    "roll": {
+     "within": 0.9154078549848943,
+     "rmse": 0.27126824855804443
+    },
+    "pitch": {
+     "within": 0.9113796576032226,
+     "rmse": 0.199503093957901
+    },
+    "yaw": {
+     "within": 0.8177240684793555,
+     "rmse": 0.45837637782096863
     }
    }
   },
   "ou": {
-   "n": 811,
+   "n": 722,
    "5": {
     "roll": {
-     "within": 0.9728729963008631,
-     "rmse": 0.11158321052789688
+     "within": 0.9806094182825484,
+     "rmse": 0.08767090737819672
     },
     "pitch": {
-     "within": 0.9728729963008631,
-     "rmse": 0.08155352622270584
+     "within": 0.9778393351800554,
+     "rmse": 0.07733070850372314
     },
     "yaw": {
-     "within": 0.9642416769420469,
-     "rmse": 0.10606981068849564
+     "within": 0.9722991689750693,
+     "rmse": 0.09232625365257263
     }
    },
    "25": {
     "roll": {
-     "within": 0.8668310727496917,
-     "rmse": 0.4614282250404358
+     "within": 0.889196675900277,
+     "rmse": 0.46258580684661865
     },
     "pitch": {
-     "within": 0.8754623921085081,
-     "rmse": 0.18837031722068787
+     "within": 0.909972299168975,
+     "rmse": 0.1520974040031433
     },
     "yaw": {
-     "within": 0.8002466091245376,
-     "rmse": 0.4935476779937744
+     "within": 0.8407202216066482,
+     "rmse": 0.4931165277957916
     }
    }
   },
   "policy": {
-   "n": 875,
+   "n": 781,
    "5": {
     "roll": {
-     "within": 0.952,
-     "rmse": 0.13175931572914124
+     "within": 0.9603072983354674,
+     "rmse": 0.12841831147670746
     },
     "pitch": {
-     "within": 0.9668571428571429,
-     "rmse": 0.09515450894832611
+     "within": 0.970550576184379,
+     "rmse": 0.09252297878265381
     },
     "yaw": {
-     "within": 0.9542857142857143,
-     "rmse": 0.15840476751327515
+     "within": 0.9577464788732394,
+     "rmse": 0.15764659643173218
     }
    },
    "25": {
     "roll": {
-     "within": 0.8617142857142858,
-     "rmse": 0.4961722791194916
+     "within": 0.8770806658130602,
+     "rmse": 0.45668837428092957
     },
     "pitch": {
-     "within": 0.84,
-     "rmse": 0.2726254463195801
+     "within": 0.8719590268886044,
+     "rmse": 0.2475711554288864
     },
     "yaw": {
-     "within": 0.7531428571428571,
-     "rmse": 0.6847540140151978
+     "within": 0.7669654289372599,
+     "rmse": 0.655166506767273
     }
    }
   },
   "sine": {
-   "n": 740,
+   "n": 649,
    "5": {
     "roll": {
-     "within": 0.9702702702702702,
-     "rmse": 0.08903247863054276
+     "within": 0.9707241910631741,
+     "rmse": 0.08737591654062271
     },
     "pitch": {
-     "within": 0.9675675675675676,
-     "rmse": 0.07789530605077744
+     "within": 0.9676425269645609,
+     "rmse": 0.07857450842857361
     },
     "yaw": {
-     "within": 0.9662162162162162,
-     "rmse": 0.12701745331287384
+     "within": 0.9676425269645609,
+     "rmse": 0.12798342108726501
     }
    },
    "25": {
     "roll": {
-     "within": 0.8351351351351352,
-     "rmse": 0.4255346357822418
+     "within": 0.8628659476117103,
+     "rmse": 0.41634026169776917
     },
     "pitch": {
-     "within": 0.8959459459459459,
-     "rmse": 0.20892897248268127
+     "within": 0.8983050847457628,
+     "rmse": 0.206455260515213
     },
     "yaw": {
-     "within": 0.7324324324324324,
-     "rmse": 0.5242531299591064
+     "within": 0.7349768875192604,
+     "rmse": 0.5331301689147949
     }
    }
   },
   "still": {
-   "n": 440,
+   "n": 392,
    "5": {
     "roll": {
-     "within": 0.9590909090909091,
-     "rmse": 0.081549733877182
+     "within": 0.9591836734693877,
+     "rmse": 0.08310501277446747
     },
     "pitch": {
-     "within": 0.9636363636363636,
-     "rmse": 0.11034582555294037
+     "within": 0.9668367346938775,
+     "rmse": 0.10999074578285217
     },
     "yaw": {
-     "within": 0.9568181818181818,
-     "rmse": 0.13414360582828522
+     "within": 0.9566326530612245,
+     "rmse": 0.14047913253307343
     }
    },
    "25": {
     "roll": {
-     "within": 0.8954545454545455,
-     "rmse": 0.3280797004699707
+     "within": 0.9005102040816326,
+     "rmse": 0.34226176142692566
     },
     "pitch": {
-     "within": 0.8727272727272727,
-     "rmse": 0.24051576852798462
+     "within": 0.8903061224489796,
+     "rmse": 0.2285136729478836
     },
     "yaw": {
-     "within": 0.7909090909090909,
-     "rmse": 0.5578662753105164
+     "within": 0.8010204081632653,
+     "rmse": 0.5522645711898804
     }
    }
   }
@@ -541,6 +1331,11 @@
    "seconds": 16.2,
    "end_why": "done",
    "gain_agent": null,
+   "twin_floor_used": {
+    "all": "all",
+    "still": "still",
+    "walking": "policy"
+   },
    "regimes": {
     "all": {
      "n": 778,
@@ -573,34 +1368,65 @@
       }
      }
     },
-    "official": {
-     "n": 778,
+    "still": {
+     "n": 53,
      "5": {
       "roll": {
-       "within": 0.9640102827763496,
-       "rmse": 0.09872371703386307
+       "within": 1.0,
+       "rmse": 0.005878353025764227
       },
       "pitch": {
-       "within": 0.9537275064267352,
-       "rmse": 0.1112205907702446
+       "within": 1.0,
+       "rmse": 0.11319231241941452
       },
       "yaw": {
-       "within": 0.980719794344473,
-       "rmse": 0.0761352926492691
+       "within": 1.0,
+       "rmse": 0.01767338439822197
       }
      },
      "25": {
       "roll": {
-       "within": 0.5308483290488432,
-       "rmse": 0.22892747819423676
+       "within": 0.8490566037735849,
+       "rmse": 0.11309950798749924
       },
       "pitch": {
-       "within": 0.525706940874036,
-       "rmse": 0.269676148891449
+       "within": 0.8679245283018868,
+       "rmse": 0.1640414297580719
       },
       "yaw": {
-       "within": 0.36632390745501286,
-       "rmse": 0.3289695978164673
+       "within": 0.7735849056603774,
+       "rmse": 0.14180375635623932
+      }
+     }
+    },
+    "walking": {
+     "n": 725,
+     "5": {
+      "roll": {
+       "within": 0.9613793103448276,
+       "rmse": 0.10225624591112137
+      },
+      "pitch": {
+       "within": 0.9503448275862069,
+       "rmse": 0.11107507348060608
+      },
+      "yaw": {
+       "within": 0.9793103448275862,
+       "rmse": 0.0787241980433464
+      }
+     },
+     "25": {
+      "roll": {
+       "within": 0.5075862068965518,
+       "rmse": 0.23516777157783508
+      },
+      "pitch": {
+       "within": 0.5006896551724138,
+       "rmse": 0.27581608295440674
+      },
+      "yaw": {
+       "within": 0.33655172413793105,
+       "rmse": 0.33861827850341797
       }
      }
     }
@@ -611,6 +1437,11 @@
    "seconds": 5.2,
    "end_why": "tipped",
    "gain_agent": 0.8,
+   "twin_floor_used": {
+    "all": "all",
+    "fall": "fallen",
+    "still": "still"
+   },
    "regimes": {
     "all": {
      "n": 230,
@@ -643,65 +1474,65 @@
       }
      }
     },
-    "official": {
-     "n": 181,
+    "fall": {
+     "n": 84,
      "5": {
       "roll": {
        "within": 1.0,
-       "rmse": 0.05235021188855171
+       "rmse": 0.08226989954710007
       },
       "pitch": {
-       "within": 0.9558011049723757,
-       "rmse": 0.09732616692781448
+       "within": 0.9166666666666666,
+       "rmse": 0.11272968351840973
       },
       "yaw": {
        "within": 1.0,
-       "rmse": 0.04331497475504875
+       "rmse": 0.05849146842956543
       }
      },
      "25": {
       "roll": {
-       "within": 0.6795580110497238,
-       "rmse": 0.1747448742389679
+       "within": 0.5714285714285714,
+       "rmse": 0.19441643357276917
       },
       "pitch": {
-       "within": 0.04419889502762431,
-       "rmse": 0.4833570420742035
+       "within": 0.40476190476190477,
+       "rmse": 0.3199044167995453
       },
       "yaw": {
-       "within": 0.6740331491712708,
-       "rmse": 0.20631684362888336
+       "within": 0.6190476190476191,
+       "rmse": 0.24402865767478943
       }
      }
     },
-    "tip_onset": {
-     "n": 49,
+    "still": {
+     "n": 125,
      "5": {
       "roll": {
        "within": 1.0,
-       "rmse": 0.07274959981441498
+       "rmse": 0.027074849233031273
       },
       "pitch": {
-       "within": 0.9591836734693877,
-       "rmse": 0.09147335588932037
+       "within": 1.0,
+       "rmse": 0.07447711378335953
       },
       "yaw": {
        "within": 1.0,
-       "rmse": 0.046250395476818085
+       "rmse": 0.027746399864554405
       }
      },
      "25": {
       "roll": {
-       "within": 0.8571428571428571,
-       "rmse": 0.14906412363052368
+       "within": 0.912,
+       "rmse": 0.12842132151126862
       },
       "pitch": {
-       "within": 0.6530612244897959,
-       "rmse": 0.2177533507347107
+       "within": 0.048,
+       "rmse": 0.5122164487838745
       },
       "yaw": {
-       "within": 0.40816326530612246,
-       "rmse": 0.30113470554351807
+       "within": 0.672,
+       "rmse": 0.1913146674633026
       }
      }
     }
@@ -709,10 +1540,11 @@
   }
  },
  "servo": {
-  "fit_ticks": 535,
-  "band": 0.014249811555397235,
+  "file": "imu-walk-1-2026-08-20T17-50-14-713Z.json",
+  "fit_ticks": 404,
+  "band": 0.012350784297208506,
   "argmin": {
-   "delay_ticks": 4.0,
+   "delay_ticks": 5.0,
    "slew_rad_s": 2.0,
    "deadband": 0.03490658503988659
   },
@@ -730,48 +1562,123 @@
   "slew_determined_set": [
    1.5,
    2.0,
-   3.0
+   3.0,
+   4.0
   ],
-  "held_out_extended": {
-   "5": {
-    "roll": {
-     "real": 0.9620253164556962,
-     "after_servo": 0.9620253164556962,
-     "twin": 0.952
+  "held_out_by_segment": {
+   "all": {
+    "5": {
+     "roll": {
+      "real": 0.9438502673796791,
+      "after_servo": 0.9491978609625669,
+      "twin": 0.968,
+      "twin_regime": "all"
+     },
+     "pitch": {
+      "real": 0.9598930481283422,
+      "after_servo": 0.9518716577540107,
+      "twin": 0.97175,
+      "twin_regime": "all"
+     },
+     "yaw": {
+      "real": 0.9759358288770054,
+      "after_servo": 0.9973262032085561,
+      "twin": 0.963,
+      "twin_regime": "all"
+     }
     },
-    "pitch": {
-     "real": 0.9578059071729957,
-     "after_servo": 0.9493670886075949,
-     "twin": 0.9668571428571429
-    },
-    "yaw": {
-     "real": 0.9810126582278481,
-     "after_servo": 0.9978902953586498,
-     "twin": 0.9542857142857143
+    "25": {
+     "roll": {
+      "real": 0.4304812834224599,
+      "after_servo": 0.46524064171123,
+      "twin": 0.871,
+      "twin_regime": "all"
+     },
+     "pitch": {
+      "real": 0.5133689839572193,
+      "after_servo": 0.5,
+      "twin": 0.8715,
+      "twin_regime": "all"
+     },
+     "yaw": {
+      "real": 0.3315508021390374,
+      "after_servo": 0.4090909090909091,
+      "twin": 0.77875,
+      "twin_regime": "all"
+     }
     }
    },
-   "25": {
-    "roll": {
-     "real": 0.6054852320675106,
-     "after_servo": 0.7194092827004219,
-     "twin": 0.8617142857142858
+   "walking": {
+    "5": {
+     "roll": {
+      "real": 0.9438502673796791,
+      "after_servo": 0.9491978609625669,
+      "twin": 0.9603072983354674,
+      "twin_regime": "policy"
+     },
+     "pitch": {
+      "real": 0.9598930481283422,
+      "after_servo": 0.9518716577540107,
+      "twin": 0.970550576184379,
+      "twin_regime": "policy"
+     },
+     "yaw": {
+      "real": 0.9759358288770054,
+      "after_servo": 0.9973262032085561,
+      "twin": 0.9577464788732394,
+      "twin_regime": "policy"
+     }
     },
-    "pitch": {
-     "real": 0.4008438818565401,
-     "after_servo": 0.39029535864978904,
-     "twin": 0.84
-    },
-    "yaw": {
-     "real": 0.43248945147679324,
-     "after_servo": 0.5126582278481012,
-     "twin": 0.7531428571428571
+    "25": {
+     "roll": {
+      "real": 0.4304812834224599,
+      "after_servo": 0.46524064171123,
+      "twin": 0.8770806658130602,
+      "twin_regime": "policy"
+     },
+     "pitch": {
+      "real": 0.5133689839572193,
+      "after_servo": 0.5,
+      "twin": 0.8719590268886044,
+      "twin_regime": "policy"
+     },
+     "yaw": {
+      "real": 0.3315508021390374,
+      "after_servo": 0.4090909090909091,
+      "twin": 0.7669654289372599,
+      "twin_regime": "policy"
+     }
     }
    }
   }
  },
+ "agent_gain_test": {
+  "determined": true,
+  "reference_file": "imu-walk-1-2026-08-20T17-50-14-713Z.json",
+  "gain_file": "imu-walk-3-2026-08-20T17-38-19-478Z.json",
+  "gain": 0.8,
+  "statistic": "p95 of |command - 90| deg, l and r pooled",
+  "n": [
+   734,
+   198
+  ],
+  "amplitude_deg": [
+   51.0,
+   41.46
+  ],
+  "ratio": 1.23,
+  "ci95": [
+   1.171,
+   1.281
+  ],
+  "predicted_if_baked_in": 1.25,
+  "predicted_if_applied_later": 1.0,
+  "verdict": "BAKED IN: the ratio is consistent with 1/0.8 = 1.25 and excludes 1.00, so header.gain is already inside the logged values and only cal.gain takes part in the inversion"
+ },
  "data_ask": [
-  "pose-sequence (gesture) capture, 3-5 min: the walk lane alone leaves the servo at delay [0, 1, 2, 3, 4, 5, 6] ticks / slew [1.5, 2.0, 3.0] rad/s; varied large and small steps are what separate slew and deadband (the twin fixture determines both to one grid step from 8 min of mixed excitation)",
-  "one still capture, 2-5 min (robot on the floor, untouched): unlocks the Allan read of the phone gyro's noise -- no still segment exists in the walk lane, so ARW and bias instability are currently unmeasurable",
+  "pose-sequence (gesture) capture, 3-5 min: imu-walk-1-2026-08-20T17-50-14-713Z.json alone leaves the servo at delay [0, 1, 2, 3, 4, 5, 6] ticks / slew [1.5, 2.0, 3.0, 4.0] rad/s; varied large and small steps are what separate slew and deadband (the twin fixture determines both to one grid step from 8 min of mixed excitation)",
+  "one still capture, 2-5 min (robot on the floor, untouched). A still segment DOES exist -- the longest here is 2.6 s -- but Allan deviation needs tens of taus with many independent clusters each, and at 60 Hz that means minutes, not seconds. ARW and bias instability stay unmeasurable because the still segments are TOO SHORT, not because none was recorded",
+  "a walk lane where the robot actually walks the whole time: walk-3 contributed 0.0 s of walking out of 5.2 s -- 2.6 s of it is a motionless body under swinging commands, which is a hardware or placement report, not walk data",
   "the same walk lane twice, battery fresh vs low: the twin predicts a split-half DISAGREE on slew if the battery sags (model_mismatch.py); this is the free real actuator experiment"
  ]
 }
