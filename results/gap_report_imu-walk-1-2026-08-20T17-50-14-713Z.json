@@ -21,6 +21,17 @@
   "dropped_imu": 0,
   "dropped_pose": 0
  },
+ "servo_id": {
+  "identified": {
+   "delay_ticks": 5,
+   "slew_rad_s": 2.0,
+   "deadband": 0.03490658503988659
+  },
+  "refused": false,
+  "argmin_interior": true,
+  "fit_gyro_rms_rad_s": 1.9521903991699219,
+  "fit_ticks": 404
+ },
  "report": {
   "all": {
    "5": {

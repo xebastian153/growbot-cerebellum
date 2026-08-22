@@ -523,7 +523,7 @@ retracted as `MARGINAL`, the boundary argmins reported and the disjointness with
 be quoted with what it is worth. It is two halves each landing on one of three outcomes
 {left, right, neither}; under a null with no real asymmetry, and ties rare on this grid,
 they agree on the same non-`neither` side roughly **1 time in 2**. That is a coin flip —
-the same standard this very script applies to reject a gain/band ratio of 1.02 — so the
+the same standard this very script applies to reject a gain/band ratio of 1.01 — so the
 flag is about one bit of evidence, not a confirmation. It is now published with that
 floor beside it (`split_half.slower_agree_null_p`, `split_half.slower_agree_note`, and a
 `noise floor` line in `results/logs/identification_ablation.txt`). The direction survives

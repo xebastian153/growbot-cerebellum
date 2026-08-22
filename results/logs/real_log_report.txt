@@ -114,19 +114,20 @@ $ python gap_report.py imu-walk-3-2026-08-20T17-38-19-478Z.json --servo-id --out
 preflight: PASS
 log: 1 file(s), 261 ticks, 1 cuts, surface=?, regimes={np.str_('fall'): 110, np.str_('impact'): 21, np.str_('still'): 130}
 twin floor regimes (rest attitude roll +0.00, pitch -0.57 rad; 'fallen' = excursion > 0.7 rad): {np.str_('fallen'): 8967, np.str_('keyframe'): 14633, np.str_('ou'): 10458, np.str_('policy'): 11334, np.str_('sine'): 9481, np.str_('still'): 5127}
-identified servo: delay 6 ticks, slew 1.0 rad/s (grid points; run servo_id.py for determined-set diagnostics)
-  argmin is AT THE BOUNDARY of the grid (delay 0-6 ticks, slew 1.0-8.0 rad/s or none, deadband 0-4 deg; 'none' = no slew limit counts as the boundary, not as an interior point)
-evaluation restricted to the held-out half (131 ticks); identification used the first half
+servo identification REFUSED: the first half (130 ticks) has body-rate RMS 0.004 rad/s, at or below the stillness threshold 0.15 -- the body does not respond there, so no servo is identifiable and no gap* column is reported for this file
 
-within 0.2 rad; gap = real - twin floor (matched regime); gap* = after identified servo; negative gap = worse than floor
-regime         n   axis                       @100ms                       @500ms
----------------------------------------------------------------------------------
-all          100   roll  100.0%  96.8%  +3.2   +3.2   51.0%  87.1% -36.1  -14.1
-                  pitch   90.0%  97.2%  -7.2   -9.2   34.0%  87.2% -53.2  -51.2
-                    yaw  100.0%  96.3%  +3.7   +3.7   58.0%  77.9% -19.9   +1.1
-fall          84   roll  100.0%  93.3%  +6.7   +6.7   57.1%  72.4% -15.2   +0.3
-                  pitch   91.7%  95.0%  -3.4   -3.4   40.5%  67.2% -26.7  -24.3
-                    yaw  100.0%  93.5%  +6.5   +6.5   61.9%  66.1%  -4.2  +20.8
+within 0.2 rad; gap = real - twin floor (matched regime); negative gap = worse than floor
+regime         n   axis                @100ms                @500ms
+-------------------------------------------------------------------
+all          230   roll  100.0%  96.8%  +3.2   71.7%  87.1% -15.4
+                  pitch   95.7%  97.2%  -1.5   17.4%  87.2% -69.8
+                    yaw  100.0%  96.3%  +3.7   61.7%  77.9% -16.1
+fall          84   roll  100.0%  93.3%  +6.7   57.1%  72.4% -15.2
+                  pitch   91.7%  95.0%  -3.4   40.5%  67.2% -26.7
+                    yaw  100.0%  93.5%  +6.5   61.9%  66.1%  -4.2
+still        125   roll  100.0%  95.9%  +4.1   91.2%  90.1%  +1.1
+                  pitch  100.0%  96.7%  +3.3    4.8%  89.0% -84.2
+                    yaw  100.0%  95.7%  +4.3   67.2%  80.1% -12.9
 
 wrote results/gap_report_imu-walk-3-2026-08-20T17-38-19-478Z.json
 

@@ -25,6 +25,13 @@ Accepted file format (one JSON object per line):
           {"t": <ms>, "s": "cmd", "l": <deg>, "r": <deg>}
           {"t": <ms>, "s": "ev",  "name": "walk_start" | ...}   (optional)
 
+Side convention. `l` is the LEFT horn and `r` the right one, in this dialect and in
+growbot-imulog-1 alike. The twin's action vector is ordered [right, left] -- column 0
+drives joint_1 / right_leg, which servo_id.sim_side_columns reads out of the body XML --
+so the parser puts `r` in action column 0 and `l` in column 1. A reversed mapping is
+invisible: the forward model fits either way, no error metric moves, and only the
+per-side servo identification comes out naming the wrong horn.
+
 The upstream growbot-imulog-1 dialect carries NO event rows, so this module
 synthesizes them from the data (segment_growbot_v1: still / walking / impact /
 fall). Without that, every tick of every real file inherits header.gait and is
@@ -501,16 +508,26 @@ def _read_rows(path):
 
 
 def _commands_to_rad(cmd_v, header):
-    """Logged l/r -> model-space swing in radians, honouring the trim convention."""
+    """Logged l/r -> model-space swing in radians, honouring the trim convention.
+
+    Column order is not cosmetic. The file's fields are (l, r), but the twin's action
+    vector is [right, left]: action column 0 drives joint_1 / right_leg, which
+    servo_id.sim_side_columns reads out of the body XML. So the l field lands in action
+    column 1 and the r field in column 0. Reversing this swaps the two horns with no
+    error signal anywhere downstream -- the forward model fits either way and every
+    per-side identification silently names the wrong servo. The growbot-imulog-1 path
+    arrives here already in [right, left] order (pose_units 'rad') and is passed through.
+    """
     if header.get("pose_units", "deg") != "deg":
         return cmd_v.astype(np.float32)
     if header.get("trims_in_values", True):
         ls, rs = header.get("l_sign", 1.0), header.get("r_sign", 1.0)
         lo, ro = header.get("l_off", 0.0), header.get("r_off", 0.0)
         g = header.get("gain", 1.0)
-        return np.stack([np.deg2rad((cmd_v[:, 0] - 90 - lo) / (ls * g)),
-                         np.deg2rad((cmd_v[:, 1] - 90 - ro) / (rs * g))], 1).astype(np.float32)
-    return np.deg2rad(cmd_v - 90.0).astype(np.float32)
+        a_left = np.deg2rad((cmd_v[:, 0] - 90 - lo) / (ls * g))
+        a_right = np.deg2rad((cmd_v[:, 1] - 90 - ro) / (rs * g))
+        return np.stack([a_right, a_left], 1).astype(np.float32)
+    return np.deg2rad(cmd_v[:, ::-1] - 90.0).astype(np.float32)
 
 
 def _mode_per_tick(events, grid, header):
@@ -657,8 +674,10 @@ def fixture(path, seconds=600, servo_ms=None, seed=0, imu_hz=60.0, cmd_hz=30.0, 
                 if exc.mode != last_mode or not lead_done:
                     rows.append({"t": round(t * 1000, 2), "s": "ev", "name": f"{exc.mode}_start"})
                 lead_done = True
-            l_sent = 90 + trims["l_off"] + trims["l_sign"] * np.rad2deg(float(a[0])) * trims["gain"]
-            r_sent = 90 + trims["r_off"] + trims["r_sign"] * np.rad2deg(float(a[1])) * trims["gain"]
+            # a is the twin's action vector [right, left]; the l field carries the LEFT
+            # horn, so it is written from a[1]. See _commands_to_rad for why.
+            l_sent = 90 + trims["l_off"] + trims["l_sign"] * np.rad2deg(float(a[1])) * trims["gain"]
+            r_sent = 90 + trims["r_off"] + trims["r_sign"] * np.rad2deg(float(a[0])) * trims["gain"]
             rows.append({"t": round(t * 1000 + rng.normal(0, jitter_ms), 2), "s": "cmd",
                          "l": round(l_sent, 2), "r": round(r_sent, 2)})
             next_cmd += 1.0 / cmd_hz * (1 + rng.normal(0, 0.03))
@@ -731,14 +750,54 @@ def _selfcheck():
     rng = np.random.default_rng(0)
     a = rng.uniform(-1.2, 1.2, (50, 2)).astype(np.float32)
     trims = dict(l_sign=-1.0, r_sign=1.0, l_off=3.0, r_off=-2.0, gain=1.2)
-    sent = np.stack([90 + trims["l_off"] + trims["l_sign"] * np.rad2deg(a[:, 0]) * trims["gain"],
-                     90 + trims["r_off"] + trims["r_sign"] * np.rad2deg(a[:, 1]) * trims["gain"]], 1)
+    # a is [right, left]; the file's fields are (l, r), so l is written from a[:, 1].
+    sent = np.stack([90 + trims["l_off"] + trims["l_sign"] * np.rad2deg(a[:, 1]) * trims["gain"],
+                     90 + trims["r_off"] + trims["r_sign"] * np.rad2deg(a[:, 0]) * trims["gain"]], 1)
     back = _commands_to_rad(sent, {**trims, "trims_in_values": True})
     assert np.allclose(back, a, atol=1e-5), "as-sent inversion failed"
-    pre = 90 + np.rad2deg(a)
+    pre = 90 + np.rad2deg(a[:, ::-1])
     back2 = _commands_to_rad(pre, {**trims, "trims_in_values": False})
     assert np.allclose(back2, a, atol=1e-5), "pre-trim path must ignore header trims"
     print("trim convention check: PASS (as-sent inverted, pre-trim ignores trims)")
+
+
+def _dialect_side_check(tmp="/tmp/_imulog_side_check.jsonl"):
+    """Does the l field reach the LEFT horn? Read path only, against the body XML.
+
+    Deliberately hand-authored rather than produced by fixture(): a writer and a reader
+    that share a reversed convention agree with each other perfectly, so a round-trip
+    cannot see the reversal. This file states l and r directly, with identity trims so
+    the arithmetic is transparent, and the expected action columns come from
+    servo_id.sim_side_columns -- the actuator -> joint -> body chain in the XML -- not
+    from servo_id's RIGHT_COL/LEFT_COL, which are the thing being checked.
+    """
+    from servo_id import sim_side_columns
+    cols = sim_side_columns("walk")
+    l_deg, r_deg = 120.0, 60.0                      # +30 deg left horn, -30 deg right
+    head = {"header": {"imu_units": "rad", "pose_units": "deg", "trims_in_values": True,
+                       "l_sign": 1.0, "r_sign": 1.0, "l_off": 0.0, "r_off": 0.0,
+                       "gain": 1.0, "gait": "walk"}}
+    rows = [head]
+    for i in range(120):                            # 2 s of flat IMU at 60 Hz
+        rows.append({"t": round(i * 1000 / 60.0, 3), "s": "imu", "o": [0.0] * 6})
+    for i in range(60):                             # commands held from t = 0
+        rows.append({"t": round(i * 1000 / 30.0, 3), "s": "cmd", "l": l_deg, "r": r_deg})
+    with open(tmp, "w") as f:
+        for r in rows: f.write(json.dumps(r) + "\n")
+
+    _, A, *_ = parse(tmp)
+    got_left, got_right = float(A[:, cols["left"]].mean()), float(A[:, cols["right"]].mean())
+    want_left, want_right = np.deg2rad(l_deg - 90), np.deg2rad(r_deg - 90)
+    ok_l = abs(got_left - want_left) < 1e-4
+    ok_r = abs(got_right - want_right) < 1e-4
+    why = (f"l={l_deg:.0f} deg r={r_deg:.0f} deg -> action column {cols['left']} (left per XML) "
+           f"holds {got_left:+.4f} rad, want {want_left:+.4f}; column {cols['right']} (right) "
+           f"holds {got_right:+.4f} rad, want {want_right:+.4f}")
+    assert ok_l and ok_r, (
+        f"the JSONL dialect maps l/r onto the wrong horns -- {why}. Every per-side servo "
+        f"identification from a log in this dialect would name the wrong servo, and no "
+        f"error metric would move.")
+    print(f"dialect side convention: PASS - {why}")
 
 
 def _jsonl_to_csv(src, dst):
@@ -787,11 +846,14 @@ def _jsonl_to_growbot_v1(src, dst, cal=None, gait=None, end_why="done"):
                         round(float(np.rad2deg(be)), 6), round(float(np.rad2deg(ga)), 6)])
             iseq += 1
         elif r["s"] == "cmd":
-            # internal fixture convention: column l carries action[0], r carries action[1]
-            a0 = np.deg2rad((r["l"] - 90 - h["l_off"]) / (h["l_sign"] * h["gain"]))
-            a1 = np.deg2rad((r["r"] - 90 - h["r_off"]) / (h["r_sign"] * h["gain"]))
-            l = 90 + cal["L_OFF"] + cal["L_SIGN"] * np.rad2deg(a1) * cal["gain"] + cal["turn"]
-            r_ = 90 + cal["R_OFF"] + cal["R_SIGN"] * np.rad2deg(a0) * cal["gain"] - cal["turn"]
+            # Both dialects name the same horn with the same letter: l is the left horn
+            # here and in growbot-imulog-1, so this is a straight l -> l, r -> r re-emit
+            # under the target calibration. It used to be a crossover, compensating for
+            # the internal dialect writing action[0] into l.
+            a_left = np.deg2rad((r["l"] - 90 - h["l_off"]) / (h["l_sign"] * h["gain"]))
+            a_right = np.deg2rad((r["r"] - 90 - h["r_off"]) / (h["r_sign"] * h["gain"]))
+            l = 90 + cal["L_OFF"] + cal["L_SIGN"] * np.rad2deg(a_left) * cal["gain"] + cal["turn"]
+            r_ = 90 + cal["R_OFF"] + cal["R_SIGN"] * np.rad2deg(a_right) * cal["gain"] - cal["turn"]
             pose.append([pseq, r["t"], round(float(l), 6), round(float(r_), 6), 1])
             pseq += 1
     out = {"header": {"format": "growbot-imulog-1", "app": "fixture",
@@ -988,6 +1050,7 @@ if __name__ == "__main__":
                           default_grid, realized_per_side, identify_per_side)
 
     _selfcheck()
+    _dialect_side_check()
 
     TRUE = dict(delay_ms=40, slew_rad_s=5.0, deadband=np.deg2rad(2))
     print("generating 600 s fixture (hidden servo: delay 40 ms, slew 5 rad/s, deadband 2 deg)...", flush=True)

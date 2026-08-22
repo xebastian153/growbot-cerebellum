@@ -26,7 +26,7 @@ from sensor_id import default_out_path
 from sim2real_proxy import K
 from imulog import CTRL_HZ
 from imulog import (parse, run_preflight, rest_attitude, attitude_excursion,
-                    SEG_FALL_EXCURSION_RAD)
+                    SEG_FALL_EXCURSION_RAD, STILL_GYRO_RMS_MAX)
 from servo_id import identify, realized_from_commands, default_grid, argmin_interior
 
 AXES = ("roll", "pitch", "yaw")
@@ -182,11 +182,31 @@ def main():
     twin = evaluate_axes(model, te["obs"], te["act"], te["done"], tw_mode, args.horizons)
 
     corrected = None
+    servo_block = None
     if args.servo_id:
         # Identification and attribution must not share ticks: the servo is fitted on
         # the first half, and EVERY log column (real, gap, gap*) is evaluated on the
         # held-out second half, so gap* cannot credit itself for what it fitted.
         half = len(O) // 2
+        # A servo is only visible in how the body RESPONDS to a command. Where the body
+        # does not move, every hypothesis replays to the same absent response, the argmin
+        # is noise, and the gap* it produces is a number about nothing -- yet it reads
+        # like a closable actuator gap. One of the real logs is exactly this: its first
+        # half is a motionless phone under commands swinging tens of degrees. Refusing
+        # the column, and saying why, is the honest output.
+        fit_rms = float(np.sqrt((O[:half, 3:] ** 2).sum(1).mean()))
+        if fit_rms <= STILL_GYRO_RMS_MAX:
+            servo_block = {"identified": None, "refused": True,
+                           "reason": "identification half has no body motion to identify from",
+                           "fit_gyro_rms_rad_s": fit_rms,
+                           "still_gyro_rms_max": STILL_GYRO_RMS_MAX,
+                           "fit_ticks": half}
+            print(f"servo identification REFUSED: the first half ({half:,} ticks) has body-rate "
+                  f"RMS {fit_rms:.3f} rad/s, at or below the stillness threshold "
+                  f"{STILL_GYRO_RMS_MAX} -- the body does not respond there, so no servo is "
+                  f"identifiable and no gap* column is reported for this file")
+            args.servo_id = False
+    if args.servo_id:
         grid = default_grid()          # one definition, shared with servo_id and the real-log report
         _, best = identify(model, O[:half], A[:half], O2[:half], D[:half], grid)
         interior, interior_why = argmin_interior(best, grid)
@@ -199,6 +219,10 @@ def main():
               f"identification used the first half")
         real = evaluate_axes(model, O[held], A[held], D[held], mode[held], args.horizons)
         corrected = evaluate_axes(model, O[held], R[held], D[held], mode[held], args.horizons)
+        servo_block = {"identified": {k: (None if v is None else float(v) if k != "delay_ticks"
+                                          else int(v)) for k, v in best.items()},
+                       "refused": False, "argmin_interior": bool(interior),
+                       "fit_gyro_rms_rad_s": fit_rms, "fit_ticks": half}
     else:
         real = evaluate_axes(model, O, A, D, mode, args.horizons)
 
@@ -225,6 +249,7 @@ def main():
                     **({"gap_after_servo": corrected[reg][h][ax]["within"] - tw} if corrected else {})}
             print(line)
     json.dump({"header": {k: v for k, v in header.items() if not isinstance(v, (list, dict))},
+               **({"servo_id": servo_block} if servo_block else {}),
                "report": report}, open(out_path, "w"), indent=1)
     print(f"\nwrote {out_path}")
 

@@ -237,6 +237,11 @@ def _clip_scorer(model, O, D_ext, clips, seed=0):
     ok = np.ones(N, bool)
     for j in range(K):
         ok &= np.roll(~D_ext, j + 1)
+    # range(hi), not range(hi + 1), and the difference is not an off-by-one. D marks a
+    # TRANSITION, not a state: D[t] means t -> t+1 crosses a cut, which is why
+    # realized_from_commands writes out[t] and only then resets, and why make_windows
+    # drops row t on D[t]. Rolling forward to the state at offset hi therefore consumes
+    # transitions 0..hi-1, so those are the ones that must be clean. Reviewed twice.
     for j in range(hi):
         ok &= np.roll(~D_ext, -j)
     ok[:K] = False

@@ -161,7 +161,7 @@ def run_variant(name, model, O, A, O2, D, mode, grid, clips, per_side, notes):
             "fit_gain_vs_band": {
                 "gain": fit_gain, "band": float(band),
                 "ratio": float(fit_gain / band) if band > 0 else None,
-                # A bare "separated" boolean at gain/band = 1.02 reads like a result and
+                # A bare "separated" boolean at gain/band = 1.01 reads like a result and
                 # is a coin flip. Anything inside 10% of the band is reported as MARGINAL,
                 # because the band is itself a noise estimate from two halves and is not
                 # known to that precision -- and MARGINAL excludes SEPARATED, in the
@@ -184,7 +184,7 @@ def run_variant(name, model, O, A, O2, D, mode, grid, clips, per_side, notes):
         # agreeing on one of three outcomes {left, right, neither}: under a null with no
         # real asymmetry, and ties rare on a 252-point grid, the two halves land on the
         # same non-'neither' side about one time in two. That is a coin flip -- the exact
-        # standard applied a few lines above to reject a gain/band ratio of 1.02 -- so the
+        # standard applied a few lines above to reject a gain/band ratio of 1.01 -- so the
         # flag is worth about one bit and cannot be quoted as a confirmed asymmetry.
         agree_note = ("two halves, each landing on one of {left, right, neither}: under a "
                       "no-asymmetry null they agree on the same side roughly 1 time in 2, "
@@ -318,7 +318,7 @@ def main():
     print("  - 'both halves agree on which horn is slower' is two halves picking the same")
     print("    one of {left, right, neither}. Under a null with no real asymmetry that")
     print("    agreement comes up about half the time, so it is one coin flip's worth of")
-    print("    evidence -- the same standard that rejects a gain/band ratio of 1.02 here.")
+    print("    evidence -- the same standard that rejects a gain/band ratio of 1.01 here.")
     for r in variants:
         if not r["per_side"]:
             continue
