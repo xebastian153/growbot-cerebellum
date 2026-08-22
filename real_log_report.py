@@ -47,7 +47,9 @@ from imulog import parse, _deviceorientation_to_R, CTRL_HZ, rest_attitude
 from forward import MLP, make_windows
 from sim2real_proxy import K
 from gap_report import evaluate_axes, twin_regimes, REGIME_MAP, AXES
-from servo_id import identify, realized_from_commands, confidence_band, determined_sets
+from servo_id import (identify, realized_from_commands, confidence_band, determined_sets,
+                      default_grid, argmin_interior)
+from sensor_id import default_out_path as sensor_out_path
 
 # The rate-axis assignment claim is "the logged rates are the device x/y/z body
 # rates, in that order". The test of that claim is diagonal dominance of the
@@ -389,8 +391,11 @@ def main():
     report["gap_report"] = {}
     report["sensor_id"] = {}
     for f in args.logs:
+        # sensor_id writes one artifact per input; ask for the path explicitly rather
+        # than relying on a fixed name that a second file would overwrite.
+        sid_out = sensor_out_path([f])
         for cmd, out, key in ((["gap_report.py", f, "--servo-id"], "results/gap_report.json", "gap_report"),
-                              (["sensor_id.py", f], "results/sensor_id.json", "sensor_id")):
+                              (["sensor_id.py", f, "--out", sid_out], sid_out, "sensor_id")):
             print(f"\n$ python {' '.join(cmd)}")
             r = subprocess.run([sys.executable, *cmd], capture_output=True, text=True)
             print(r.stdout, end="")
@@ -456,12 +461,10 @@ def main():
     O, A, O2, D, header, mode, rest = parsed[id_file]
     label = mode
     half = len(O) // 2
-    # The published grid (delay 0-3, slew >= 3) pins BOTH parameters at its boundary on
-    # this log, and a boundary argmin is the search running out, not an identification.
-    # Extended until the optimum is interior: delays to 120 ms, slews down to 1 rad/s.
-    grid = list(itertools.product([0, 1, 2, 3, 4, 5, 6],
-                                  [1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0, None],
-                                  [0.0, np.deg2rad(1), np.deg2rad(2), np.deg2rad(4)]))
+    # servo_id.default_grid() is now this range: the widening this report needed was
+    # folded back into the shared definition, so the CLI cannot pin at a boundary the
+    # real log is known to exceed.
+    grid = default_grid()
     scores, best = identify(model, O[:half], A[:half], O2[:half], D[:half], grid)
     hA, hB = slice(0, half // 2), slice(half // 2, half)
     sA, bA = identify(model, O[hA], A[hA], O2[hA], D[hA], grid)
@@ -476,17 +479,8 @@ def main():
           f"B=(delay {bB['delay_ticks']}, slew {bB['slew_rad_s']})  "
           f"{'AGREE' if agree else 'DISAGREE -- log too short or servo outside the model family'}")
     print(f"  delay determined set {dset} ticks; slew determined set {sset} rad/s")
-    delays = sorted({d for d, _, _ in grid})
-    slews = sorted({s for _, s, _ in grid if s is not None})
-    # slew None means NO SLEW LIMIT: that is the open end of the grid, not a point inside
-    # it. Counting it as interior was a test that could not fail on the one answer it most
-    # needed to catch -- "the search ran out and picked no limit at all".
-    interior = (min(delays) < best["delay_ticks"] < max(delays)
-                and best["slew_rad_s"] is not None
-                and min(slews) < best["slew_rad_s"] < max(slews))
-    print(f"  argmin is {'INTERIOR to' if interior else 'AT THE BOUNDARY of'} the extended grid "
-          f"(delay {min(delays)}-{max(delays)} ticks, slew {min(slews)}-{max(slews)} rad/s or none; "
-          f"'none' = no slew limit counts as the boundary, not as an interior point)")
+    interior, interior_why = argmin_interior(best, grid)
+    print(f"  {interior_why}")
     print(f"  (the fixture's 480 s of mixed excitation determines both to +-1 grid step; "
           f"{half / 50:.0f} s of periodic walking is the excitation servo_id.py warns about: "
           f"'near-ties mean the excitation never hit the slew limit')")

@@ -343,6 +343,90 @@ walk policy against the corrected twin upstream. It is also a confound worth nam
 the corrected twins move 40–45 % less than the control, so part of any gain may be a
 gentler training distribution rather than a better actuator model.
 
+## Identification ablation — per-side wins, multi-horizon backfires, and the delay was over-charged by a tick
+
+`identification_ablation.py`, on `imu-walk-1` (809 ticks, 16.2 s, the only real file that
+walks). Four changes to how the servo is identified, each from a specific reading of the
+code or the literature, each measured the way `servo_id` already asks to be measured: fit
+on the first half, every number from the held-out second half, and the determined set
+reported rather than the argmin. There is no ground truth on a real log, so nothing here
+is scored against a known answer — the question is whether the identified servo predicts
+held-out data better than the raw commands, and whether the log separates the parameters
+well enough for the answer to mean anything.
+
+The decision the table is read against was fixed before running: a change earns its place
+if it improves the held-out gain, narrows a determined set, or corrects an attribution —
+and a change that does none of those is reported as a negative at the same size.
+
+| variant | identified | delay set | held-out gain @500 ms (roll / pitch / yaw, pts) |
+|---|---|---|---|
+| baseline (one-step, shared) | delay 5, slew 2.0 | [2, 3, 4, 5, 6] | **+3.5** / −1.3 / **+7.8** |
+| + aligned observations | delay 4, slew 2.0 | [3, 4, 5, 6] | +3.5 / −1.1 / +7.2 |
+| + multi-horizon score | delay 1, slew 1.0 | [0 … 6] | **−2.4** / −0.3 / +10.4 |
+| + per-side servos | L(6, 1.0) R(6, 6.0) | [2, 3, 4, 5, 6] | **+8.0** / +0.3 / +8.0 |
+| + all three | L(6, 1.0) R(5, 4.0) | [0 … 6] | +6.4 / −1.3 / +8.3 |
+
+Gains are (identified servo − raw commands) on the same data, which is what makes the
+column comparable across rows: the aligned variants are scored on aligned observations, so
+their absolute percentages are not directly comparable to the unaligned ones, but the gain
+is. Every variant splits DISAGREE across the two fit halves. None of these changes fixes
+that, and none was expected to: 16 s of periodic walking is the excitation problem, not the
+scoring problem.
+
+**The sensor lag was being charged to the servo, and alignment gives it back.** The phone's
+fused orientation trails its own gyro by 13.2 ms on this file, measured independently by
+`sensor_id.filter_lag` and stable across halves. Observation delay and command delay are
+formally interchangeable, so a delay identified from commands and IMU is necessarily a lump
+of both. Advancing the angle channels to meet the gyro (`imulog.parse(ang_lead_ms=...)`, a
+sub-tick correction of at most 0.099 rad on this log) moves the identified delay from 5
+ticks to 4, and narrows the delay determined set from [2, 3, 4, 5, 6] to [3, 4, 5, 6]. The
+held-out gain does not move (roll +3.5 either way). That is the honest shape of this
+result: alignment does not predict better, it stops the servo being billed for the phone.
+What remains after alignment is the actuator plus whatever absolute lag the gyro itself
+carries, which this log cannot measure — so 80 ms is an upper bound on the actuator, not a
+split.
+
+**Per-side is the only change that improved prediction, and the asymmetry it found is
+partly real.** Fitting one (delay, slew, deadband) per servo instead of one for both more
+than doubles the held-out roll gain, +3.5 → +8.0 pts, and helps at 100 ms too (+0.5 →
++1.9). The search is coordinate descent from the shared solution — the full product of two
+triples is ~63k hypotheses and brute force is not the point — converging in 1009
+evaluations. Its solution is L(delay 6, slew 1.0) and R(delay 6, slew 6.0), and the
+per-side determined sets say how much of that to believe: the two slew sets are
+**disjoint**, [1.0, 1.5, 2.0] on the left against [3.0 … 8.0, none] on the right. Neither
+value is pinned, but the log does separate the *direction* — the left horn is slower than
+the right. The delays are not separated at all on the left ([1 … 6]) and only loosely on
+the right ([4, 5, 6]).
+
+**Multi-horizon scoring backfired here — a clean negative against the literature's
+expectation.** Replacing the one-step error with clip rollouts (uniformly sampled 2–40 tick
+horizons, 400 starts) sends the argmin to delay 1 and slew 1.0, which is the grid's *low
+boundary*; the delay determined set widens to the entire grid, i.e. it determines nothing;
+the confidence band explodes 0.0063 → 0.0871; and the held-out roll gain goes negative.
+Yaw improves (+10.4) but on its own that is not enough to accept a variant that determines
+nothing else. The likely reason is scale rather than principle: with ~400 ticks to fit and
+clips reaching 800 ms, open-loop divergence dominates the score instead of the servo
+signature, where the published horizon ablations that motivated this ran on far more data.
+On this log the one-step score is the better instrument, and the combined variant inherits
+the damage (band 0.081, sets spanning the whole grid) while keeping most of per-side's
+roll gain.
+
+Two defects surfaced while running this, both fixed and both in the same family — a
+statistic that looked stable only because nothing had stressed it:
+
+- **The confidence band depended on which hypotheses were enumerated.** It was a standard
+  deviation over the A/B error differences of every hypothesis, so adding slow-slew
+  candidates — added precisely in order to rule them out — inflated it through their large,
+  noisy errors. On identical fixture data with an identical argmin, widening the grid from
+  96 to 252 hypotheses moved the band 0.00141 → 0.00457 and the delay determined set
+  [1, 2] → [0, 1, 2, 3], admitting delay 0, i.e. "no servo at all". The band is now a robust
+  scale (1.4826 · MAD), which is a no-op where there is no tail (0.00140 vs 0.00141 on the
+  old grid) and holds the set at [1, 2, 3] on the wide one.
+- **`determined_sets` crashed when it had to report "no slew limit" beside a number** —
+  a plain `sorted()` over a set containing `None`. It had never fired because that answer
+  had never survived into a set, which is to say the crash was waiting for exactly the
+  under-determined case the function exists to report.
+
 ## Coverage — **RETRACTED**: the experiment was invalid twice over
 
 > **Retraction.** This section previously published a negative result — "synthesized

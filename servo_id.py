@@ -15,8 +15,41 @@ import argparse, itertools, json, sys, time
 import numpy as np
 sys.path.insert(0, "."); sys.path.insert(0, "sim")
 from growbot_sim import ServoModel, collect
-from forward import MLP, make_windows
+from forward import MLP, make_windows, encode_obs
 from sim2real_proxy import horizon_within, K
+
+
+def default_grid():
+    """The hypothesis grid every caller shares.
+
+    One definition, because there were two and they drifted: the published grid
+    (delay 0-3, slew >= 3 rad/s) pins BOTH parameters at its own boundary on the
+    real robot's log, where the argmin sits at delay 5 and slew 2. A boundary
+    argmin is the search running out, not an identification, so the range now
+    reaches delay 120 ms and slew 1 rad/s -- far enough that the real optimum is
+    interior and the report can say so.
+    """
+    return list(itertools.product([0, 1, 2, 3, 4, 5, 6],
+                                  [1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0, None],
+                                  [0.0, np.deg2rad(1), np.deg2rad(2), np.deg2rad(4)]))
+
+
+def argmin_interior(best, grid):
+    """(is_interior, description). A boundary argmin is a reported condition, not a footnote.
+
+    'slew None' means NO slew limit: that is the open end of the grid, not a point
+    inside it. Counting it as interior was a test that could not fail on the one
+    answer it most needed to catch -- "the search ran out and picked no limit at all".
+    """
+    delays = sorted({d for d, _, _ in grid})
+    slews = sorted({s for _, s, _ in grid if s is not None})
+    interior = (min(delays) < best["delay_ticks"] < max(delays)
+                and best["slew_rad_s"] is not None
+                and min(slews) < best["slew_rad_s"] < max(slews))
+    return bool(interior), (
+        f"argmin is {'INTERIOR to' if interior else 'AT THE BOUNDARY of'} the grid "
+        f"(delay {min(delays)}-{max(delays)} ticks, slew {min(slews)}-{max(slews)} rad/s "
+        f"or none; 'none' = no slew limit counts as the boundary, not as an interior point)")
 
 
 def realized_from_commands(A, D, kw):
@@ -29,8 +62,91 @@ def realized_from_commands(A, D, kw):
     return out
 
 
-def identify(model, O, A, O2, D, grid):
-    """Return (sorted [(err, kw)], best kw) by one-step forward error.
+def realized_per_side(A, D, kw_l, kw_r):
+    """Replay two independent servos, one per side, over the commanded angles.
+
+    ServoModel is elementwise across the two components (its queue delays the whole
+    target vector, the slew clip and the deadband apply per component), so running
+    one model per side over the full command vector and keeping that side's column
+    is exactly per-side parameters -- no change to the model itself.
+    """
+    out = np.zeros_like(A)
+    for col, kw in ((0, kw_l), (1, kw_r)):
+        out[:, col] = realized_from_commands(A, D, kw)[:, col]
+    return out
+
+
+def _extend_cuts(D, max_delay):
+    """Cut mask widened by the largest candidate delay: the servo transient guard."""
+    D_ext = D.copy()
+    for j in range(1, max_delay + 1):
+        D_ext[j:] |= D[:-j]
+    return D_ext
+
+
+def _clip_scorer(model, O, D_ext, clips, seed=0):
+    """Multi-horizon scorer: open-loop rollouts inside clips, re-anchored at clip start.
+
+    A one-step score asks only "given the truth now, is the next tick right"; a servo
+    delay shows up as an error that accumulates, so a one-step cost sees the weakest
+    version of the signature it is trying to read. Clip horizons are sampled uniformly
+    rather than fixed: short clips carry no long-horizon information, long ones drown in
+    open-loop divergence, and sampling gets both without choosing between them.
+
+    Normalisation is per component, as in the one-step path and for the same reason (the
+    gyro's irreducible contact variance must not dilute the angle components), but the
+    scale is the std of the target STATES rather than of one-tick deltas, because the
+    quantity being compared here is a state after h steps, not a delta.
+    """
+    lo, hi, n_starts = clips["min_ticks"], clips["max_ticks"], clips["n_starts"]
+    F = encode_obs(O)
+    N, fdim = len(O), F.shape[1]
+    ok = np.ones(N, bool)
+    for j in range(K):
+        ok &= np.roll(~D_ext, j + 1)
+    for j in range(hi):
+        ok &= np.roll(~D_ext, -j)
+    ok[:K] = False
+    ok[N - hi - 1:] = False
+    cand = np.flatnonzero(ok)
+    if len(cand) == 0:
+        raise ValueError(f"no clip start survives K={K} history and {hi} ticks of horizon "
+                         f"in {N} ticks: shorten max_ticks")
+    rng = np.random.default_rng(seed)
+    starts = rng.choice(cand, size=min(n_starts, len(cand)), replace=False)
+    horiz = rng.integers(lo, hi + 1, size=len(starts))
+    fstd = F.std(0) + 1e-8
+
+    def score(R):
+        win = np.zeros((len(starts), K, fdim + 2), np.float32)
+        for k in range(K):
+            win[:, k, :fdim] = F[starts - k]
+            win[:, k, fdim:] = R[starts - k]
+        cur = F[starts].copy()
+        tot, cnt = 0.0, 0
+        for h in range(1, hi + 1):
+            win[:, 0, fdim:] = R[starts + h - 1]
+            cur = cur + model.predict(win.reshape(len(starts), -1))
+            for a in range(3):                      # keep (sin, cos) on the unit circle
+                n = np.sqrt(cur[:, a] ** 2 + cur[:, a + 3] ** 2) + 1e-9
+                cur[:, a] /= n
+                cur[:, a + 3] /= n
+            win = np.roll(win, 1, axis=1)
+            win[:, 0, :fdim] = cur
+            live = horiz >= h
+            if not live.any():
+                break
+            e = (cur[live] - F[starts[live] + h]) / fstd
+            tot += float((e ** 2).sum())
+            cnt += int(live.sum()) * fdim
+        return tot / max(cnt, 1)
+
+    return score, {"starts": int(len(starts)), "min_ticks": lo, "max_ticks": hi,
+                   "mean_horizon_ticks": float(horiz.mean())}
+
+
+def identify(model, O, A, O2, D, grid, clips=None, seed=0):
+    """Return (sorted [(err, kw)], best kw). One-step forward error by default.
 
     Two guards for real logs: (1) windows within max-grid-delay ticks after an
     episode cut are excluded, because the replayed servo's state there is its
@@ -39,22 +155,79 @@ def identify(model, O, A, O2, D, grid):
     normalised per output component, so the gyro's large irreducible contact
     variance (a floor common to every hypothesis) does not dilute the angle
     components where the servo signature actually lives.
+
+    clips: pass dict(min_ticks=, max_ticks=, n_starts=) to score multi-horizon
+    rollouts instead of one-step error (see _clip_scorer). Both guards are kept.
     """
-    max_delay = max(d for d, _, _ in grid)
-    D_ext = D.copy()
-    for j in range(1, max_delay + 1):
-        D_ext[j:] |= D[:-j]
-    _, Y0, *_ = make_windows(O, A, O2, D_ext, K)   # Y is hypothesis-independent
-    ystd = Y0.std(0) + 1e-8
+    D_ext = _extend_cuts(D, max(d for d, _, _ in grid))
+    if clips is None:
+        _, Y0, *_ = make_windows(O, A, O2, D_ext, K)   # Y is hypothesis-independent
+        ystd = Y0.std(0) + 1e-8
+
+        def score(R):
+            X, Y, *_ = make_windows(O, R, O2, D_ext, K)
+            return float((((model.predict(X) - Y) / ystd) ** 2).mean())
+    else:
+        score, _ = _clip_scorer(model, O, D_ext, clips, seed=seed)
     scores = []
     for d, s, db in grid:
         kw = dict(delay_ticks=d, slew_rad_s=s, deadband=db)
         Rc = realized_from_commands(A, D, kw)       # reset on the true cuts
-        X, Y, *_ = make_windows(O, Rc, O2, D_ext, K)
-        e = (model.predict(X) - Y) / ystd
-        scores.append((float((e ** 2).mean()), kw))
+        scores.append((score(Rc), kw))
     scores.sort(key=lambda x: x[0])
     return scores, scores[0][1]
+
+
+def identify_per_side(model, O, A, O2, D, grid, shared, clips=None, seed=0, rounds=3):
+    """Per-side (delay, slew, deadband) by coordinate descent from the shared solution.
+
+    Two independent triples over this grid is ~63k hypotheses; brute force is not the
+    point. Coordinate descent starts at the shared answer -- which is by construction a
+    feasible point and usually a good one -- and alternately re-optimises one side with
+    the other held, until a full round buys nothing.
+
+    Returns (kw_l, kw_r, info). info carries the evaluation count and the per-side
+    determined sets, each computed with the OTHER side held at its solution: the honest
+    reading of a per-side search, where a side's separability depends on its partner.
+    """
+    D_ext = _extend_cuts(D, max(d for d, _, _ in grid))
+    if clips is None:
+        _, Y0, *_ = make_windows(O, A, O2, D_ext, K)
+        ystd = Y0.std(0) + 1e-8
+
+        def score(R):
+            X, Y, *_ = make_windows(O, R, O2, D_ext, K)
+            return float((((model.predict(X) - Y) / ystd) ** 2).mean())
+    else:
+        score, _ = _clip_scorer(model, O, D_ext, clips, seed=seed)
+
+    def as_kw(t):
+        return dict(delay_ticks=t[0], slew_rad_s=t[1], deadband=t[2])
+
+    cur = {0: (shared["delay_ticks"], shared["slew_rad_s"], shared["deadband"]),
+           1: (shared["delay_ticks"], shared["slew_rad_s"], shared["deadband"])}
+    best_e = score(realized_per_side(A, D, as_kw(cur[0]), as_kw(cur[1])))
+    evals, side_scores = 1, {0: None, 1: None}
+    for _ in range(rounds):
+        improved = False
+        for side in (0, 1):
+            trials = []
+            for t in grid:
+                other = cur[1 - side]
+                kw_l, kw_r = (as_kw(t), as_kw(other)) if side == 0 else (as_kw(other), as_kw(t))
+                trials.append((score(realized_per_side(A, D, kw_l, kw_r)), t))
+                evals += 1
+            trials.sort(key=lambda x: x[0])
+            side_scores[side] = trials
+            if trials[0][0] < best_e - 1e-12:
+                best_e, cur[side], improved = trials[0][0], trials[0][1], True
+        if not improved:
+            break
+    # expose the per-side sweeps in the (err, kw) shape determined_sets() consumes
+    info = {"evaluations": evals, "best_err": best_e,
+            "side_scores": {s: [(e, as_kw(t)) for e, t in (side_scores[s] or [])]
+                            for s in (0, 1)}}
+    return as_kw(cur[0]), as_kw(cur[1]), info
 
 
 def _key(kw):
@@ -64,14 +237,27 @@ def _key(kw):
 def confidence_band(scoresA, scoresB):
     """Estimator noise at the full fit size, from two independent halves of it.
 
-    Each half scores every hypothesis independently, so std(errA - errB) measures
-    the noise at half the data; the full fit uses twice as much, so its noise is
-    about std(diff) / 2. This is the number a separation must beat before an argmin
+    Each half scores every hypothesis independently, so the spread of (errA - errB)
+    measures the noise at half the data; the full fit uses twice as much, so its noise
+    is about that spread / 2. This is the number a separation must beat before an argmin
     means anything.
+
+    The spread is a ROBUST scale (1.4826 * MAD), not a standard deviation, because a
+    standard deviation made the band depend on which hypotheses were enumerated. Adding
+    slow-slew candidates to the grid -- candidates added precisely in order to rule them
+    out -- fits them badly, and their large, noisy errors inflated std and widened every
+    determined set. Measured on the fixture, same data and same argmin: widening the grid
+    from 96 to 252 hypotheses moved the std band 0.00141 -> 0.00457 and the delay set
+    [1, 2] -> [0, 1, 2, 3], which admits delay 0, i.e. "no servo at all". A determined set
+    that grows because someone enumerated a worse hypothesis is not measuring the log.
+    1.4826 * MAD is the standard consistent estimator of sigma for gaussian samples, so on
+    a grid without that tail it agrees with the old number (0.00140 vs 0.00141 measured);
+    it only differs where the tail exists, which is where std was wrong.
     """
     eA = {_key(kw): e for e, kw in scoresA}
     eB = {_key(kw): e for e, kw in scoresB}
-    return float(np.std([eA[k] - eB[k] for k in eA])) / 2.0
+    d = np.array([eA[k] - eB[k] for k in eA])
+    return float(1.4826 * np.median(np.abs(d - np.median(d)))) / 2.0
 
 
 def determined_sets(scores, best, grid, band):
@@ -88,7 +274,13 @@ def determined_sets(scores, best, grid, band):
     db = round(float(best["deadband"]), 5)
 
     def determined(values, fixed):
-        return sorted({v for v in values if fit_err.get(fixed(v), np.inf) - best_e <= band})
+        # ordered with the same key the candidate list uses: 'None' (no slew limit) is a
+        # legal member, and plain sorted() raises the moment it lands in a set beside a
+        # number. That is exactly the under-determined case this function exists to
+        # report -- the log could not rule out "no slew limit at all" -- so the crash was
+        # waiting for the one answer it most needed to deliver.
+        keep = {v for v in values if fit_err.get(fixed(v), np.inf) - best_e <= band}
+        return sorted(keep, key=lambda v: (v is None, v))
 
     delays = sorted({d for d, _, _ in grid})
     slews = sorted({s for _, s, _ in grid}, key=lambda v: (v is None, v))
@@ -116,8 +308,7 @@ def main():
     half = args.log_steps // 2
     fit, held = slice(0, half), slice(half, None)
 
-    grid = list(itertools.product([0, 1, 2, 3], [3.0, 4.0, 5.0, 6.0, 8.0, None],
-                                  [0.0, np.deg2rad(1), np.deg2rad(2), np.deg2rad(4)]))
+    grid = default_grid()
     t0 = time.time()
     scores, best = identify(nominal, O[fit], A[fit], O2[fit], D[fit], grid)
     ideal_err = [e for e, kw in scores if kw["delay_ticks"] == 0 and kw["slew_rad_s"] is None and kw["deadband"] == 0.0][0]
@@ -129,6 +320,8 @@ def main():
         print(f"  err {e:.4f}  delay {kw['delay_ticks']}  slew {kw['slew_rad_s']}  deadband {np.rad2deg(kw['deadband']):.0f} deg")
     print(f"ideal-servo hypothesis err {ideal_err:.4f}   true: delay {TRUE['delay_ticks']}, slew {TRUE['slew_rad_s']}, "
           f"deadband {args.true_deadband_deg:.0f} deg")
+    interior, interior_why = argmin_interior(best, grid)
+    print(f"  {interior_why}")
 
     # diagnostics for the day the real servo leaves the model family ------------
     halfA, halfB = slice(0, half // 2), slice(half // 2, half)
@@ -164,7 +357,7 @@ def main():
     R_est = realized_from_commands(A, D, best)
     out = {"true": {**TRUE, "deadband": float(TRUE["deadband"])}, "identified": {**best, "deadband": float(best["deadband"])},
            "ideal_err": ideal_err, "best_err": scores[0][0],
-           "split_half_agree": agree, "confidence_band": band,
+           "split_half_agree": agree, "confidence_band": band, "argmin_interior": interior,
            "delay_determined_set": delay_set, "slew_determined_set": [v for v in slew_set],
            "held_out_err": {"best": by_kw[(best["delay_ticks"], best["slew_rad_s"])], "ideal": by_kw[(0, None)]},
            "held_out": {}}

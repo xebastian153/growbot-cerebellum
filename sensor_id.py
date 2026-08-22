@@ -486,10 +486,53 @@ def filter_lag(fused_angles, ts_f, gyro, ts_g, max_lag_ms=500.0, min_corr=0.5,
     return {"axes": out, **meta}
 
 
+def default_out_path(logs):
+    """results/sensor_id_<stem>.json -- per input, because one fixed name silently clobbers.
+
+    Two files analysed in one session used to land on the same path, so the artifact
+    on disk was whichever ran last, and the numbers from the other file survived only
+    in a text log. The name now carries the input it came from.
+    """
+    import os
+    stem = os.path.basename(logs[0]).rsplit(".", 1)[0]
+    stem = "".join(ch if (ch.isalnum() or ch in "-_") else "_" for ch in stem)[:60]
+    if len(logs) > 1:
+        stem += f"_plus{len(logs) - 1}"
+    return f"results/sensor_id_{stem}.json"
+
+
+def apply_split_half(res, split):
+    """Fold the split-half verdict INTO `determined`; a disagreeing lag is not a number.
+
+    filter_lag can only see the correlation gate, so it used to mark an axis determined
+    on peak correlation alone while this file's own split halves disagreed by more than
+    a grid sample. Reporting that as determined is the failure mode servo_id's
+    determined-set machinery exists to prevent, on the other side of the gap. Both
+    reasons are kept: `corr_determined` is the gate filter_lag applied, `determined` is
+    the conjunction, and `gate_failed` names which one refused.
+    """
+    by_axis = {s["axis"]: s for s in split}
+    for r in res["axes"]:
+        s = by_axis.get(r["axis"], {})
+        stable = s.get("verdict") in (None, "AGREE")
+        r["corr_determined"] = bool(r["determined"])
+        r["split_half_verdict"] = s.get("verdict")
+        if r["determined"] and not stable:
+            r["determined"] = False
+            r["gate_failed"] = "split-half"
+            r["reason"] = (f"peak corr {r['corr']:.2f} passes, but the halves do not: "
+                           f"{s.get('verdict')}")
+        else:
+            r["gate_failed"] = None if r["determined"] else "correlation"
+    return res
+
+
 def _fmt_lag(r, band=None, verdict=""):
     """One report line for one axis: the number with its band, or the reason it has none."""
     if not r["determined"]:
         tag = "boundary" if r.get("boundary") else "undetermined"
+        gate = r.get("gate_failed")
+        tag += f" [{gate} gate]" if gate else ""
         corr = "" if not np.isfinite(r["corr"]) else f" (peak corr {r['corr']:.2f})"
         return f"{tag}{corr} -- {r['reason']}"
     b = "" if band is None else f" +- {band:.1f}"
@@ -505,7 +548,11 @@ def main():
                     help="still segment length below which Allan results are reported as undetermined-prone")
     ap.add_argument("--max-lag-ms", type=float, default=500.0, help="cross-correlation search half-width")
     ap.add_argument("--min-corr", type=float, default=0.5, help="peak correlation below which a lag is not reported")
+    ap.add_argument("--out", default=None,
+                    help="output JSON; default results/sensor_id_<input stem>.json, so two "
+                         "inputs never clobber one artifact")
     args = ap.parse_args()
+    out_path = args.out or default_out_path(args.log)
 
     SEAM_MS = 1000.0                    # artificial gap inserted between files
     header = None
@@ -576,7 +623,10 @@ def main():
         split.append({"axis": r["axis"], "half_a": ra["lag_ms"] if ra["determined"] else None,
                       "half_b": rb["lag_ms"] if rb["determined"] else None,
                       "band_ms": band, "verdict": verdict})
-        print(f"  {r['axis']:>5}  " + _fmt_lag(r, band, verdict or ""))
+    # both gates before any number is printed: correlation AND split-half stability
+    apply_split_half(res, split)
+    for r, s in zip(res["axes"], split):
+        print(f"  {r['axis']:>5}  " + _fmt_lag(r, s["band_ms"], s["verdict"] or ""))
 
     # --- lag per regime: an aggregate that hides a regime difference is not a lag
     per_regime = {}
@@ -668,9 +718,9 @@ def main():
                 "bias_reason": still_meta["undetermined_reasons"][0] if nulled else r["bias_reason"],
                 "tau_s": r["tau"].tolist(), "adev": r["adev"].tolist()}
                for a, r in enumerate(allan)]}
-    with open("results/sensor_id.json", "w") as fh:
+    with open(out_path, "w") as fh:
         json.dump(out, fh, indent=1)
-    print("\nwrote results/sensor_id.json")
+    print(f"\nwrote {out_path}")
 
 
 if __name__ == "__main__":

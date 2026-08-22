@@ -39,25 +39,34 @@
     "axis": "wx",
     "lag_ms": 17.85035994990834,
     "corr": 0.7512198559340708,
-    "determined": true,
+    "determined": false,
     "boundary": false,
-    "reason": ""
+    "reason": "peak corr 0.75 passes, but the halves do not: DISAGREE -- halves differ by more than one grid sample",
+    "corr_determined": true,
+    "split_half_verdict": "DISAGREE -- halves differ by more than one grid sample",
+    "gate_failed": "split-half"
    },
    {
     "axis": "wy",
     "lag_ms": 20.69564317916903,
     "corr": 0.9590381433450237,
-    "determined": true,
+    "determined": false,
     "boundary": false,
-    "reason": ""
+    "reason": "peak corr 0.96 passes, but the halves do not: DISAGREE -- halves differ by more than one grid sample",
+    "corr_determined": true,
+    "split_half_verdict": "DISAGREE -- halves differ by more than one grid sample",
+    "gate_failed": "split-half"
    },
    {
     "axis": "wz",
     "lag_ms": 19.451346969528533,
     "corr": 0.976656457598898,
-    "determined": true,
+    "determined": false,
     "boundary": false,
-    "reason": ""
+    "reason": "peak corr 0.98 passes, but the halves do not: DISAGREE -- undetermined on the first half",
+    "corr_determined": true,
+    "split_half_verdict": "DISAGREE -- undetermined on the first half",
+    "gate_failed": "split-half"
    }
   ],
   "grid_dt_ms": 16.6953125,

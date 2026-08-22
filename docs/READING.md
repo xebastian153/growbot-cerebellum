@@ -50,6 +50,11 @@ did not move the IMU at 100 ms, so if the spin gap is in the actuator it is in i
   per-joint actuator parameters beat one shared set by a wide margin (0.55 vs 0.74
   normalized error), where the shared version was worse than no model at all on one task —
   `servo_id`'s grid fits a single (delay, slew, deadband) triple for both servos.
+  Both were tried (`identification_ablation.py`): per-side more than doubled the held-out
+  roll gain and separated the two horns' slews into disjoint determined sets, while the
+  multi-horizon score backfired on 16 s of walking — the argmin ran to the grid's low
+  boundary and the delay set widened to everything. The horizon ablation does not
+  transfer at this data scale; the per-joint one does.
   https://arxiv.org/abs/2505.14266
 
 **Tested:** `actuator_proxy.py` / `servo_id.py` / `real2sim.py`. A slew-limited servo opens
@@ -176,9 +181,13 @@ what the model sees.
 **Measured:** `sensor_id.py`. On the one real file that walks, the fused orientation lags
 the raw gyro by +13.0 / +13.8 / +12.8 ms on wx/wy/wz, split-half AGREE, peak correlation
 0.87–0.96, and the walking regime alone gives the same answer (+13.2 / +13.9 / +12.7).
-That is about two thirds of a 50 Hz tick, and it is currently inside whatever delay
-`servo_id` attributes to the servo: the measured lag is consumed nowhere outside
-`sensor_id.py` and its fixture. Allan deviation stays undetermined — the longest still
+That is about two thirds of a 50 Hz tick. It used to sit inside whatever delay `servo_id`
+charged to the servo; `imulog.parse(ang_lead_ms=...)` now advances the angle channels to
+meet the gyro, and doing so moves the identified delay from 5 ticks to 4 and narrows its
+determined set, with no change to held-out accuracy — the correction is to the attribution,
+not to the prediction (`identification_ablation.py`). What is left is the actuator plus the
+gyro's own absolute lag, which this log cannot measure, so 80 ms is an upper bound on the
+actuator rather than its value. Allan deviation stays undetermined — the longest still
 segment in the walk lane is about 1 s, and the parameters need minutes.
 
 ## What is *not* on this list, and why

@@ -26,7 +26,7 @@ from sim2real_proxy import K
 from imulog import CTRL_HZ
 from imulog import (parse, run_preflight, rest_attitude, attitude_excursion,
                     SEG_FALL_EXCURSION_RAD)
-from servo_id import identify, realized_from_commands
+from servo_id import identify, realized_from_commands, default_grid, argmin_interior
 
 AXES = ("roll", "pitch", "yaw")
 REGIME_MAP = {"walk": "policy", "spin": "policy", "gesture": "keyframe",
@@ -182,11 +182,12 @@ def main():
         # the first half, and EVERY log column (real, gap, gap*) is evaluated on the
         # held-out second half, so gap* cannot credit itself for what it fitted.
         half = len(O) // 2
-        grid = list(itertools.product([0, 1, 2, 3], [3.0, 4.0, 5.0, 6.0, 8.0, None],
-                                      [0.0, np.deg2rad(2)]))
+        grid = default_grid()          # one definition, shared with servo_id and the real-log report
         _, best = identify(model, O[:half], A[:half], O2[:half], D[:half], grid)
+        interior, interior_why = argmin_interior(best, grid)
         print(f"identified servo: delay {best['delay_ticks']} ticks, slew {best['slew_rad_s']} rad/s "
               f"(grid points; run servo_id.py for determined-set diagnostics)")
+        print(f"  {interior_why}")
         R = realized_from_commands(A, D, best)          # replayed over the full log: servo state is continuous
         held = slice(half, None)
         print(f"evaluation restricted to the held-out half ({len(O) - half:,} ticks); "

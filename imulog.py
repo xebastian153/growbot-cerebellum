@@ -530,7 +530,20 @@ def _mode_per_tick(events, grid, header):
     return np.asarray(mode, dtype=str)
 
 
-def parse(path, gap_ms=GAP_MS):
+def parse(path, gap_ms=GAP_MS, ang_lead_ms=None):
+    """Resample a session onto the 50 Hz grid.
+
+    ang_lead_ms: three per-axis milliseconds by which to ADVANCE the fused-orientation
+    channels, read off their own timeline (roll, pitch, yaw). The phone reports a
+    filtered orientation that trails the raw gyro -- sensor_id.filter_lag measures by
+    how much -- while the twin emits both from the same instant, so a real observation
+    vector is internally inconsistent in a way no training vector ever is. Advancing the
+    angles aligns the two channels TO EACH OTHER; it does not make either absolute,
+    because the gyro's own lag is not observable from the log. The shift is sub-tick
+    (about 13 ms against a 20 ms grid), which is why it belongs here, in the resampling,
+    and not in a shift of grid samples. Default None reproduces the unaligned parse
+    exactly.
+    """
     header, (imu_t, imu_v, cmd_t, cmd_v), events = _read_rows(path)
     if header.get("imu_units", "rad") == "deg": imu_v = np.deg2rad(imu_v)
     cmd_v = _commands_to_rad(cmd_v, header)
@@ -543,10 +556,20 @@ def parse(path, gap_ms=GAP_MS):
     in_gap = (imu_t[next_i] - imu_t[prev_i]) > gap_ms
     # orientation on (sin, cos); gyro linear
     ang, gyro = imu_v[:, :3], imu_v[:, 3:]
-    s = np.stack([np.interp(grid, imu_t, np.sin(ang[:, a])) for a in range(3)], 1)
-    c = np.stack([np.interp(grid, imu_t, np.cos(ang[:, a])) for a in range(3)], 1)
+    lead = np.zeros(3) if ang_lead_ms is None else np.asarray(ang_lead_ms, float)
+    at = grid[:, None] + lead                       # per-axis read times for the angles
+    s = np.stack([np.interp(at[:, a], imu_t, np.sin(ang[:, a])) for a in range(3)], 1)
+    c = np.stack([np.interp(at[:, a], imu_t, np.cos(ang[:, a])) for a in range(3)], 1)
     ang_g = np.arctan2(s, c)
     gyro_g = np.stack([np.interp(grid, imu_t, gyro[:, a]) for a in range(3)], 1)
+    if ang_lead_ms is not None:
+        # a shifted read can land inside a dropout the unshifted one missed, or past the
+        # ends of the recording where np.interp would silently hold the edge value
+        ga = np.searchsorted(imu_t, at, side="right")
+        pa = np.clip(ga - 1, 0, len(imu_t) - 1)
+        na = np.clip(ga, 0, len(imu_t) - 1)
+        in_gap |= ((imu_t[na] - imu_t[pa]) > gap_ms).any(1)
+        in_gap |= (at < imu_t[0]).any(1) | (at > imu_t[-1]).any(1)
     obs = np.concatenate([ang_g, gyro_g], 1).astype(np.float32)
     # commands: zero-order hold (last command at or before grid time; neutral before the first)
     idx = np.searchsorted(cmd_t, grid, side="right") - 1
@@ -961,7 +984,8 @@ if __name__ == "__main__":
     import itertools, time
     from forward import MLP, make_windows
     from sim2real_proxy import K, horizon_within
-    from servo_id import identify, realized_from_commands, confidence_band, determined_sets
+    from servo_id import (identify, realized_from_commands, confidence_band, determined_sets,
+                          default_grid, realized_per_side, identify_per_side)
 
     _selfcheck()
 
@@ -1066,8 +1090,11 @@ if __name__ == "__main__":
 
     half = len(O) // 2
     fit, held = slice(0, half), slice(half, None)
-    grid = list(itertools.product([0, 1, 2, 3], [3.0, 4.0, 5.0, 6.0, 8.0, None],
-                                  [0.0, np.deg2rad(1), np.deg2rad(2), np.deg2rad(4)]))
+    # the grid that SHIPS, not a copy of it: there were three copies of a narrow grid
+    # (here, servo_id's CLI, gap_report's), and the one the real log needed was a fourth,
+    # written inline in the real-log report. A test that exercises a private copy cannot
+    # catch a default that pins at its own boundary.
+    grid = default_grid()
     scores, best = identify(model, O[fit], A[fit], O2[fit], D[fit], grid)
     print("\nservo identification on the PARSED log (top 3):")
     for e, kw in scores[:3]:
@@ -1117,9 +1144,23 @@ if __name__ == "__main__":
     print(f"  slew  {slew_set} rad/s -- injected {TRUE['slew_rad_s']} "
           f"{'inside the set' if TRUE['slew_rad_s'] in slew_set else 'outside the set'}, "
           f"every member within one grid step: {slew_ok}")
-    ok = delay_ok and slew_ok
+    # Per-side identification must not invent an asymmetry the fixture does not have.
+    # One servo drives both horns here, so a per-side search that lands on two different
+    # answers is reading noise, and the coordinate descent must come back to the shared
+    # solution's neighbourhood rather than away from it.
+    kw_l, kw_r, ps_info = identify_per_side(model, O[fit], A[fit], O2[fit], D[fit], grid, best)
+    ps_delays = {kw_l["delay_ticks"], kw_r["delay_ticks"]}
+    ps_ok = (ps_delays <= {true_ticks - 1, true_ticks, true_ticks + 1}
+             and ps_info["best_err"] <= scores[0][0] + 1e-9)
+    print(f"  per side: L(delay {kw_l['delay_ticks']}, slew {kw_l['slew_rad_s']})  "
+          f"R(delay {kw_r['delay_ticks']}, slew {kw_r['slew_rad_s']})  "
+          f"in {ps_info['evaluations']} evaluations; err {ps_info['best_err']:.5f} vs shared "
+          f"{scores[0][0]:.5f} -- both sides within one grid step of the single injected "
+          f"servo: {ps_delays <= {true_ticks - 1, true_ticks, true_ticks + 1}}")
+    ok = delay_ok and slew_ok and ps_ok
     print("\nROUND-TRIP", "PASS" if ok else "FAIL",
-          "- delay and slew determined to one grid step through 60/30 Hz jittered sampling" if ok else "")
+          "- delay and slew determined to one grid step through 60/30 Hz jittered sampling, "
+          "and the per-side search stays on the symmetric answer" if ok else "")
     assert delay_ok, f"injected delay {true_ticks} ticks not determined: set {delay_set}"
     assert slew_ok, f"injected slew {TRUE['slew_rad_s']} rad/s not determined: set {slew_set}"
 

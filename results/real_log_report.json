@@ -308,13 +308,13 @@
        "real": 0.9438502673796791,
        "twin": 0.968,
        "gap": -0.02414973262032083,
-       "gap_after_servo": -0.002759358288770053
+       "gap_after_servo": -0.018802139037433108
       },
       "pitch": {
        "real": 0.9598930481283422,
        "twin": 0.97175,
        "gap": -0.011856951871657806,
-       "gap_after_servo": -0.011856951871657806
+       "gap_after_servo": -0.019878342245989278
       },
       "yaw": {
        "real": 0.9759358288770054,
@@ -328,19 +328,19 @@
        "real": 0.4304812834224599,
        "twin": 0.871,
        "gap": -0.4405187165775401,
-       "gap_after_servo": -0.38436898395721925
+       "gap_after_servo": -0.40575935828877
       },
       "pitch": {
        "real": 0.5133689839572193,
        "twin": 0.8715,
        "gap": -0.35813101604278075,
-       "gap_after_servo": -0.36615240641711233
+       "gap_after_servo": -0.37150000000000005
       },
       "yaw": {
        "real": 0.3315508021390374,
        "twin": 0.77875,
        "gap": -0.4471991978609626,
-       "gap_after_servo": -0.3990708556149733
+       "gap_after_servo": -0.36965909090909094
       }
      }
     },
@@ -350,13 +350,13 @@
        "real": 0.9438502673796791,
        "twin": 0.9603072983354674,
        "gap": -0.01645703095578821,
-       "gap_after_servo": 0.004933343375762567
+       "gap_after_servo": -0.011109437372900488
       },
       "pitch": {
        "real": 0.9598930481283422,
        "twin": 0.970550576184379,
        "gap": -0.010657528056036814,
-       "gap_after_servo": -0.010657528056036814
+       "gap_after_servo": -0.018678918430368285
       },
       "yaw": {
        "real": 0.9759358288770054,
@@ -370,19 +370,19 @@
        "real": 0.4304812834224599,
        "twin": 0.8770806658130602,
        "gap": -0.4465993823906003,
-       "gap_after_servo": -0.39044964977027946
+       "gap_after_servo": -0.41184002410183024
       },
       "pitch": {
        "real": 0.5133689839572193,
        "twin": 0.8719590268886044,
        "gap": -0.3585900429313851,
-       "gap_after_servo": -0.36661143330571666
+       "gap_after_servo": -0.3719590268886044
       },
       "yaw": {
        "real": 0.3315508021390374,
        "twin": 0.7669654289372599,
        "gap": -0.4354146267982225,
-       "gap_after_servo": -0.3872862845522332
+       "gap_after_servo": -0.3578745198463508
       }
      }
     }
@@ -424,7 +424,7 @@
        "real": 0.9,
        "twin": 0.97175,
        "gap": -0.07174999999999998,
-       "gap_after_servo": -0.08174999999999999
+       "gap_after_servo": -0.09175
       },
       "yaw": {
        "real": 1.0,
@@ -438,19 +438,19 @@
        "real": 0.51,
        "twin": 0.871,
        "gap": -0.361,
-       "gap_after_servo": -0.361
+       "gap_after_servo": -0.14100000000000001
       },
       "pitch": {
        "real": 0.34,
        "twin": 0.8715,
        "gap": -0.5315000000000001,
-       "gap_after_servo": -0.5515000000000001
+       "gap_after_servo": -0.5115000000000001
       },
       "yaw": {
        "real": 0.58,
        "twin": 0.77875,
        "gap": -0.1987500000000001,
-       "gap_after_servo": -0.15875000000000006
+       "gap_after_servo": 0.011249999999999982
       }
      }
     },
@@ -466,7 +466,7 @@
        "real": 0.9166666666666666,
        "twin": 0.9503239740820735,
        "gap": -0.033657307415406845,
-       "gap_after_servo": -0.021752545510644872
+       "gap_after_servo": -0.033657307415406845
       },
       "yaw": {
        "real": 1.0,
@@ -480,19 +480,19 @@
        "real": 0.5714285714285714,
        "twin": 0.7235421166306696,
        "gap": -0.1521135452020982,
-       "gap_after_servo": -0.12830402139257435
+       "gap_after_servo": 0.002648359559806579
       },
       "pitch": {
        "real": 0.40476190476190477,
        "twin": 0.67170626349892,
        "gap": -0.2669443587370153,
-       "gap_after_servo": -0.2907538825465391
+       "gap_after_servo": -0.2431348349274915
       },
       "yaw": {
        "real": 0.6190476190476191,
        "twin": 0.6609071274298056,
        "gap": -0.04185950838218655,
-       "gap_after_servo": 0.005759539236861011
+       "gap_after_servo": 0.20814049161781345
       }
      }
     }
@@ -543,7 +543,10 @@
       "corr": 0.8742515403481929,
       "determined": true,
       "boundary": false,
-      "reason": ""
+      "reason": "",
+      "corr_determined": true,
+      "split_half_verdict": "AGREE",
+      "gate_failed": null
      },
      {
       "axis": "wy",
@@ -551,7 +554,10 @@
       "corr": 0.9467669321923055,
       "determined": true,
       "boundary": false,
-      "reason": ""
+      "reason": "",
+      "corr_determined": true,
+      "split_half_verdict": "AGREE",
+      "gate_failed": null
      },
      {
       "axis": "wz",
@@ -559,7 +565,10 @@
       "corr": 0.9642258554403093,
       "determined": true,
       "boundary": false,
-      "reason": ""
+      "reason": "",
+      "corr_determined": true,
+      "split_half_verdict": "AGREE",
+      "gate_failed": null
      }
     ],
     "grid_dt_ms": 16.69921875,
@@ -844,25 +853,34 @@
       "axis": "wx",
       "lag_ms": 17.85035994990834,
       "corr": 0.7512198559340708,
-      "determined": true,
+      "determined": false,
       "boundary": false,
-      "reason": ""
+      "reason": "peak corr 0.75 passes, but the halves do not: DISAGREE -- halves differ by more than one grid sample",
+      "corr_determined": true,
+      "split_half_verdict": "DISAGREE -- halves differ by more than one grid sample",
+      "gate_failed": "split-half"
      },
      {
       "axis": "wy",
       "lag_ms": 20.69564317916903,
       "corr": 0.9590381433450237,
-      "determined": true,
+      "determined": false,
       "boundary": false,
-      "reason": ""
+      "reason": "peak corr 0.96 passes, but the halves do not: DISAGREE -- halves differ by more than one grid sample",
+      "corr_determined": true,
+      "split_half_verdict": "DISAGREE -- halves differ by more than one grid sample",
+      "gate_failed": "split-half"
      },
      {
       "axis": "wz",
       "lag_ms": 19.451346969528533,
       "corr": 0.976656457598898,
-      "determined": true,
+      "determined": false,
       "boundary": false,
-      "reason": ""
+      "reason": "peak corr 0.98 passes, but the halves do not: DISAGREE -- undetermined on the first half",
+      "corr_determined": true,
+      "split_half_verdict": "DISAGREE -- undetermined on the first half",
+      "gate_failed": "split-half"
      }
     ],
     "grid_dt_ms": 16.6953125,
@@ -1542,7 +1560,7 @@
  "servo": {
   "file": "imu-walk-1-2026-08-20T17-50-14-713Z.json",
   "fit_ticks": 404,
-  "band": 0.012350784297208506,
+  "band": 0.006315527808666229,
   "argmin": {
    "delay_ticks": 5.0,
    "slew_rad_s": 2.0,
@@ -1551,8 +1569,6 @@
   "argmin_interior": true,
   "split_half_agree": false,
   "delay_determined_set": [
-   0,
-   1,
    2,
    3,
    4,
@@ -1560,10 +1576,8 @@
    6
   ],
   "slew_determined_set": [
-   1.5,
    2.0,
-   3.0,
-   4.0
+   3.0
   ],
   "held_out_by_segment": {
    "all": {
@@ -1676,7 +1690,7 @@
   "verdict": "BAKED IN: the ratio is consistent with 1/0.8 = 1.25 and excludes 1.00, so header.gain is already inside the logged values and only cal.gain takes part in the inversion"
  },
  "data_ask": [
-  "pose-sequence (gesture) capture, 3-5 min: imu-walk-1-2026-08-20T17-50-14-713Z.json alone leaves the servo at delay [0, 1, 2, 3, 4, 5, 6] ticks / slew [1.5, 2.0, 3.0, 4.0] rad/s; varied large and small steps are what separate slew and deadband (the twin fixture determines both to one grid step from 8 min of mixed excitation)",
+  "pose-sequence (gesture) capture, 3-5 min: imu-walk-1-2026-08-20T17-50-14-713Z.json alone leaves the servo at delay [2, 3, 4, 5, 6] ticks / slew [2.0, 3.0] rad/s; varied large and small steps are what separate slew and deadband (the twin fixture determines both to one grid step from 8 min of mixed excitation)",
   "one still capture, 2-5 min (robot on the floor, untouched). A still segment DOES exist -- the longest here is 2.6 s -- but Allan deviation needs tens of taus with many independent clusters each, and at 60 Hz that means minutes, not seconds. ARW and bias instability stay unmeasurable because the still segments are TOO SHORT, not because none was recorded",
   "a walk lane where the robot actually walks the whole time: walk-3 contributed 0.0 s of walking out of 5.2 s -- 2.6 s of it is a motionless body under swinging commands, which is a hardware or placement report, not walk data",
   "the same walk lane twice, battery fresh vs low: the twin predicts a split-half DISAGREE on slew if the battery sags (model_mismatch.py); this is the free real actuator experiment"

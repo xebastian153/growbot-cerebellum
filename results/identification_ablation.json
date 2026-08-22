@@ -1,0 +1,726 @@
+{
+ "log": "imu-walk-1-2026-08-20T17-50-14-713Z.json",
+ "conditions": {
+  "epochs": 80,
+  "K": 5,
+  "horizons_ms": [
+   100,
+   500
+  ],
+  "grid_size": 252,
+  "clips": {
+   "min_ticks": 2,
+   "max_ticks": 40,
+   "n_starts": 400
+  },
+  "ticks": 809,
+  "fit": "first half",
+  "evaluation": "held-out second half",
+  "model": "MLP h128 on data/train.npz",
+  "sensor_json": "results/sensor_id_imu-walk-1-2026-08-20T17-50-14-713Z.json",
+  "sensor_lag_ms": [
+   12.969551846517403,
+   13.821987998442179,
+   12.758781962685788
+  ],
+  "sensor_lag_meta": {
+   "determined": 3,
+   "per_axis_ms": [
+    12.969551846517403,
+    13.821987998442179,
+    12.758781962685788
+   ],
+   "axes_reported": [
+    "wx",
+    "wy",
+    "wz"
+   ],
+   "spread_ms": 1.0632060357563908,
+   "split_half": [
+    {
+     "axis": "wx",
+     "half_a": 13.110545392658482,
+     "half_b": 12.932073572009223,
+     "band_ms": 0.08923591032462941,
+     "verdict": "AGREE"
+    },
+    {
+     "axis": "wy",
+     "half_a": 13.710045911533978,
+     "half_b": 14.03001487745429,
+     "band_ms": 0.159984482960156,
+     "verdict": "AGREE"
+    },
+    {
+     "axis": "wz",
+     "half_a": 12.116262531839245,
+     "half_b": 13.537427832889042,
+     "band_ms": 0.7105826505248984,
+     "verdict": "AGREE"
+    }
+   ]
+  }
+ },
+ "variants": [
+  {
+   "variant": "baseline",
+   "notes": "one-step score, shared servo, raw parse -- what servo_id.py does today",
+   "fit_ticks": 404,
+   "clips": null,
+   "per_side": false,
+   "argmin": {
+    "delay_ticks": 5,
+    "slew_rad_s": 2.0,
+    "deadband": 0.03490658503988659
+   },
+   "argmin_interior": true,
+   "band": 0.006315527808666229,
+   "split_half": {
+    "A": {
+     "delay": 6,
+     "slew": 5.0
+    },
+    "B": {
+     "delay": 6,
+     "slew": 2.0
+    },
+    "agree": false
+   },
+   "delay_determined_set": [
+    2,
+    3,
+    4,
+    5,
+    6
+   ],
+   "slew_determined_set": [
+    2.0,
+    3.0
+   ],
+   "held_out": {
+    "all": {
+     "100": {
+      "roll": {
+       "commands": 0.9438502673796791,
+       "servo": 0.9491978609625669,
+       "gain_pts": 0.5347593582887722
+      },
+      "pitch": {
+       "commands": 0.9598930481283422,
+       "servo": 0.9518716577540107,
+       "gain_pts": -0.8021390374331472
+      },
+      "yaw": {
+       "commands": 0.9759358288770054,
+       "servo": 0.9973262032085561,
+       "gain_pts": 2.1390374331550777
+      }
+     },
+     "500": {
+      "roll": {
+       "commands": 0.4304812834224599,
+       "servo": 0.46524064171123,
+       "gain_pts": 3.475935828877008
+      },
+      "pitch": {
+       "commands": 0.5133689839572193,
+       "servo": 0.5,
+       "gain_pts": -1.3368983957219305
+      },
+      "yaw": {
+       "commands": 0.3315508021390374,
+       "servo": 0.4090909090909091,
+       "gain_pts": 7.754010695187169
+      }
+     }
+    },
+    "walking": {
+     "100": {
+      "roll": {
+       "commands": 0.9438502673796791,
+       "servo": 0.9491978609625669,
+       "gain_pts": 0.5347593582887722
+      },
+      "pitch": {
+       "commands": 0.9598930481283422,
+       "servo": 0.9518716577540107,
+       "gain_pts": -0.8021390374331472
+      },
+      "yaw": {
+       "commands": 0.9759358288770054,
+       "servo": 0.9973262032085561,
+       "gain_pts": 2.1390374331550777
+      }
+     },
+     "500": {
+      "roll": {
+       "commands": 0.4304812834224599,
+       "servo": 0.46524064171123,
+       "gain_pts": 3.475935828877008
+      },
+      "pitch": {
+       "commands": 0.5133689839572193,
+       "servo": 0.5,
+       "gain_pts": -1.3368983957219305
+      },
+      "yaw": {
+       "commands": 0.3315508021390374,
+       "servo": 0.4090909090909091,
+       "gain_pts": 7.754010695187169
+      }
+     }
+    }
+   },
+   "seconds": 1.1
+  },
+  {
+   "variant": "+aligned",
+   "notes": "angle channels advanced to meet the gyro",
+   "fit_ticks": 404,
+   "clips": null,
+   "per_side": false,
+   "argmin": {
+    "delay_ticks": 4,
+    "slew_rad_s": 2.0,
+    "deadband": 0.017453292519943295
+   },
+   "argmin_interior": true,
+   "band": 0.0052619604080915445,
+   "split_half": {
+    "A": {
+     "delay": 6,
+     "slew": 5.0
+    },
+    "B": {
+     "delay": 5,
+     "slew": 1.5
+    },
+    "agree": false
+   },
+   "delay_determined_set": [
+    3,
+    4,
+    5,
+    6
+   ],
+   "slew_determined_set": [
+    1.5,
+    2.0
+   ],
+   "held_out": {
+    "all": {
+     "100": {
+      "roll": {
+       "commands": 0.93048128342246,
+       "servo": 0.9197860962566845,
+       "gain_pts": -1.0695187165775444
+      },
+      "pitch": {
+       "commands": 0.9625668449197861,
+       "servo": 0.9411764705882353,
+       "gain_pts": -2.1390374331550777
+      },
+      "yaw": {
+       "commands": 0.9786096256684492,
+       "servo": 0.9946524064171123,
+       "gain_pts": 1.6042780748663055
+      }
+     },
+     "500": {
+      "roll": {
+       "commands": 0.44385026737967914,
+       "servo": 0.4786096256684492,
+       "gain_pts": 3.475935828877008
+      },
+      "pitch": {
+       "commands": 0.516042780748663,
+       "servo": 0.5053475935828877,
+       "gain_pts": -1.0695187165775333
+      },
+      "yaw": {
+       "commands": 0.3449197860962567,
+       "servo": 0.41711229946524064,
+       "gain_pts": 7.219251336898397
+      }
+     }
+    },
+    "walking": {
+     "100": {
+      "roll": {
+       "commands": 0.93048128342246,
+       "servo": 0.9197860962566845,
+       "gain_pts": -1.0695187165775444
+      },
+      "pitch": {
+       "commands": 0.9625668449197861,
+       "servo": 0.9411764705882353,
+       "gain_pts": -2.1390374331550777
+      },
+      "yaw": {
+       "commands": 0.9786096256684492,
+       "servo": 0.9946524064171123,
+       "gain_pts": 1.6042780748663055
+      }
+     },
+     "500": {
+      "roll": {
+       "commands": 0.44385026737967914,
+       "servo": 0.4786096256684492,
+       "gain_pts": 3.475935828877008
+      },
+      "pitch": {
+       "commands": 0.516042780748663,
+       "servo": 0.5053475935828877,
+       "gain_pts": -1.0695187165775333
+      },
+      "yaw": {
+       "commands": 0.3449197860962567,
+       "servo": 0.41711229946524064,
+       "gain_pts": 7.219251336898397
+      }
+     }
+    }
+   },
+   "seconds": 1.0
+  },
+  {
+   "variant": "+multi-horizon",
+   "notes": "clip rollouts instead of one-step",
+   "fit_ticks": 404,
+   "clips": {
+    "min_ticks": 2,
+    "max_ticks": 40,
+    "n_starts": 400
+   },
+   "per_side": false,
+   "argmin": {
+    "delay_ticks": 1,
+    "slew_rad_s": 1.0,
+    "deadband": 0.06981317007977318
+   },
+   "argmin_interior": false,
+   "band": 0.08704556510943738,
+   "split_half": {
+    "A": {
+     "delay": 0,
+     "slew": 2.0
+    },
+    "B": {
+     "delay": 6,
+     "slew": 1.0
+    },
+    "agree": false
+   },
+   "delay_determined_set": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+   ],
+   "slew_determined_set": [
+    1.0,
+    1.5
+   ],
+   "held_out": {
+    "all": {
+     "100": {
+      "roll": {
+       "commands": 0.9438502673796791,
+       "servo": 0.9411764705882353,
+       "gain_pts": -0.2673796791443861
+      },
+      "pitch": {
+       "commands": 0.9598930481283422,
+       "servo": 0.9679144385026738,
+       "gain_pts": 0.8021390374331583
+      },
+      "yaw": {
+       "commands": 0.9759358288770054,
+       "servo": 0.9946524064171123,
+       "gain_pts": 1.8716577540106916
+      }
+     },
+     "500": {
+      "roll": {
+       "commands": 0.4304812834224599,
+       "servo": 0.40641711229946526,
+       "gain_pts": -2.4064171122994638
+      },
+      "pitch": {
+       "commands": 0.5133689839572193,
+       "servo": 0.5106951871657754,
+       "gain_pts": -0.2673796791443861
+      },
+      "yaw": {
+       "commands": 0.3315508021390374,
+       "servo": 0.4358288770053476,
+       "gain_pts": 10.42780748663102
+      }
+     }
+    },
+    "walking": {
+     "100": {
+      "roll": {
+       "commands": 0.9438502673796791,
+       "servo": 0.9411764705882353,
+       "gain_pts": -0.2673796791443861
+      },
+      "pitch": {
+       "commands": 0.9598930481283422,
+       "servo": 0.9679144385026738,
+       "gain_pts": 0.8021390374331583
+      },
+      "yaw": {
+       "commands": 0.9759358288770054,
+       "servo": 0.9946524064171123,
+       "gain_pts": 1.8716577540106916
+      }
+     },
+     "500": {
+      "roll": {
+       "commands": 0.4304812834224599,
+       "servo": 0.40641711229946526,
+       "gain_pts": -2.4064171122994638
+      },
+      "pitch": {
+       "commands": 0.5133689839572193,
+       "servo": 0.5106951871657754,
+       "gain_pts": -0.2673796791443861
+      },
+      "yaw": {
+       "commands": 0.3315508021390374,
+       "servo": 0.4358288770053476,
+       "gain_pts": 10.42780748663102
+      }
+     }
+    }
+   },
+   "seconds": 6.4
+  },
+  {
+   "variant": "+per-side",
+   "notes": "one (delay, slew, deadband) per servo, coordinate descent from the shared fit",
+   "fit_ticks": 404,
+   "clips": null,
+   "per_side": true,
+   "argmin": {
+    "delay_ticks": 5,
+    "slew_rad_s": 2.0,
+    "deadband": 0.03490658503988659
+   },
+   "argmin_interior": true,
+   "band": 0.006315527808666229,
+   "split_half": {
+    "A": {
+     "delay": 6,
+     "slew": 5.0
+    },
+    "B": {
+     "delay": 6,
+     "slew": 2.0
+    },
+    "agree": false
+   },
+   "delay_determined_set": [
+    2,
+    3,
+    4,
+    5,
+    6
+   ],
+   "slew_determined_set": [
+    2.0,
+    3.0
+   ],
+   "per_side_solution": {
+    "left": {
+     "delay_ticks": 6,
+     "slew_rad_s": 1.0,
+     "deadband": 0.06981317007977318
+    },
+    "right": {
+     "delay_ticks": 6,
+     "slew_rad_s": 6.0,
+     "deadband": 0.06981317007977318
+    },
+    "evaluations": 1009,
+    "best_err": 0.4983222186565399,
+    "shared_err": 0.5046908259391785,
+    "left_delay_determined": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6
+    ],
+    "left_slew_determined": [
+     1.0,
+     1.5,
+     2.0
+    ],
+    "right_delay_determined": [
+     4,
+     5,
+     6
+    ],
+    "right_slew_determined": [
+     3.0,
+     4.0,
+     5.0,
+     6.0,
+     8.0,
+     null
+    ]
+   },
+   "held_out": {
+    "all": {
+     "100": {
+      "roll": {
+       "commands": 0.9438502673796791,
+       "servo": 0.9625668449197861,
+       "gain_pts": 1.8716577540106916
+      },
+      "pitch": {
+       "commands": 0.9598930481283422,
+       "servo": 0.9625668449197861,
+       "gain_pts": 0.2673796791443861
+      },
+      "yaw": {
+       "commands": 0.9759358288770054,
+       "servo": 0.9973262032085561,
+       "gain_pts": 2.1390374331550777
+      }
+     },
+     "500": {
+      "roll": {
+       "commands": 0.4304812834224599,
+       "servo": 0.5106951871657754,
+       "gain_pts": 8.021390374331554
+      },
+      "pitch": {
+       "commands": 0.5133689839572193,
+       "servo": 0.516042780748663,
+       "gain_pts": 0.267379679144375
+      },
+      "yaw": {
+       "commands": 0.3315508021390374,
+       "servo": 0.4117647058823529,
+       "gain_pts": 8.021390374331549
+      }
+     }
+    },
+    "walking": {
+     "100": {
+      "roll": {
+       "commands": 0.9438502673796791,
+       "servo": 0.9625668449197861,
+       "gain_pts": 1.8716577540106916
+      },
+      "pitch": {
+       "commands": 0.9598930481283422,
+       "servo": 0.9625668449197861,
+       "gain_pts": 0.2673796791443861
+      },
+      "yaw": {
+       "commands": 0.9759358288770054,
+       "servo": 0.9973262032085561,
+       "gain_pts": 2.1390374331550777
+      }
+     },
+     "500": {
+      "roll": {
+       "commands": 0.4304812834224599,
+       "servo": 0.5106951871657754,
+       "gain_pts": 8.021390374331554
+      },
+      "pitch": {
+       "commands": 0.5133689839572193,
+       "servo": 0.516042780748663,
+       "gain_pts": 0.267379679144375
+      },
+      "yaw": {
+       "commands": 0.3315508021390374,
+       "servo": 0.4117647058823529,
+       "gain_pts": 8.021390374331549
+      }
+     }
+    }
+   },
+   "seconds": 4.8
+  },
+  {
+   "variant": "+all three",
+   "notes": "aligned + multi-horizon + per-side",
+   "fit_ticks": 404,
+   "clips": {
+    "min_ticks": 2,
+    "max_ticks": 40,
+    "n_starts": 400
+   },
+   "per_side": true,
+   "argmin": {
+    "delay_ticks": 1,
+    "slew_rad_s": 1.0,
+    "deadband": 0.06981317007977318
+   },
+   "argmin_interior": false,
+   "band": 0.08086443293061632,
+   "split_half": {
+    "A": {
+     "delay": 0,
+     "slew": 2.0
+    },
+    "B": {
+     "delay": 6,
+     "slew": 1.0
+    },
+    "agree": false
+   },
+   "delay_determined_set": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+   ],
+   "slew_determined_set": [
+    1.0,
+    1.5
+   ],
+   "per_side_solution": {
+    "left": {
+     "delay_ticks": 6,
+     "slew_rad_s": 1.0,
+     "deadband": 0.06981317007977318
+    },
+    "right": {
+     "delay_ticks": 5,
+     "slew_rad_s": 4.0,
+     "deadband": 0.0
+    },
+    "evaluations": 1009,
+    "best_err": 1.3205712014039739,
+    "shared_err": 1.424516096172124,
+    "left_delay_determined": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+     6
+    ],
+    "left_slew_determined": [
+     1.0
+    ],
+    "right_delay_determined": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+     6
+    ],
+    "right_slew_determined": [
+     1.5,
+     2.0,
+     3.0,
+     4.0,
+     5.0,
+     6.0,
+     8.0,
+     null
+    ]
+   },
+   "held_out": {
+    "all": {
+     "100": {
+      "roll": {
+       "commands": 0.93048128342246,
+       "servo": 0.93048128342246,
+       "gain_pts": 0.0
+      },
+      "pitch": {
+       "commands": 0.9625668449197861,
+       "servo": 0.9491978609625669,
+       "gain_pts": -1.3368983957219194
+      },
+      "yaw": {
+       "commands": 0.9786096256684492,
+       "servo": 0.9946524064171123,
+       "gain_pts": 1.6042780748663055
+      }
+     },
+     "500": {
+      "roll": {
+       "commands": 0.44385026737967914,
+       "servo": 0.5080213903743316,
+       "gain_pts": 6.417112299465244
+      },
+      "pitch": {
+       "commands": 0.516042780748663,
+       "servo": 0.5026737967914439,
+       "gain_pts": -1.3368983957219194
+      },
+      "yaw": {
+       "commands": 0.3449197860962567,
+       "servo": 0.42780748663101603,
+       "gain_pts": 8.288770053475936
+      }
+     }
+    },
+    "walking": {
+     "100": {
+      "roll": {
+       "commands": 0.93048128342246,
+       "servo": 0.93048128342246,
+       "gain_pts": 0.0
+      },
+      "pitch": {
+       "commands": 0.9625668449197861,
+       "servo": 0.9491978609625669,
+       "gain_pts": -1.3368983957219194
+      },
+      "yaw": {
+       "commands": 0.9786096256684492,
+       "servo": 0.9946524064171123,
+       "gain_pts": 1.6042780748663055
+      }
+     },
+     "500": {
+      "roll": {
+       "commands": 0.44385026737967914,
+       "servo": 0.5080213903743316,
+       "gain_pts": 6.417112299465244
+      },
+      "pitch": {
+       "commands": 0.516042780748663,
+       "servo": 0.5026737967914439,
+       "gain_pts": -1.3368983957219194
+      },
+      "yaw": {
+       "commands": 0.3449197860962567,
+       "servo": 0.42780748663101603,
+       "gain_pts": 8.288770053475936
+      }
+     }
+    }
+   },
+   "seconds": 19.6
+  }
+ ],
+ "delay_decomposition": {
+  "lumped_delay_ticks": 5,
+  "aligned_delay_ticks": 4,
+  "sensor_lag_ms": 13.183440602548457,
+  "sensor_lag_ticks": 0.6591720301274229,
+  "delta_ticks": 1
+ }
+}
