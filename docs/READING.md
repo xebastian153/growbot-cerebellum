@@ -20,12 +20,32 @@ did not move the IMU at 100 ms, so if the spin gap is in the actuator it is in i
   ideal second-order model the sim assumes, via a 2-DoF feedforward/feedback controller
   per joint. Firmware-level, no learned model. Worth knowing because the Pico glide
   engine already sits between brain and servo. https://arxiv.org/abs/2607.02205
+- Dao & Fern, *Simulator Adaptation for Sim-to-Real Learning of Legged Locomotion via
+  Proprioceptive Distribution Matching*, arXiv Apr 2026. The closest published relative
+  of this repo's loop, and it differs on the one axis we are weakest: instead of matching
+  trajectories tick by tick, it compares sim and hardware as *distributions* — averaged 1D
+  Wasserstein over the marginals of joint positions, velocities and actions — so no time
+  alignment, no resets, no motion capture. Their non-privileged time-aligned baseline
+  degrades to 86% parameter error under torque noise where the distributional cost holds
+  at 19%. Two results carry directly: which simulator modification wins depends on the
+  gap's shape (static parameters win a parameter shift and *fail catastrophically* on an
+  out-of-family spring, where residual actuator/action models are required), and their
+  failure section states the precondition our own logs violated — the hardware data must
+  come from the region of state space where the policy actually works, or the optimizer
+  matches the observed distribution with modifications that are not physically meaningful.
+  Their real run used ~4.3 min of hardware data. https://arxiv.org/abs/2604.11090
 
-**Tested:** `actuator_proxy.py` / `servo_id.py`. A slew-limited servo opens a
-3–4 pt gap at 500 ms that an output residual cannot close and the realized horn angle closes
-completely; the servo's delay and slew are identifiable from 300 s of IMU + commands through
-the frozen forward model (two hidden servos, both recovered). Thread 1 is now the most
-concrete next step for a real log.
+**Tested:** `actuator_proxy.py` / `servo_id.py` / `real2sim.py`. A slew-limited servo opens
+a 3–4 pt gap at 500 ms that an output residual cannot close and the realized horn angle
+closes completely; the servo's delay and slew are identifiable from 300 s of IMU + commands
+through the frozen forward model (two hidden servos, both recovered). On the real log the
+thread paid out and showed its limit in the same run: slew is determined to a set below the
+simulator's assumption, delay is not determined at all by ~15 s of periodic walking, and
+feeding the candidates back into the twin closes roll materially at every tested point.
+Note what this repo does *not* have that the entry above assumes throughout: joint
+encoders. Its proprioception is IMU plus the commands it issued, so a distributional cost
+here would compare IMU-feature marginals only — the action marginals are identical by
+construction when the logged commands are replayed.
 
 ## 2. Learn from the real error on device  →  feedback-error learning, adaptation
 
