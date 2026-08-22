@@ -34,6 +34,23 @@ did not move the IMU at 100 ms, so if the spin gap is in the actuator it is in i
   come from the region of state space where the policy actually works, or the optimizer
   matches the observed distribution with modifications that are not physically meaningful.
   Their real run used ~4.3 min of hardware data. https://arxiv.org/abs/2604.11090
+- Sobanbabu et al., *Sampling-Based System Identification with Active Exploration for
+  Legged Robot Sim2Real Learning*, arXiv May 2025. Same shape as `servo_id.py` — sampling
+  over candidate parameters, scoring simulated rollouts against real trajectories, no
+  differentiable simulator and no torque sensing — plus the piece this repo lacks: the
+  data is *designed*. Stage 2 optimizes the command sequence of a multi-behavioral policy
+  to maximize Fisher Information, i.e. it computes which motions make a parameter
+  identifiable instead of hoping the recording contains them. Their own evidence that this
+  is the binding constraint: plain identification lost on the attitude-tracking task
+  "likely due to insufficient excitation of attitude-related system parameters", and the
+  designed excitation won every task. Two ablations bear directly on this repo's
+  identification, and both point at choices it currently makes: uniformly sampled clip
+  horizons (0.05–2 s) beat any fixed horizon, because short horizons "fail to capture
+  long-term temporal dependencies" — `servo_id.identify` scores a one-step error; and
+  per-joint actuator parameters beat one shared set by a wide margin (0.55 vs 0.74
+  normalized error), where the shared version was worse than no model at all on one task —
+  `servo_id`'s grid fits a single (delay, slew, deadband) triple for both servos.
+  https://arxiv.org/abs/2505.14266
 
 **Tested:** `actuator_proxy.py` / `servo_id.py` / `real2sim.py`. A slew-limited servo opens
 a 3–4 pt gap at 500 ms that an output residual cannot close and the realized horn angle
@@ -127,6 +144,42 @@ Fast-WAM reaches the same conclusion at robot-lab scale.
   Robot Learning*, CoRL 2022. Dreamer on real robots, no simulator; the reference in
   the GrowBot launch video and the ceiling for "learn from raw experience". Says what a real data
   budget looks like. https://arxiv.org/abs/2206.14176
+
+## 7. The phone is not a truth sensor  →  observation delay and measured IMU noise
+
+**Why:** every other thread treats the path from the body to the model as transparent.
+It is not. A consumer phone reports the output of a sensor-fusion filter, which has its
+own lag, and a MEMS gyro whose noise the twin replaces with nothing. The twin trains on
+MuJoCo's exact state, so a second unmodelled dynamic system sits between the world and
+what the model sees.
+
+- Sintes, Bušić, Zhu, *Structural Equivalence and Learning Dynamics in Delayed MARL*,
+  arXiv May 2026. Observation delay and action delay are formally equivalent: they admit
+  identical policy sets and induce identically distributed trajectories, and any mixed
+  configuration reduces to a pure observation-delay system. The consequence here is
+  concrete — from commands and IMU alone the servo's latency and the fusion filter's lag
+  are one lumped quantity, and `sim/growbot_sim.ServoModel` assigns all of it to the
+  command side (its queue delays the target; nothing delays the observation). The same
+  paper's experiments warn that equivalent optima do not imply equivalent learning
+  dynamics, which matters when identified parameters are handed to policy training.
+  https://arxiv.org/abs/2605.04345
+- Ji, Mun, Kim, Hwangbo, *Concurrent Training of a Control Policy and a State Estimator*,
+  RA-L 2022. Trains the estimator jointly with the policy, on the premise that the
+  estimator is part of the plant rather than a clean preprocessing step.
+  https://arxiv.org/abs/2202.05481
+- The Allan-variance characterization of a MEMS gyro — angle random walk, rate random
+  walk, bias instability from a stationary segment — is the standard way to give a
+  simulator the sensor's real noise instead of a guessed Gaussian. Reference model:
+  https://github.com/ethz-asl/kalibr/wiki/IMU-Noise-Model ; a worked mobile-robot
+  treatment: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7506677/
+
+**Measured:** `sensor_id.py`. On the one real file that walks, the fused orientation lags
+the raw gyro by +13.0 / +13.8 / +12.8 ms on wx/wy/wz, split-half AGREE, peak correlation
+0.87–0.96, and the walking regime alone gives the same answer (+13.2 / +13.9 / +12.7).
+That is about two thirds of a 50 Hz tick, and it is currently inside whatever delay
+`servo_id` attributes to the servo: the measured lag is consumed nowhere outside
+`sensor_id.py` and its fixture. Allan deviation stays undetermined — the longest still
+segment in the walk lane is about 1 s, and the parameters need minutes.
 
 ## What is *not* on this list, and why
 
