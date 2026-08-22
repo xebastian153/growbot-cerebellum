@@ -130,6 +130,24 @@ def run_variant(name, model, O, A, O2, D, mode, grid, clips, per_side, notes):
         # every other claim here is cut with? A fit improvement no larger than the
         # band is not an improvement this log can see.
         fit_gain = float(scores[0][0] - info["best_err"])
+        # One verdict, computed once, with MARGINAL taking precedence -- because the
+        # printed prose branched on marginal first while the JSON published a bare
+        # `separated: true` beside `marginal: true` at a ratio of 1.008. A consumer
+        # reading the artifact got exactly the boolean the prose had retracted. So
+        # `separated` now means "clear of the band", not "one part in a thousand above
+        # it", and `verdict` is the single field to read.
+        #
+        # `band` can be exactly 0.0: confidence_band is a MAD, so it collapses whenever
+        # more than half the hypotheses tie across the two halves (a segment whose
+        # commands never leave neutral does this). Then there is no noise scale, `ratio`
+        # is null, and neither boolean can be true. That is a reported condition -- it
+        # used to be a TypeError inside the `:.2f` below, which aborted the run before
+        # json.dump and lost every variant's output rather than degrading one field.
+        marginal = bool(band > 0 and 0.9 * band <= fit_gain <= 1.1 * band)
+        separated = bool(band > 0 and fit_gain > band and not marginal)
+        verdict = ("band_zero" if not band > 0 else
+                   "marginal" if marginal else
+                   "separated" if separated else "not_separated")
         row["per_side_solution"] = {
             "left": {**kw_l, "deadband": float(kw_l["deadband"])},
             "right": {**kw_r, "deadband": float(kw_r["deadband"])},
@@ -143,12 +161,14 @@ def run_variant(name, model, O, A, O2, D, mode, grid, clips, per_side, notes):
             "fit_gain_vs_band": {
                 "gain": fit_gain, "band": float(band),
                 "ratio": float(fit_gain / band) if band > 0 else None,
-                "separated": bool(fit_gain > band),
                 # A bare "separated" boolean at gain/band = 1.02 reads like a result and
                 # is a coin flip. Anything inside 10% of the band is reported as MARGINAL,
                 # because the band is itself a noise estimate from two halves and is not
-                # known to that precision.
-                "marginal": bool(band > 0 and 0.9 * band <= fit_gain <= 1.1 * band)}}
+                # known to that precision -- and MARGINAL excludes SEPARATED, in the
+                # artifact as well as in the prose.
+                "separated": separated, "marginal": marginal,
+                "band_zero": bool(not band > 0),
+                "verdict": verdict}}
         # The per-side fit's own split-half stability. The `split_half` above is the
         # SHARED fit's; the claim being published ("which horn is slower") is a per-side
         # claim, so it needs a per-side test. Each half is re-fitted from its own shared
@@ -159,16 +179,29 @@ def run_variant(name, model, O, A, O2, D, mode, grid, clips, per_side, notes):
         def _pair(l, r):
             return {"left": {"delay": l["delay_ticks"], "slew": l["slew_rad_s"]},
                     "right": {"delay": r["delay_ticks"], "slew": r["slew_rad_s"]}}
+        # slower_agree is the only surviving support for "the right horn is slower", so it
+        # is published WITH its noise floor rather than as a bare true. It is two halves
+        # agreeing on one of three outcomes {left, right, neither}: under a null with no
+        # real asymmetry, and ties rare on a 252-point grid, the two halves land on the
+        # same non-'neither' side about one time in two. That is a coin flip -- the exact
+        # standard applied a few lines above to reject a gain/band ratio of 1.02 -- so the
+        # flag is worth about one bit and cannot be quoted as a confirmed asymmetry.
+        agree_note = ("two halves, each landing on one of {left, right, neither}: under a "
+                      "no-asymmetry null they agree on the same side roughly 1 time in 2, "
+                      "so this flag is about one bit of evidence, not a confirmed asymmetry")
         row["per_side_solution"]["split_half"] = {
             "A": {**_pair(lA, rA), "slower": slowA},
             "B": {**_pair(lB, rB), "slower": slowB},
             "slower_agree": bool(slowA == slowB and slowA != "neither"),
+            "slower_agree_null_p": 0.5,
+            "slower_agree_note": agree_note,
             "argmin_agree": bool(_pair(lA, rA) == _pair(lB, rB))}
         # Each side's CONDITIONAL slice, with the OTHER side held at its solution: on
         # a per-side search a side's separability is conditional on its partner. These
         # are one-dimensional slices through a joint surface, each centred on its own
         # argmin and cut with the band from the SHARED sweeps -- not joint determined
-        # sets, and see per_side_separation below for what their disjointness is worth.
+        # sets; see the "what the per-side split is and is not evidence for" block below
+        # for what their disjointness is worth.
         for key in ("left", "right"):
             ss = info["side_scores"][key]
             ds, sset_side = determined_sets(ss, ss[0][1], grid, band)
@@ -282,6 +315,10 @@ def main():
     print("    the band'; it is not independent evidence for an asymmetry.")
     print("  - the per-side fit is only separated from the shared fit when its fit gain")
     print("    exceeds that same band. Below the band, 'per-side fits better' is noise.")
+    print("  - 'both halves agree on which horn is slower' is two halves picking the same")
+    print("    one of {left, right, neither}. Under a null with no real asymmetry that")
+    print("    agreement comes up about half the time, so it is one coin flip's worth of")
+    print("    evidence -- the same standard that rejects a gain/band ratio of 1.02 here.")
     for r in variants:
         if not r["per_side"]:
             continue
@@ -300,20 +337,30 @@ def main():
               f"slew {ps['left_slew_conditional']}")
         print(f"                        right delay {ps['right_delay_conditional']}  "
               f"slew {ps['right_slew_conditional']}")
-        if fg["marginal"]:
-            sep = (f"MARGINAL -- gain/band = {fg['ratio']:.2f}, i.e. the per-side fit sits "
+        # `ratio` is null when the band collapsed to zero, so it is formatted through a
+        # guard rather than straight into ':.2f' -- that raised TypeError and killed the
+        # run before the artifact was written.
+        ratio = "n/a" if fg["ratio"] is None else f"{fg['ratio']:.2f}"
+        if fg["verdict"] == "band_zero":
+            sep = ("BAND ZERO -- the two fit halves ranked the hypotheses too nearly "
+                   "identically for a MAD to see (more than half the differences tie), so "
+                   "this log offers no noise scale to cut the gain with and no separation "
+                   "verdict is possible")
+        elif fg["verdict"] == "marginal":
+            sep = (f"MARGINAL -- gain/band = {ratio}, i.e. the per-side fit sits "
                    f"ON the band rather than clear of it; not a separation this log can "
                    f"be said to show")
-        elif fg["separated"]:
-            sep = f"SEPARATED (gain/band = {fg['ratio']:.2f})"
+        elif fg["verdict"] == "separated":
+            sep = f"SEPARATED (gain/band = {ratio})"
         else:
-            sep = (f"NOT SEPARATED (gain/band = {fg['ratio']:.2f}) -- the per-side fit is "
+            sep = (f"NOT SEPARATED (gain/band = {ratio}) -- the per-side fit is "
                    f"not distinguishable from the shared one on this log")
         print(f"    fit gain over shared {fg['gain']:.4f} vs band {fg['band']:.4f}: {sep}")
         print(f"    per-side split-half  A slower={sh['A']['slower']}  "
               f"B slower={sh['B']['slower']}  "
               f"-> {'AGREE' if sh['slower_agree'] else 'DISAGREE'} on which horn is slower; "
               f"argmins {'agree' if sh['argmin_agree'] else 'disagree'}")
+        print(f"      noise floor  {sh['slower_agree_note']}")
 
     base = variants[0]
     al = next((v for v in variants if v["variant"] == "+aligned"), None)

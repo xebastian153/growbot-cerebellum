@@ -1190,19 +1190,38 @@ if __name__ == "__main__":
     # are swapped -- and they were: realized_per_side put the left triple on action
     # column 0, which imulog.parse and the twin both define as the RIGHT leg, so every
     # published per-side attribution was inverted while every error number stayed
-    # identical. Only an ASYMMETRIC fixture can catch that. One horn is deliberately
-    # crippled here (slow slew and a long delay) and the identification has to hand the
-    # slow triple back on that same horn.
+    # identical. Only an ASYMMETRIC fixture can catch that.
+    #
+    # And only one anchored on GROUND TRUTH. An asymmetric fixture injected through
+    # servo_id.RIGHT_COL / LEFT_COL and then labelled by the identification -- which
+    # reads the same two constants -- tests self-consistency: set them to 1, 0 and the
+    # injection moves with the label, so the guard stays green while every published
+    # attribution inverts. The physical convention lives in the twin's XML
+    # (right_leg -> joint_1 -> actuator servo_1 = ctrl[0]) and in the policy head
+    # (a = np.tanh(x[:2])  # [aRight, aLeft]), not in the constants. So both of these,
+    # neither redundant with the other:
+    #   (a) the constants are asserted against the XML, read independently by
+    #       servo_id.sim_side_columns;
+    #   (b) the crippled horn is injected BY COLUMN, on the column that XML says is the
+    #       right leg -- so under a reversed constant the slow horn physically stays on
+    #       the right and the identification hands it back as 'left', and side_ok fails.
     from growbot_sim import collect as _collect
-    from servo_id import PerSideServo, slower_side
+    from servo_id import PerSideServo, slower_side, sim_side_columns, check_side_convention
+    conv_ok, conv_why = check_side_convention("walk")
+    cols = sim_side_columns("walk")
     ASYM = dict(n=6000, seed=5,
                 fast=dict(delay_ticks=0, slew_rad_s=None, deadband=0.0),
                 slow=dict(delay_ticks=5, slew_rad_s=1.5, deadband=0.0),
                 slow_horn="right")
-    print(f"\ngenerating {ASYM['n'] / 50:.0f} s asymmetric fixture (hidden: {ASYM['slow_horn']} horn "
+    fast_horn = "left" if ASYM["slow_horn"] == "right" else "right"
+    print(f"\n  {conv_why}")
+    assert conv_ok, conv_why
+    print(f"generating {ASYM['n'] / 50:.0f} s asymmetric fixture (hidden: {ASYM['slow_horn']} horn "
           f"delay {ASYM['slow']['delay_ticks']} ticks / slew {ASYM['slow']['slew_rad_s']} rad/s, "
-          f"the other horn ideal)...", flush=True)
-    per_side_servo = PerSideServo(kw_l=ASYM["fast"], kw_r=ASYM["slow"])
+          f"the other horn ideal; injected on action column {cols[ASYM['slow_horn']]}, "
+          f"which the XML says drives the {ASYM['slow_horn']} leg)...", flush=True)
+    per_side_servo = PerSideServo(by_column={cols[ASYM["slow_horn"]]: ASYM["slow"],
+                                            cols[fast_horn]: ASYM["fast"]})
     Oy, Ay, O2y, Dy, _ = _collect(ASYM["n"], seed=ASYM["seed"], body="walk", servo=per_side_servo)
     _, best_y = identify(model, Oy, Ay, O2y, Dy, grid)
     kw_ly, kw_ry, _ = identify_per_side(model, Oy, Ay, O2y, Dy, grid, best_y)
@@ -1218,16 +1237,20 @@ if __name__ == "__main__":
           f"{'ok' if side_ok else 'WRONG SIDE -- the left/right labels are inverted'}")
     print(f"  that horn's slew {slow_kw['slew_rad_s']} within one grid step of the injected "
           f"{ASYM['slow']['slew_rad_s']}: {slow_slew_ok}")
-    assert side_ok, (f"the slow horn was injected on the {ASYM['slow_horn']} and came back "
-                     f"on the {got_slow}: per-side left/right attribution is inverted")
+    assert side_ok, (f"the slow horn was injected on action column "
+                     f"{cols[ASYM['slow_horn']]}, which the XML says is the "
+                     f"{ASYM['slow_horn']} leg, and came back on the {got_slow}: "
+                     f"per-side left/right attribution is inverted")
     assert slow_slew_ok, (f"the crippled horn's slew came back {slow_kw['slew_rad_s']}, more "
                           f"than one grid step from the injected {ASYM['slow']['slew_rad_s']}")
 
-    ok = delay_ok and slew_ok and ps_ok and side_ok and slow_slew_ok
+    ok = conv_ok and delay_ok and slew_ok and ps_ok and side_ok and slow_slew_ok
     print("\nROUND-TRIP", "PASS" if ok else "FAIL",
           "- delay and slew determined to one grid step through 60/30 Hz jittered sampling, "
           "the per-side search stays on the symmetric answer, and on a deliberately "
-          "asymmetric fixture the slow horn comes back on the side it was injected on"
+          "asymmetric fixture -- injected on the action column the twin's XML says is the "
+          "right leg, not on the column servo_id's constants say it is -- the slow horn "
+          "comes back on the side it was injected on"
           if ok else "")
     assert ok
 

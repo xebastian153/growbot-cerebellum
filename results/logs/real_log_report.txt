@@ -37,7 +37,7 @@
 
 == 2. the day-of-log commands, verbatim, ONE FILE AT A TIME
 
-$ python gap_report.py imu-walk-1-2026-08-20T17-50-14-713Z.json --servo-id
+$ python gap_report.py imu-walk-1-2026-08-20T17-50-14-713Z.json --servo-id --out results/gap_report_imu-walk-1-2026-08-20T17-50-14-713Z.json
 --- imu-walk-1-2026-08-20T17-50-14-713Z.json
   [  ok] effective rates: IMU 59.9 Hz, commands 24.8 Hz
   [  ok] IMU dt: median 16.7 ms, p95 18.5, p99 20.5, max 71; 3.2% of ticks >20% off the median
@@ -49,7 +49,7 @@ preflight: PASS
 log: 1 file(s), 809 ticks, 1 cuts, surface=?, regimes={np.str_('still'): 58, np.str_('walking'): 751}
 twin floor regimes (rest attitude roll +0.00, pitch -0.57 rad; 'fallen' = excursion > 0.7 rad): {np.str_('fallen'): 8967, np.str_('keyframe'): 14633, np.str_('ou'): 10458, np.str_('policy'): 11334, np.str_('sine'): 9481, np.str_('still'): 5127}
 identified servo: delay 5 ticks, slew 2.0 rad/s (grid points; run servo_id.py for determined-set diagnostics)
-  argmin is INTERIOR to the grid (delay 0-6 ticks, slew 1.0-8.0 rad/s or none; 'none' = no slew limit counts as the boundary, not as an interior point)
+  argmin is INTERIOR to the grid (delay 0-6 ticks, slew 1.0-8.0 rad/s or none, deadband 0-4 deg; 'none' = no slew limit counts as the boundary, not as an interior point)
 evaluation restricted to the held-out half (405 ticks); identification used the first half
 
 within 0.2 rad; gap = real - twin floor (matched regime); gap* = after identified servo; negative gap = worse than floor
@@ -62,7 +62,7 @@ walking      374   roll   94.4%  96.0%  -1.6   -1.1   43.0%  87.7% -44.7  -41.2
                   pitch   96.0%  97.1%  -1.1   -1.9   51.3%  87.2% -35.9  -37.2
                     yaw   97.6%  95.8%  +1.8   +4.0   33.2%  76.7% -43.5  -35.8
 
-wrote results/gap_report.json
+wrote results/gap_report_imu-walk-1-2026-08-20T17-50-14-713Z.json
 
 $ python sensor_id.py imu-walk-1-2026-08-20T17-50-14-713Z.json --out results/sensor_id_imu-walk-1-2026-08-20T17-50-14-713Z.json
 --- imu-walk-1-2026-08-20T17-50-14-713Z.json
@@ -102,7 +102,7 @@ Allan deviation on the longest still/idle segment (1 s, 69 samples, t = 0.0..1.1
 
 wrote results/sensor_id_imu-walk-1-2026-08-20T17-50-14-713Z.json
 
-$ python gap_report.py imu-walk-3-2026-08-20T17-38-19-478Z.json --servo-id
+$ python gap_report.py imu-walk-3-2026-08-20T17-38-19-478Z.json --servo-id --out results/gap_report_imu-walk-3-2026-08-20T17-38-19-478Z.json
 --- imu-walk-3-2026-08-20T17-38-19-478Z.json
   [  ok] effective rates: IMU 59.9 Hz, commands 24.7 Hz
   [  ok] IMU dt: median 16.7 ms, p95 18.0, p99 20.3, max 71; 2.2% of ticks >20% off the median
@@ -115,7 +115,7 @@ preflight: PASS
 log: 1 file(s), 261 ticks, 1 cuts, surface=?, regimes={np.str_('fall'): 110, np.str_('impact'): 21, np.str_('still'): 130}
 twin floor regimes (rest attitude roll +0.00, pitch -0.57 rad; 'fallen' = excursion > 0.7 rad): {np.str_('fallen'): 8967, np.str_('keyframe'): 14633, np.str_('ou'): 10458, np.str_('policy'): 11334, np.str_('sine'): 9481, np.str_('still'): 5127}
 identified servo: delay 6 ticks, slew 1.0 rad/s (grid points; run servo_id.py for determined-set diagnostics)
-  argmin is AT THE BOUNDARY of the grid (delay 0-6 ticks, slew 1.0-8.0 rad/s or none; 'none' = no slew limit counts as the boundary, not as an interior point)
+  argmin is AT THE BOUNDARY of the grid (delay 0-6 ticks, slew 1.0-8.0 rad/s or none, deadband 0-4 deg; 'none' = no slew limit counts as the boundary, not as an interior point)
 evaluation restricted to the held-out half (131 ticks); identification used the first half
 
 within 0.2 rad; gap = real - twin floor (matched regime); gap* = after identified servo; negative gap = worse than floor
@@ -128,7 +128,7 @@ fall          84   roll  100.0%  93.3%  +6.7   +6.7   57.1%  72.4% -15.2   +0.3
                   pitch   91.7%  95.0%  -3.4   -3.4   40.5%  67.2% -26.7  -24.3
                     yaw  100.0%  93.5%  +6.5   +6.5   61.9%  66.1%  -4.2  +20.8
 
-wrote results/gap_report.json
+wrote results/gap_report_imu-walk-3-2026-08-20T17-38-19-478Z.json
 
 $ python sensor_id.py imu-walk-3-2026-08-20T17-38-19-478Z.json --out results/sensor_id_imu-walk-3-2026-08-20T17-38-19-478Z.json
 --- imu-walk-3-2026-08-20T17-38-19-478Z.json
@@ -202,7 +202,7 @@ wrote results/sensor_id_imu-walk-3-2026-08-20T17-38-19-478Z.json
   argmin: delay 5 ticks, slew 2.0 rad/s, deadband 2 deg
   split-half: A=(delay 6, slew 5.0)  B=(delay 6, slew 2.0)  DISAGREE -- log too short or servo outside the model family
   delay determined set [2, 3, 4, 5, 6] ticks; slew determined set [2.0, 3.0] rad/s
-  argmin is INTERIOR to the grid (delay 0-6 ticks, slew 1.0-8.0 rad/s or none; 'none' = no slew limit counts as the boundary, not as an interior point)
+  argmin is INTERIOR to the grid (delay 0-6 ticks, slew 1.0-8.0 rad/s or none, deadband 0-4 deg; 'none' = no slew limit counts as the boundary, not as an interior point)
   (the fixture's 480 s of mixed excitation determines both to +-1 grid step; 8 s of periodic walking is the excitation servo_id.py warns about: 'near-ties mean the excitation never hit the slew limit')
   held-out half (405 ticks) with the extended-grid servo (within 0.2 rad; twin floor per segment):
     all         roll  @100ms  94.4 ->  94.9 (floor  96.8)  @500ms  43.0 ->  46.5 (floor  87.1)

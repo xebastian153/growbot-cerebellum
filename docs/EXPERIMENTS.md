@@ -340,9 +340,15 @@ why yaw's +9.9 and +12.6 are not treated as different from each other.
 
 Read carefully, this is a weaker and more specific result than the one it replaces:
 
-- **Roll closes at every tested point**, but the four points spread from +4.5 to +33.4
-  pts — a 29-point swing between configs that the identification cannot tell apart. The
-  choice of servo inside the band matters enormously, and the band is not narrowed.
+- **Roll closes at every tested point**, and among the configs the identification
+  genuinely **cannot** tell apart the spread is **+16.0 to +33.4 pts** — a 17.4-point
+  swing between `argmin` and `half-B`, the only two cells inside both determined sets.
+  The choice of servo inside the band matters enormously, and the band is not narrowed.
+  (This bullet used to quote the full four-point range, +4.5 to +33.4, as that swing. It
+  is not: the +4.5 end is `half-A` at slew 5.0, which the slew set [2.0, 3.0] excludes —
+  as this section states above and `band_coverage.cells_in_band` records — so the
+  identification does tell that cell apart. The four-point range is still the spread
+  across everything tested; it is not a statement about the band.)
 - **The tested configs visit 40 % of the determined delay set and 50 % of the slew set.**
   Nothing here supports "robust to the identification uncertainty"; that phrase is
   retracted. Only two of the four corrected cells (`argmin`, `half-B`) are inside both
@@ -399,14 +405,24 @@ and a change that does none of those is reported as a negative at the same size.
 | + aligned observations | delay 4, slew 2.0 | [3, 4, 5, 6] | +3.5 / −1.1 / +7.2 |
 | + multi-horizon score | delay 1, slew 1.0 ⚠ | [0 … 6] | **−2.4** / −0.3 / +10.4 |
 | + per-side servos | L(6, 6.0) ⚠ R(6, 1.0) ⚠ | [2, 3, 4, 5, 6] | **+8.0** / +0.3 / +8.0 |
-| + all three | L(5, 4.0) R(6, 1.0) ⚠ | [0 … 6] | +6.4 / −1.3 / +8.3 |
+| + all three | L(5, 4.0) ⚠ R(6, 1.0) ⚠ | [0 … 6] | +6.4 / −1.3 / +8.3 |
 
 ⚠ marks an argmin sitting on the grid's **boundary** — by this repo's own rule
-(`servo_id.argmin_interior`) that is the search running out, not an identification. Both
-per-side argmins are at delay 6 = max(grid delays), and the slower horn at slew 1.0 =
-min(grid slews). The shared argmins in rows 1–2 are interior; nothing else in this table
-is. Boundary status is checked per side and published in
+(`servo_id.argmin_interior`) that is the search running out, not an identification. In
+the `+ per-side` row both argmins are at delay 6 = max(grid delays) and the slower horn
+at slew 1.0 = min(grid slews). The shared argmins in rows 1–2 are interior; nothing else
+in this table is. Boundary status is checked per side and published in
 `results/identification_ablation.json → per_side_solution.left/right_argmin_interior`.
+
+The rule counts **all three** searched axes, deadband included, and `+ all three`'s left
+horn is the reason that had to be said out loud: it carries an interior delay (5) and an
+interior slew (4.0) but sits at deadband 0 = min(grid deadbands), and the check —
+reading only delay and slew — published it as INTERIOR and left it unmarked here. The
+grid is a product of the three, so an argmin pinned on the deadband axis is the search
+running out exactly as it is on the other two. Fixed and re-run: that horn now reads
+`left_argmin_interior: false`, prints with a `!` in
+`results/logs/identification_ablation.txt`, and carries its ⚠ in the table above.
+Nothing else moved — no error, no gain, no determined set.
 
 > **The per-side L/R labels in this table were inverted before this revision**, and every
 > published left/right attribution with them. `servo_id.realized_per_side` put the *left*
@@ -419,6 +435,20 @@ is. Boundary status is checked per side and published in
 > asymmetric fixture (one horn deliberately crippled) through the identification and
 > asserts the slow triple comes back on the side it was injected on; a symmetric fixture
 > cannot catch a label swap, which is why the old round-trip passed throughout.
+>
+> **What that guard proves, precisely.** Its first version proved only self-consistency:
+> it injected the crippled horn through `servo_id.RIGHT_COL / LEFT_COL` and then read the
+> answer's label off the same two constants, so setting them to `1, 0` moved the
+> injection along with the label and the guard stayed green while every published
+> attribution inverted. It is now bound to ground truth instead, two ways: the constants
+> are asserted against the twin's own XML, read independently by
+> `servo_id.sim_side_columns` (actuator `servo_1` → `joint_1` → body `right_leg` ⇒ action
+> column 0 is the right leg), and the crippled horn is injected **by action column** on
+> the column that XML names, not on whatever column the constants currently name.
+> Verified by reversing the pair: with `RIGHT_COL, LEFT_COL = 1, 0` the suite exits 1 on
+> the convention assert, and with that assert bypassed it exits 1 again on the
+> attribution assert (`identified: L(delay 6, slew 1.5) R(delay 0, slew None)` — the slow
+> horn injected on the right, handed back as the left). Restored, it passes.
 
 Gains are (identified servo − raw commands) on the same data, which is what makes the
 column comparable across rows: the aligned variants are scored on aligned observations, so
@@ -454,7 +484,13 @@ Three caveats, and none of them is a footnote:
 - **The fit improvement is not separated from the shared fit.** Per-side beats the shared
   fit by **0.0064** on a confidence band of **0.0063** — a ratio of 1.01. By the criterion
   this repo applies to every other number, a separation that small is not one, and the
-  script now reports it as `MARGINAL` rather than as a boolean. So "per-side fits better"
+  script now reports it as `MARGINAL` rather than as a boolean — in the artifact as well
+  as in the prose. That distinction had to be repaired once: the printed line branched on
+  marginal first, but the JSON emitted `separated: true` beside `marginal: true`, so a
+  consumer reading `fit_gain_vs_band.separated` got back exactly the boolean this bullet
+  retracts. `separated` now means *clear of* the band and is false here; the single field
+  to read is `fit_gain_vs_band.verdict` (`separated` / `marginal` / `not_separated` /
+  `band_zero`). So "per-side fits better"
   and "per-side is the only change that improved prediction" are two different claims: the
   *held-out* gain is +8.0 pts and stands, while the *fit* improvement that motivates the
   extra three parameters sits on the noise floor. The earlier version of this section
@@ -480,6 +516,18 @@ argmins disagree and every variant in the table still splits DISAGREE on the sha
 That is the honest form of the claim: *which* horn is slower reproduces across halves;
 *how much* slower does not, is not pinned by the conditional slices, and rests on argmins
 at the edge of the grid.
+
+**And that flag carries its own noise floor, which is low.** With the fit separation
+retracted as `MARGINAL`, the boundary argmins reported and the disjointness withdrawn,
+`slower_agree` is the *only* support left for "the right horn is slower" — so it has to
+be quoted with what it is worth. It is two halves each landing on one of three outcomes
+{left, right, neither}; under a null with no real asymmetry, and ties rare on this grid,
+they agree on the same non-`neither` side roughly **1 time in 2**. That is a coin flip —
+the same standard this very script applies to reject a gain/band ratio of 1.02 — so the
+flag is about one bit of evidence, not a confirmation. It is now published with that
+floor beside it (`split_half.slower_agree_null_p`, `split_half.slower_agree_note`, and a
+`noise floor` line in `results/logs/identification_ablation.txt`). The direction survives
+as the *least weak* thing here, not as a demonstrated asymmetry.
 
 **Multi-horizon scoring backfired here — a clean negative against the literature's
 expectation.** Replacing the one-step error with clip rollouts (uniformly sampled 2–40 tick

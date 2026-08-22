@@ -40,16 +40,27 @@ def argmin_interior(best, grid):
     'slew None' means NO slew limit: that is the open end of the grid, not a point
     inside it. Counting it as interior was a test that could not fail on the one
     answer it most needed to catch -- "the search ran out and picked no limit at all".
+
+    All THREE searched axes count, deadband included. The grid is a product of delay,
+    slew and deadband, so an argmin pinned at deadband 0 (or at the widest deadband on
+    the grid) is the search running out on that axis exactly as it is on the other two.
+    Reading only delay and slew published one argmin as INTERIOR while its deadband sat
+    at min(deadbands) -- the same failure this function exists to report, on the one
+    axis it was not looking at.
     """
     delays = sorted({d for d, _, _ in grid})
     slews = sorted({s for _, s, _ in grid if s is not None})
+    deadbands = sorted({round(float(db), 5) for _, _, db in grid})
+    db = round(float(best["deadband"]), 5)
     interior = (min(delays) < best["delay_ticks"] < max(delays)
                 and best["slew_rad_s"] is not None
-                and min(slews) < best["slew_rad_s"] < max(slews))
+                and min(slews) < best["slew_rad_s"] < max(slews)
+                and min(deadbands) < db < max(deadbands))
     return bool(interior), (
         f"argmin is {'INTERIOR to' if interior else 'AT THE BOUNDARY of'} the grid "
         f"(delay {min(delays)}-{max(delays)} ticks, slew {min(slews)}-{max(slews)} rad/s "
-        f"or none; 'none' = no slew limit counts as the boundary, not as an interior point)")
+        f"or none, deadband {np.rad2deg(min(deadbands)):.0f}-{np.rad2deg(max(deadbands)):.0f} deg; "
+        f"'none' = no slew limit counts as the boundary, not as an interior point)")
 
 
 # Which action column is which horn. NOT (left, right): the parser stacks the two
@@ -64,6 +75,50 @@ def argmin_interior(best, grid):
 # identical, only the attribution is inverted. Every label in this module and in its
 # callers is derived from these two constants, never from the column order.
 RIGHT_COL, LEFT_COL = 0, 1
+
+
+def sim_side_columns(body="walk"):
+    """{'right': col, 'left': col}, read out of the twin's own model. GROUND TRUTH.
+
+    Derived WITHOUT reference to RIGHT_COL / LEFT_COL, which is the whole point: the two
+    constants above are an assertion about the physical robot, and an assertion that is
+    only ever checked against itself is not checked at all. MuJoCo orders `data.ctrl` by
+    actuator and `GrowBotSim.step` writes the servo output straight into `d.ctrl`, so
+    action column i IS actuator i. Follow actuator -> transmitted joint -> that joint's
+    body, and the BODY NAME says which leg it drives:
+
+        <actuator><position name="servo_1" joint="joint_1"/>   (index 0)
+        <body name="right_leg"><joint name="joint_1" .../></body>
+
+    Flip RIGHT_COL / LEFT_COL and this function's answer does not move, because the XML
+    did not move. That is what makes it usable as the reference the constants are held
+    against, and as the anchor an asymmetric fixture injects on.
+    """
+    import mujoco
+    from growbot_sim import BODIES
+    m = mujoco.MjModel.from_xml_path(str(BODIES[body]))
+    cols = {}
+    for i in range(m.nu):
+        jid = int(m.actuator_trnid[i, 0])
+        name = mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_BODY, int(m.jnt_bodyid[jid])) or ""
+        for side in ("right", "left"):
+            if name.startswith(side):
+                cols[side] = i
+    if set(cols) != {"right", "left"} or cols["right"] == cols["left"]:
+        raise RuntimeError(f"cannot read the left/right actuator convention out of "
+                           f"{BODIES[body]}: got {cols}")
+    return cols
+
+
+def check_side_convention(body="walk"):
+    """(ok, description): RIGHT_COL / LEFT_COL against sim_side_columns's ground truth."""
+    cols = sim_side_columns(body)
+    ok = RIGHT_COL == cols["right"] and LEFT_COL == cols["left"]
+    return bool(ok), (
+        f"action columns from {body} XML (actuator -> joint -> body): "
+        f"right={cols['right']}, left={cols['left']}; servo_id constants: "
+        f"RIGHT_COL={RIGHT_COL}, LEFT_COL={LEFT_COL} -- "
+        f"{'agree' if ok else 'DISAGREE: every published per-side attribution is inverted'}")
 
 
 def realized_from_commands(A, D, kw):
@@ -113,15 +168,32 @@ def slower_side(kw_l, kw_r):
 class PerSideServo:
     """Two independent ServoModels behind one GrowBotSim-compatible servo.
 
-    Same column convention as realized_per_side: the right horn's model drives
-    RIGHT_COL, the left horn's drives LEFT_COL. It exists so a fixture can inject a
-    KNOWN asymmetry into the twin and the identification can then be asked which horn
-    it comes back on -- a symmetric fixture cannot catch a left/right label swap,
-    because under a swap it produces exactly the same answer.
+    Two ways to say which model goes where:
+
+      PerSideServo(kw_l=..., kw_r=...)   by HORN NAME, through LEFT_COL / RIGHT_COL.
+      PerSideServo(by_column={col: kw})  by ACTION COLUMN, touching neither constant.
+
+    The second exists for the regression guard. It injects a known asymmetry into the
+    twin and asks the identification which horn it comes back on; if the injection is
+    placed through the same two constants that label the answer, the test is
+    self-consistent and stays green under a swap of the pair. Anchored on the column
+    that `sim_side_columns` reads out of the XML instead, the injected side is a
+    physical fact about the model, and a reversed constant makes the identification hand
+    the slow triple back under the wrong name -- which is the failure being guarded.
+
+    A symmetric fixture cannot catch a label swap either way, because under a swap it
+    produces exactly the same answer.
     """
 
-    def __init__(self, kw_l, kw_r):
-        self.sv = {LEFT_COL: ServoModel(**kw_l), RIGHT_COL: ServoModel(**kw_r)}
+    def __init__(self, kw_l=None, kw_r=None, by_column=None):
+        if by_column is not None:
+            if kw_l is not None or kw_r is not None:
+                raise ValueError("pass the two horn triples OR by_column, not both")
+            self.sv = {int(c): ServoModel(**kw) for c, kw in by_column.items()}
+            if set(self.sv) != {0, 1}:
+                raise ValueError(f"by_column must cover both action columns, got {sorted(self.sv)}")
+        else:
+            self.sv = {LEFT_COL: ServoModel(**kw_l), RIGHT_COL: ServoModel(**kw_r)}
         self.reset()
 
     def reset(self, pos=None):

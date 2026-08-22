@@ -61,9 +61,14 @@ did not move the IMU at 100 ms, so if the spin gap is in the actuator it is in i
   by more than the band" rather than confirming it; both per-side argmins also sit on the
   grid boundary, and the per-side fit improvement (0.0064) is a ratio of 1.01 against its
   own band (0.0063). What holds is narrower and was tested separately: re-fitting per-side
-  on each half puts the slower horn on the same side both times — the **right** one. (The
+  on each half puts the slower horn on the same side both times — the **right** one, and
+  that is the only support the attribution has left, so it is quoted with its noise floor:
+  two halves each picking one of {left, right, neither} agree about 1 time in 2 under a
+  no-asymmetry null, so the flag is roughly one coin flip, not a confirmation. (The
   left/right labels in this repo were inverted until that check was written; action column
-  0 is the right leg.)
+  0 is the right leg, as the twin's XML says — `right_leg` → `joint_1` → actuator
+  `servo_1` — and the guard is now bound to that XML rather than to the constants it
+  checks.)
   https://arxiv.org/abs/2505.14266
 
 **Tested:** `actuator_proxy.py` / `servo_id.py` / `real2sim.py`. A slew-limited servo opens

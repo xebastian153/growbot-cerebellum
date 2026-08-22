@@ -398,7 +398,7 @@
      }
     }
    },
-   "seconds": 6.5
+   "seconds": 7.1
   },
   {
    "variant": "+per-side",
@@ -453,8 +453,8 @@
     "right_argmin_interior": false,
     "argmin_interior": false,
     "interior_why": {
-     "left": "argmin is AT THE BOUNDARY of the grid (delay 0-6 ticks, slew 1.0-8.0 rad/s or none; 'none' = no slew limit counts as the boundary, not as an interior point)",
-     "right": "argmin is AT THE BOUNDARY of the grid (delay 0-6 ticks, slew 1.0-8.0 rad/s or none; 'none' = no slew limit counts as the boundary, not as an interior point)"
+     "left": "argmin is AT THE BOUNDARY of the grid (delay 0-6 ticks, slew 1.0-8.0 rad/s or none, deadband 0-4 deg; 'none' = no slew limit counts as the boundary, not as an interior point)",
+     "right": "argmin is AT THE BOUNDARY of the grid (delay 0-6 ticks, slew 1.0-8.0 rad/s or none, deadband 0-4 deg; 'none' = no slew limit counts as the boundary, not as an interior point)"
     },
     "slower_side": "right",
     "fit_gain_over_shared": 0.00636860728263855,
@@ -462,8 +462,10 @@
      "gain": 0.00636860728263855,
      "band": 0.006315527808666229,
      "ratio": 1.0084045982505982,
-     "separated": true,
-     "marginal": true
+     "separated": false,
+     "marginal": true,
+     "band_zero": false,
+     "verdict": "marginal"
     },
     "split_half": {
      "A": {
@@ -489,6 +491,8 @@
       "slower": "right"
      },
      "slower_agree": true,
+     "slower_agree_null_p": 0.5,
+     "slower_agree_note": "two halves, each landing on one of {left, right, neither}: under a no-asymmetry null they agree on the same side roughly 1 time in 2, so this flag is about one bit of evidence, not a confirmed asymmetry",
      "argmin_agree": false
     },
     "left_delay_conditional": [
@@ -592,7 +596,7 @@
      }
     }
    },
-   "seconds": 9.4
+   "seconds": 9.5
   },
   {
    "variant": "+all three",
@@ -649,12 +653,12 @@
     "evaluations": 1009,
     "best_err": 1.3205712014039739,
     "shared_err": 1.424516096172124,
-    "left_argmin_interior": true,
+    "left_argmin_interior": false,
     "right_argmin_interior": false,
     "argmin_interior": false,
     "interior_why": {
-     "left": "argmin is INTERIOR to the grid (delay 0-6 ticks, slew 1.0-8.0 rad/s or none; 'none' = no slew limit counts as the boundary, not as an interior point)",
-     "right": "argmin is AT THE BOUNDARY of the grid (delay 0-6 ticks, slew 1.0-8.0 rad/s or none; 'none' = no slew limit counts as the boundary, not as an interior point)"
+     "left": "argmin is AT THE BOUNDARY of the grid (delay 0-6 ticks, slew 1.0-8.0 rad/s or none, deadband 0-4 deg; 'none' = no slew limit counts as the boundary, not as an interior point)",
+     "right": "argmin is AT THE BOUNDARY of the grid (delay 0-6 ticks, slew 1.0-8.0 rad/s or none, deadband 0-4 deg; 'none' = no slew limit counts as the boundary, not as an interior point)"
     },
     "slower_side": "right",
     "fit_gain_over_shared": 0.10394489476815005,
@@ -663,7 +667,9 @@
      "band": 0.08086443293061632,
      "ratio": 1.2854216742895772,
      "separated": true,
-     "marginal": false
+     "marginal": false,
+     "band_zero": false,
+     "verdict": "separated"
     },
     "split_half": {
      "A": {
@@ -689,6 +695,8 @@
       "slower": "right"
      },
      "slower_agree": true,
+     "slower_agree_null_p": 0.5,
+     "slower_agree_note": "two halves, each landing on one of {left, right, neither}: under a no-asymmetry null they agree on the same side roughly 1 time in 2, so this flag is about one bit of evidence, not a confirmed asymmetry",
      "argmin_agree": false
     },
     "left_delay_conditional": [
@@ -797,7 +805,7 @@
      }
     }
    },
-   "seconds": 40.2
+   "seconds": 42.1
   }
  ],
  "delay_decomposition": {
