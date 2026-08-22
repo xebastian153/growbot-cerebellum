@@ -394,7 +394,8 @@ def main():
         # sensor_id writes one artifact per input; ask for the path explicitly rather
         # than relying on a fixed name that a second file would overwrite.
         sid_out = sensor_out_path([f])
-        for cmd, out, key in ((["gap_report.py", f, "--servo-id"], "results/gap_report.json", "gap_report"),
+        gap_out = sensor_out_path([f], "gap_report")
+        for cmd, out, key in ((["gap_report.py", f, "--servo-id", "--out", gap_out], gap_out, "gap_report"),
                               (["sensor_id.py", f, "--out", sid_out], sid_out, "sensor_id")):
             print(f"\n$ python {' '.join(cmd)}")
             r = subprocess.run([sys.executable, *cmd], capture_output=True, text=True)

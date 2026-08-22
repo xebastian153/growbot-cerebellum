@@ -22,6 +22,7 @@ import argparse, itertools, json, sys
 import numpy as np
 sys.path.insert(0, "."); sys.path.insert(0, "sim")
 from forward import MLP, make_windows, encode_obs, decode_obs
+from sensor_id import default_out_path
 from sim2real_proxy import K
 from imulog import CTRL_HZ
 from imulog import (parse, run_preflight, rest_attitude, attitude_excursion,
@@ -118,7 +119,11 @@ def main():
     ap.add_argument("--epochs", type=int, default=80)
     ap.add_argument("--horizons", type=int, nargs="+", default=[5, 25])
     ap.add_argument("--servo-id", action="store_true", help="add the after-identified-servo column")
+    ap.add_argument("--out", default=None,
+                    help="output JSON; default results/gap_report_<input stem>.json, so analysing "
+                         "two files keeps both instead of overwriting one")
     args = ap.parse_args()
+    out_path = args.out or default_out_path(args.log, "gap_report")
 
     parts, header, first, rest0 = [], None, None, None
     for f in args.log:
@@ -220,8 +225,8 @@ def main():
                     **({"gap_after_servo": corrected[reg][h][ax]["within"] - tw} if corrected else {})}
             print(line)
     json.dump({"header": {k: v for k, v in header.items() if not isinstance(v, (list, dict))},
-               "report": report}, open("results/gap_report.json", "w"), indent=1)
-    print("\nwrote results/gap_report.json")
+               "report": report}, open(out_path, "w"), indent=1)
+    print(f"\nwrote {out_path}")
 
 
 if __name__ == "__main__":

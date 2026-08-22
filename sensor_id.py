@@ -486,8 +486,8 @@ def filter_lag(fused_angles, ts_f, gyro, ts_g, max_lag_ms=500.0, min_corr=0.5,
     return {"axes": out, **meta}
 
 
-def default_out_path(logs):
-    """results/sensor_id_<stem>.json -- per input, because one fixed name silently clobbers.
+def default_out_path(logs, prefix="sensor_id"):
+    """results/<prefix>_<stem>.json -- per input, because one fixed name silently clobbers.
 
     Two files analysed in one session used to land on the same path, so the artifact
     on disk was whichever ran last, and the numbers from the other file survived only
@@ -498,7 +498,7 @@ def default_out_path(logs):
     stem = "".join(ch if (ch.isalnum() or ch in "-_") else "_" for ch in stem)[:60]
     if len(logs) > 1:
         stem += f"_plus{len(logs) - 1}"
-    return f"results/sensor_id_{stem}.json"
+    return f"results/{prefix}_{stem}.json"
 
 
 def apply_split_half(res, split):
