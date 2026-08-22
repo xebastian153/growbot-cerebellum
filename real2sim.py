@@ -11,16 +11,24 @@ identification and the evaluation are both walk-1, first half and held-out secon
 half, and only its WALKING segment carries the walking claim.
 
 What is being tested, and what it cannot test. servo_id leaves the delay
-completely undetermined on this log (the determined set is the entire grid,
-0-6 ticks) and the slew determined only to a band. A "corrected" config therefore
-changes delay, slew AND deadband at once against a control that has none of them,
-so a gain over the control says "some actuator model helps", not "this actuator
-model is right". The SMOOTHING-ONLY cell below is the one lever that separates
-them: delay 0, slew and deadband at the argmin values. It sits inside the
-determined band, so it is a legitimate hypothesis about the same servo, and it
-carries no latency at all. If it closes as much as the delayed configs, the
-closure is attributable to action smoothing and the delay is doing nothing that
-this log can see.
+determined only to a wide set on this log, and the slew only to a band. A
+"corrected" config therefore changes delay, slew AND deadband at once against a
+control that has none of them, so a gain over the control says "some actuator model
+helps", not "this actuator model is right". The SMOOTHING-ONLY cell below is the one
+lever that separates them: delay 0, slew and deadband at the argmin values, carrying
+no latency at all. If it closes as much as the delayed configs, the closure is
+attributable to action smoothing and the delay is doing nothing this log can see.
+
+That cell used to be described as sitting INSIDE the determined band. It no longer
+does, and the difference was invisible because the band was hand-copied: when the
+confidence band changed to 1.4826*MAD the determined delay set narrowed from the
+whole grid to [2 ... 6], which excludes delay 0, while the copy here still said
+[0 ... 6]. The sets are now READ from the identification's own artifact (see
+determined_band) and whether each tested cell is inside the band is COMPUTED and
+published per cell, so the smoothing-only cell is what it is -- a zero-delay control
+outside the determined delay set, which weakens it from "a rival hypothesis about
+the same servo" to "an action-smoothing control" -- rather than what a stale
+constant said it was.
 
 Decision rule, stated before the numbers: a config's closure on an axis at 500 ms
 is material when it exceeds max(3.0 pts, 2x the control's seed spread on that
@@ -47,6 +55,7 @@ from forward import MLP, make_windows
 from sim2real_proxy import K
 from gap_report import evaluate_axes, twin_regimes, REGIME_MAP, AXES
 from imulog import parse, run_preflight
+from servo_id import default_grid
 
 LOG = "imu-walk-1-2026-08-20T17-50-14-713Z.json"     # the only real file that walks
 EXCLUDED = {"imu-walk-3-2026-08-20T17-38-19-478Z.json":
@@ -58,11 +67,40 @@ EPOCHS, HIDDEN = 80, 128                # the published real-log model (real_log
 HORIZONS = [5, 25]                      # 100 / 500 ms
 DB2 = float(np.deg2rad(2))              # argmin deadband, shared by all corrected configs
 
-# The determined sets real_log_report.py reports for walk-1 alone. Written down here
-# so the coverage arithmetic below is against the identification's own output and not
-# against whichever points happened to be tried.
-DETERMINED_DELAY = [0, 1, 2, 3, 4, 5, 6]
-DETERMINED_SLEW = [1.5, 2.0, 3.0, 4.0]
+REAL_LOG_REPORT = "results/real_log_report.json"
+
+
+def determined_band(path=REAL_LOG_REPORT):
+    """(delay_set, slew_set) for walk-1, READ from the identification's own artifact.
+
+    These were two hand-copied constants, "written down here so the coverage
+    arithmetic is against the identification's own output". A copy is not the output.
+    When confidence_band changed from a standard deviation to 1.4826*MAD the sets
+    narrowed -- delay [0 ... 6] -> [2, 3, 4, 5, 6], slew [1.5, 2.0, 3.0, 4.0] ->
+    [2.0, 3.0] -- and nothing here noticed, so the published band coverage, the claim
+    that the zero-delay cell sits inside the band, and the line calling the delay set
+    "the whole grid" were all computed against numbers the identification had stopped
+    reporting. Reading the file is the fix: there is one source, and it is the one
+    real_log_report writes. A missing or malformed artifact is a hard failure -- never
+    a fall back to a default, which is the same silent drift in a new costume.
+    """
+    try:
+        with open(path) as fh:
+            servo = json.load(fh)["servo"]
+        delay = [int(v) for v in servo["delay_determined_set"]]
+        slew = [None if v is None else float(v) for v in servo["slew_determined_set"]]
+    except (OSError, KeyError, TypeError, ValueError) as e:
+        raise SystemExit(
+            f"cannot read the determined sets from {path}: {e!r}. This script's band "
+            f"arithmetic is only meaningful against the identification's own output, so "
+            f"it refuses to run on a guess. Re-run real_log_report.py first.")
+    if not delay or not slew:
+        raise SystemExit(f"{path} reports an empty determined set (delay {delay}, slew "
+                         f"{slew}): there is no band to cover.")
+    return delay, slew
+
+
+DETERMINED_DELAY, DETERMINED_SLEW = determined_band()
 
 # delay_ticks count CALLS at GrowBotSim.step's 50 Hz (1 tick = 20 ms)
 CONFIGS = {
@@ -109,16 +147,33 @@ def gait_sanity(A, R, O, mode):
                                         (np.abs(O[pol, 1]) > 1.2)).mean()), 4)}
 
 
+def in_band(kw):
+    """Is this cell inside BOTH determined sets? Computed per cell, never assumed.
+
+    A cell outside them is still a legitimate control -- it just cannot be described
+    as a rival hypothesis about the same servo, which is the claim the smoothing-only
+    cell was carrying on a stale copy of the band.
+    """
+    if kw is None:
+        return None
+    return {"delay_in_set": kw["delay_ticks"] in DETERMINED_DELAY,
+            "slew_in_set": kw["slew_rad_s"] in DETERMINED_SLEW,
+            "in_band": bool(kw["delay_ticks"] in DETERMINED_DELAY
+                            and kw["slew_rad_s"] in DETERMINED_SLEW)}
+
+
 def band_coverage(configs):
     """How much of the determined (delay, slew) band the tested configs actually visit."""
     tested = [(kw["delay_ticks"], kw["slew_rad_s"]) for kw in configs.values() if kw]
     d = sorted({t[0] for t in tested}); s = sorted({t[1] for t in tested})
-    return {"delay_tested": d, "delay_determined": DETERMINED_DELAY,
+    return {"source": REAL_LOG_REPORT,
+            "delay_tested": d, "delay_determined": DETERMINED_DELAY,
             "delay_covered": bool(set(DETERMINED_DELAY) <= set(d)),
             "delay_fraction": round(len(set(d) & set(DETERMINED_DELAY)) / len(DETERMINED_DELAY), 2),
             "slew_tested": s, "slew_determined": DETERMINED_SLEW,
             "slew_covered": bool(set(DETERMINED_SLEW) <= set(s)),
-            "slew_fraction": round(len(set(s) & set(DETERMINED_SLEW)) / len(DETERMINED_SLEW), 2)}
+            "slew_fraction": round(len(set(s) & set(DETERMINED_SLEW)) / len(DETERMINED_SLEW), 2),
+            "cells_in_band": {n: in_band(kw) for n, kw in configs.items() if kw}}
 
 
 def main():
@@ -133,11 +188,17 @@ def main():
           f"[{half}:{total}] ({len(Oh)} ticks, {len(Oh) / 50:.1f} s), segments {segs}")
 
     cover = band_coverage(CONFIGS)
-    print(f"\ndetermined band from walk-1 alone: delay {DETERMINED_DELAY} ticks, "
-          f"slew {DETERMINED_SLEW} rad/s")
+    print(f"\ndetermined band from walk-1 alone, read from {REAL_LOG_REPORT}: "
+          f"delay {DETERMINED_DELAY} ticks, slew {DETERMINED_SLEW} rad/s")
     print(f"  tested delays {cover['delay_tested']} -> {cover['delay_fraction'] * 100:.0f}% of the "
           f"delay set; tested slews {cover['slew_tested']} -> {cover['slew_fraction'] * 100:.0f}% "
           f"of the slew set")
+    for n, ib in cover["cells_in_band"].items():
+        if not ib["in_band"]:
+            why = [w for w, k in (("delay", "delay_in_set"), ("slew", "slew_in_set")) if not ib[k]]
+            print(f"  OUTSIDE the determined band: {n} -- its {' and '.join(why)} "
+                  f"{'is' if len(why) == 1 else 'are'} not in the determined set. It is a "
+                  f"control, not a rival hypothesis about the same servo")
 
     report = {"conditions": {
         "log": LOG, "excluded": EXCLUDED,
@@ -256,6 +317,15 @@ def main():
     # SAME materiality threshold the cells themselves are judged by: a difference
     # smaller than the threshold is not a difference, whichever direction it points.
     sm = verdict[smooth_name]
+    sm_band = cover["cells_in_band"][smooth_name]
+    if not sm_band["in_band"]:
+        parts.append(f"the smoothing-only cell is OUTSIDE the determined band "
+                     f"(delay {CONFIGS[smooth_name]['delay_ticks']} is not in "
+                     f"{DETERMINED_DELAY}), so it is an action-smoothing control rather "
+                     f"than a rival hypothesis about the same servo: it still shows what "
+                     f"smoothing alone buys, but a tie with it no longer says the "
+                     f"identified servo could have been the zero-delay member of its own "
+                     f"band")
     for ax in AXES:
         gains_delayed = {n: verdict[n][ax]["gain_pts"] for n in delayed}
         best = max(gains_delayed.values()); worst = min(gains_delayed.values())
@@ -280,9 +350,21 @@ def main():
                          f"more, above the {thr:.1f}-pt threshold; {span}")
         else:
             parts.append(f"on {ax} nothing closes: smoothing only {sm_gain:+.1f} pts, {span}")
-    parts.append("delay remains UNIDENTIFIED on this log (determined set "
-                 f"{DETERMINED_DELAY} ticks, the whole grid); deadband is never varied on its "
-                 f"own in these cells, so its contribution is untested")
+    # How wide the delay set is, stated against the grid it was cut from rather than
+    # asserted. "the whole grid" was a hand-written phrase that outlived the set it
+    # described by two revisions of the confidence band.
+    grid_delays = sorted({d for d, _, _ in default_grid()})
+    if len(DETERMINED_DELAY) == 1:
+        width = f"determined to {DETERMINED_DELAY[0]} ticks"
+    elif set(DETERMINED_DELAY) >= set(grid_delays):
+        width = (f"UNIDENTIFIED on this log (determined set {DETERMINED_DELAY} ticks, the "
+                 f"whole grid)")
+    else:
+        width = (f"not identified to a point on this log (determined set {DETERMINED_DELAY} "
+                 f"ticks, {len(DETERMINED_DELAY)} of the grid's {len(grid_delays)} values, "
+                 f"{min(DETERMINED_DELAY) * 20}-{max(DETERMINED_DELAY) * 20} ms)")
+    parts.append(f"delay is {width}; deadband is never varied on its own in these cells, "
+                 f"so its contribution is untested")
     conclusion = "; ".join(parts)
     report["conclusion"] = conclusion
     print(f"\n  {conclusion}")

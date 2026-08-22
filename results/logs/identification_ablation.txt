@@ -11,18 +11,49 @@
 
   running 5 variants ...
     baseline            1.1s   argmin delay 5, slew 2.0
-    +aligned            1.0s   argmin delay 4, slew 2.0
-    +multi-horizon      6.4s   argmin delay 1, slew 1.0
-    +per-side           4.8s   argmin delay 5, slew 2.0
-    +all three         19.6s   argmin delay 1, slew 1.0
+    +aligned            1.1s   argmin delay 4, slew 2.0
+    +multi-horizon      6.5s   argmin delay 1, slew 1.0
+    +per-side           9.4s   argmin delay 5, slew 2.0
+    +all three         40.2s   argmin delay 1, slew 1.0
 
 == the table (held-out gains are walking-segment, 500 ms, within 0.2 rad)
   variant               identified                                    delay set        halves        roll      pitch        yaw
   baseline              delay 5, slew 2.0, db 2 deg                   delay set [2, 3, 4, 5, 6]  DISAGREE roll  +3.5  pitch  -1.3  yaw  +7.8
   +aligned              delay 4, slew 2.0, db 1 deg                   delay set [3, 4, 5, 6]     DISAGREE roll  +3.5  pitch  -1.1  yaw  +7.2
-  +multi-horizon        delay 1, slew 1.0, db 4 deg                   delay set [0, 1, 2, 3, 4, 5, 6]DISAGREE roll  -2.4  pitch  -0.3  yaw +10.4
-  +per-side             L(delay 6, slew 1.0)  R(delay 6, slew 6.0)    delay set [2, 3, 4, 5, 6]  DISAGREE roll  +8.0  pitch  +0.3  yaw  +8.0
-  +all three            L(delay 6, slew 1.0)  R(delay 5, slew 4.0)    delay set [0, 1, 2, 3, 4, 5, 6]DISAGREE roll  +6.4  pitch  -1.3  yaw  +8.3
+  +multi-horizon        delay 1, slew 1.0, db 4 deg [boundary]        delay set [0, 1, 2, 3, 4, 5, 6]DISAGREE roll  -2.4  pitch  -0.3  yaw +10.4
+  +per-side             L(delay 6, slew 6.0)!  R(delay 6, slew 1.0)!  delay set [2, 3, 4, 5, 6]  DISAGREE roll  +8.0  pitch  +0.3  yaw  +8.0
+  +all three            L(delay 5, slew 4.0)  R(delay 6, slew 1.0)!   delay set [0, 1, 2, 3, 4, 5, 6]DISAGREE roll  +6.4  pitch  -1.3  yaw  +8.3
+  '!' on a per-side entry = that horn's argmin sits on the grid's edge
+
+== what the per-side split is and is not evidence for
+  Read before quoting any per-side number:
+  - the two per-side sweeps are ONE-DIMENSIONAL CONDITIONAL slices. Each is
+    taken with the partner frozen at its coordinate-descent optimum and each
+    is centred on its own argmin, cut with the band from the SHARED sweeps.
+    Their disjointness therefore restates 'the two argmins differ by more than
+    the band'; it is not independent evidence for an asymmetry.
+  - the per-side fit is only separated from the shared fit when its fit gain
+    exceeds that same band. Below the band, 'per-side fits better' is noise.
+
+  +per-side
+    solution         L(delay 6, slew 6.0)  R(delay 6, slew 1.0)   -> slower horn: right
+    argmin interior  left False, right False
+      left  argmin is AT THE BOUNDARY of the grid (delay 0-6 ticks, slew 1.0-8.0 rad/s or none; 'none' = no slew limit counts as the boundary, not as an interior point)
+      right argmin is AT THE BOUNDARY of the grid (delay 0-6 ticks, slew 1.0-8.0 rad/s or none; 'none' = no slew limit counts as the boundary, not as an interior point)
+    conditional slices  left  delay [4, 5, 6]  slew [3.0, 4.0, 5.0, 6.0, 8.0, None]
+                        right delay [1, 2, 3, 4, 5, 6]  slew [1.0, 1.5, 2.0]
+    fit gain over shared 0.0064 vs band 0.0063: MARGINAL -- gain/band = 1.01, i.e. the per-side fit sits ON the band rather than clear of it; not a separation this log can be said to show
+    per-side split-half  A slower=right  B slower=right  -> AGREE on which horn is slower; argmins disagree
+
+  +all three
+    solution         L(delay 5, slew 4.0)  R(delay 6, slew 1.0)   -> slower horn: right
+    argmin interior  left True, right False
+      left  argmin is INTERIOR to the grid (delay 0-6 ticks, slew 1.0-8.0 rad/s or none; 'none' = no slew limit counts as the boundary, not as an interior point)
+      right argmin is AT THE BOUNDARY of the grid (delay 0-6 ticks, slew 1.0-8.0 rad/s or none; 'none' = no slew limit counts as the boundary, not as an interior point)
+    conditional slices  left  delay [0, 1, 2, 3, 4, 5, 6]  slew [1.5, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0, None]
+                        right delay [0, 1, 2, 3, 4, 5, 6]  slew [1.0]
+    fit gain over shared 0.1039 vs band 0.0809: SEPARATED (gain/band = 1.29)
+    per-side split-half  A slower=right  B slower=right  -> AGREE on which horn is slower; argmins disagree
 
 == what the sensor lag was costing the servo
   un-aligned (lumped) delay   5 ticks = 100 ms

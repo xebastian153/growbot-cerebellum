@@ -234,9 +234,19 @@ or servos not moving — and it is the most useful thing walk-3 contains.
 **Servo identification, walk-1 alone** (fit on its first half, evaluated on its held-out
 second half, 252 hypotheses on a grid extended until the argmin is interior): argmin
 delay 5 ticks (100 ms), slew 2.0 rad/s, deadband 2°; split-half **DISAGREE**
-(A: 6 / 5.0, B: 6 / 2.0). The determined sets are delay **[0, 1, 2, 3, 4, 5, 6] ticks —
-the entire grid, i.e. undetermined** — and slew [1.5, 2.0, 3.0, 4.0] rad/s. Eight seconds
-of periodic walking is the excitation `servo_id.py` warns about.
+(A: 6 / 5.0, B: 6 / 2.0). The determined sets are delay **[2, 3, 4, 5, 6] ticks** (5 of the
+grid's 7 values, 40–120 ms) and slew **[2.0, 3.0] rad/s**. Eight seconds of periodic
+walking is the excitation `servo_id.py` warns about: the argmin is not an identification
+at that width, but the set is no longer the whole grid.
+
+> These two sets are quoted from `results/real_log_report.json` (`servo.delay_determined_set`,
+> `servo.slew_determined_set`). An earlier revision of this section published delay
+> **[0 … 6] — the entire grid** — and slew **[1.5, 2.0, 3.0, 4.0]**, which were the sets
+> before `confidence_band` moved from a standard deviation to 1.4826·MAD. That change
+> narrowed both sets and nothing downstream noticed, because `real2sim.py` held a
+> hand-copied mirror of them. The copy is gone (`real2sim.determined_band` reads the
+> artifact and fails hard if it cannot), and every number below that depends on the sets
+> is recomputed against them.
 
 **Fusion-filter lag, walk-1 only**: wx +13.0 ± 0.1 ms (corr 0.87), wy +13.8 ± 0.2 (0.95),
 wz +12.8 ± 0.7 (0.96), split-half AGREE on all three. walk-3 gives +17.9 ± 10.1 / +20.7 ±
@@ -277,9 +287,16 @@ segments are **too short**, not absent.
 > delay set, which is a claim about a band made from a sample of it. Every number below
 > is new: walk-1 only, and the verdict text is computed from which cells pass and from
 > how much of the band they cover.
+>
+> **The band numbers in this section were corrected again.** They were computed against
+> `real2sim.py`'s hand-copied mirror of the determined sets, which had gone stale against
+> `results/real_log_report.json`. The coverage figures move 43 % → **40 %** on delay and
+> 25 % → **50 %** on slew, and the smoothing-only cell moves from inside the determined
+> band to outside it. The measured percentages in the table are unchanged — they never
+> depended on the sets — but two of the readings did, and both are rewritten below.
 
-`servo_id.py` on walk-1 alone leaves the servo at delay **[0, 1, 2, 3, 4, 5, 6] ticks**
-— the entire grid, i.e. undetermined — and slew **[1.5, 2.0, 3.0, 4.0] rad/s**, with
+`servo_id.py` on walk-1 alone leaves the servo at delay **[2, 3, 4, 5, 6] ticks** (40–120
+ms, 5 of the grid's 7 values) and slew **[2.0, 3.0] rad/s**, with
 split-half DISAGREE (A: delay 6 / slew 5.0, B: delay 6 / slew 2.0). `real2sim.py` runs
 the whole loop at four points plus a nominal control through the identical pipeline:
 collect 400 k ticks with the servo inside the twin (seed 0), train the standard model
@@ -290,8 +307,17 @@ angles are all a real log carries.
 The fourth point is the one the previous design lacked. A "corrected" config changes
 delay, slew *and* deadband at once against a control that has none of them, so its gain
 says "some actuator model helps", not "this one is right". The **smoothing-only** cell
-(delay 0, slew 2.0, deadband 2°) sits inside the determined band and carries no latency
-at all, so it separates identified dynamics from plain action smoothing.
+(delay 0, slew 2.0, deadband 2°) carries no latency at all, so it still separates
+identified dynamics from plain action smoothing.
+
+What it no longer does is sit **inside** the determined band. Delay 0 is not in
+[2, 3, 4, 5, 6], so this cell is an action-smoothing *control*, not a rival hypothesis
+about the same servo. The difference matters for exactly one reading: a tie between it
+and a delayed cell used to mean "the identified servo could have been its own zero-delay
+member", and it now means only "smoothing alone gets you as far here". (`half-A`, at slew
+5.0, is outside the band too — 5.0 is not in [2.0, 3.0].) Whether each cell is in band is
+now computed per cell by `real2sim.in_band` and published in
+`results/real2sim.json → band_coverage.cells_in_band`, rather than asserted in prose.
 
 Discipline: identification used the first half of walk-1, so every real-log number is
 its held-out second half only (405 ticks, 8.1 s — n is small and quoted). The decision
@@ -317,17 +343,26 @@ Read carefully, this is a weaker and more specific result than the one it replac
 - **Roll closes at every tested point**, but the four points spread from +4.5 to +33.4
   pts — a 29-point swing between configs that the identification cannot tell apart. The
   choice of servo inside the band matters enormously, and the band is not narrowed.
-- **The tested configs visit 43 % of the determined delay set and 25 % of the slew set.**
+- **The tested configs visit 40 % of the determined delay set and 50 % of the slew set.**
   Nothing here supports "robust to the identification uncertainty"; that phrase is
-  retracted.
-- **The smoothing-only cell splits the axes, and the split is the finding.** On **yaw**
-  it closes +9.9 against the best delayed cell's +12.6 — a 2.7-pt difference, inside the
-  10.7-pt threshold — so *this log does not separate "the identified dynamics" from "any
-  action smoothing"* on yaw. On **roll** the best delayed cell beats it by 22.4 pts and
-  on **pitch** by 6.4, both above threshold, so there the latency is carrying something
-  smoothing alone does not.
-- **Delay is unidentified on this log** — the determined set is the whole grid — so none
-  of the above says the servo's real latency is any particular number.
+  retracted. Only two of the four corrected cells (`argmin`, `half-B`) are inside both
+  determined sets at all.
+- **The smoothing-only cell splits the axes, and the split is the finding — with a
+  weaker reading on yaw than this section used to give it.** On **yaw** it closes +9.9
+  against the best delayed cell's +12.6 — a 2.7-pt difference, inside the 10.7-pt
+  threshold — so *this log does not separate "the identified dynamics" from "any action
+  smoothing"* on yaw. That much stands: it is a statement about two measured gains and
+  the threshold, and none of the three numbers depends on the determined sets. What does
+  not stand is the stronger gloss the cell used to carry. Because delay 0 is **outside**
+  the determined set, the yaw tie no longer says "the servo could just as well be the
+  zero-delay member of its own band"; it says only that on yaw, 8.1 s of held-out walking
+  cannot tell a zero-delay smoother from the identified servo. On **roll** the best
+  delayed cell beats it by 22.4 pts and on **pitch** by 6.4, both above threshold, so
+  there the latency is carrying something smoothing alone does not.
+- **Delay is not identified to a point on this log** — the determined set is
+  [2, 3, 4, 5, 6] ticks, 5 of the grid's 7 values, spanning 40–120 ms — so none of the
+  above says the servo's real latency is any particular number. (This bullet previously
+  read "the determined set is the whole grid", which was the stale copy.)
 - **Deadband is never varied on its own**, so its contribution is untested. The cells
   are not a factorial.
 
@@ -343,7 +378,7 @@ walk policy against the corrected twin upstream. It is also a confound worth nam
 the corrected twins move 40–45 % less than the control, so part of any gain may be a
 gentler training distribution rather than a better actuator model.
 
-## Identification ablation — per-side wins, multi-horizon backfires, and the delay was over-charged by a tick
+## Identification ablation — per-side gains the most and proves the least, multi-horizon backfires, and the delay was over-charged by a tick
 
 `identification_ablation.py`, on `imu-walk-1` (809 ticks, 16.2 s, the only real file that
 walks). Four changes to how the servo is identified, each from a specific reading of the
@@ -362,9 +397,28 @@ and a change that does none of those is reported as a negative at the same size.
 |---|---|---|---|
 | baseline (one-step, shared) | delay 5, slew 2.0 | [2, 3, 4, 5, 6] | **+3.5** / −1.3 / **+7.8** |
 | + aligned observations | delay 4, slew 2.0 | [3, 4, 5, 6] | +3.5 / −1.1 / +7.2 |
-| + multi-horizon score | delay 1, slew 1.0 | [0 … 6] | **−2.4** / −0.3 / +10.4 |
-| + per-side servos | L(6, 1.0) R(6, 6.0) | [2, 3, 4, 5, 6] | **+8.0** / +0.3 / +8.0 |
-| + all three | L(6, 1.0) R(5, 4.0) | [0 … 6] | +6.4 / −1.3 / +8.3 |
+| + multi-horizon score | delay 1, slew 1.0 ⚠ | [0 … 6] | **−2.4** / −0.3 / +10.4 |
+| + per-side servos | L(6, 6.0) ⚠ R(6, 1.0) ⚠ | [2, 3, 4, 5, 6] | **+8.0** / +0.3 / +8.0 |
+| + all three | L(5, 4.0) R(6, 1.0) ⚠ | [0 … 6] | +6.4 / −1.3 / +8.3 |
+
+⚠ marks an argmin sitting on the grid's **boundary** — by this repo's own rule
+(`servo_id.argmin_interior`) that is the search running out, not an identification. Both
+per-side argmins are at delay 6 = max(grid delays), and the slower horn at slew 1.0 =
+min(grid slews). The shared argmins in rows 1–2 are interior; nothing else in this table
+is. Boundary status is checked per side and published in
+`results/identification_ablation.json → per_side_solution.left/right_argmin_interior`.
+
+> **The per-side L/R labels in this table were inverted before this revision**, and every
+> published left/right attribution with them. `servo_id.realized_per_side` put the *left*
+> triple on action column 0, but column 0 is the **right** leg: `imulog.parse` stacks
+> `np.stack([a_right, a_left], 1)`, and the twin agrees (`a = np.tanh(x[:2])  # [aRight,
+> aLeft]`, `joint_1 is right_leg`). The error was invisible to every metric — swapping two
+> labels changes no error, no gain and no determined set, only who gets the credit — so
+> the fix changes no number in this table, only which horn each triple belongs to. The
+> slow horn is the **right** one, not the left. A regression guard now runs an
+> asymmetric fixture (one horn deliberately crippled) through the identification and
+> asserts the slow triple comes back on the side it was injected on; a symmetric fixture
+> cannot catch a label swap, which is why the old round-trip passed throughout.
 
 Gains are (identified servo − raw commands) on the same data, which is what makes the
 column comparable across rows: the aligned variants are scored on aligned observations, so
@@ -386,17 +440,46 @@ What remains after alignment is the actuator plus whatever absolute lag the gyro
 carries, which this log cannot measure — so 80 ms is an upper bound on the actuator, not a
 split.
 
-**Per-side is the only change that improved prediction, and the asymmetry it found is
-partly real.** Fitting one (delay, slew, deadband) per servo instead of one for both more
-than doubles the held-out roll gain, +3.5 → +8.0 pts, and helps at 100 ms too (+0.5 →
-+1.9). The search is coordinate descent from the shared solution — the full product of two
-triples is ~63k hypotheses and brute force is not the point — converging in 1009
-evaluations. Its solution is L(delay 6, slew 1.0) and R(delay 6, slew 6.0), and the
-per-side determined sets say how much of that to believe: the two slew sets are
-**disjoint**, [1.0, 1.5, 2.0] on the left against [3.0 … 8.0, none] on the right. Neither
-value is pinned, but the log does separate the *direction* — the left horn is slower than
-the right. The delays are not separated at all on the left ([1 … 6]) and only loosely on
-the right ([4, 5, 6]).
+**Per-side has the largest held-out gain, and the weakest claim to it of anything in this
+table.** Fitting one (delay, slew, deadband) per servo instead of one for both more than
+doubles the held-out roll gain, +3.5 → +8.0 pts, and helps at 100 ms too (+0.5 → +1.9).
+That gain is real: it is measured on the held-out half and it reproduces from
+`results/identification_ablation.json`. The search is coordinate descent from the shared
+solution — the full product of two triples is ~63k hypotheses and brute force is not the
+point — converging in 1009 evaluations, on L(delay 6, slew 6.0) and R(delay 6, slew 1.0):
+the **right** horn is the slower one.
+
+Three caveats, and none of them is a footnote:
+
+- **The fit improvement is not separated from the shared fit.** Per-side beats the shared
+  fit by **0.0064** on a confidence band of **0.0063** — a ratio of 1.01. By the criterion
+  this repo applies to every other number, a separation that small is not one, and the
+  script now reports it as `MARGINAL` rather than as a boolean. So "per-side fits better"
+  and "per-side is the only change that improved prediction" are two different claims: the
+  *held-out* gain is +8.0 pts and stands, while the *fit* improvement that motivates the
+  extra three parameters sits on the noise floor. The earlier version of this section
+  asserted the second while quoting the first.
+- **The disjointness of the two slew sets is not independent evidence.** Those sets —
+  [3.0 … 8.0, none] on the left against [1.0, 1.5, 2.0] on the right — are
+  one-dimensional *conditional slices*: each is swept with the partner frozen at its own
+  coordinate-descent optimum, each is centred on its own argmin, and both are cut with a
+  band computed from the **shared** sweeps. Saying they are disjoint therefore restates
+  "the two argmins differ by more than the band". It is a restatement of the argmins, not
+  a second measurement confirming them, and this document previously read it as the
+  latter. The JSON keys were renamed `left/right_slew_conditional` (from
+  `..._determined`) so the artifact cannot be quoted as a determined set either. The
+  delay slices are wide on both horns and overlap completely — [4, 5, 6] on the left,
+  [1 … 6] on the right — so no delay asymmetry is claimed in either direction.
+- **Both per-side argmins sit on the grid boundary** (delay 6 = max, slew 1.0 = min), so
+  by `servo_id`'s own rule the per-side search ran out rather than identified.
+
+What *does* survive is the direction, and on a test it did not have before. The per-side
+fit is now re-run independently on each fit half, and both halves put the slower horn on
+the **right** (`per_side_solution.split_half.slower_agree = true`), even though their
+argmins disagree and every variant in the table still splits DISAGREE on the shared fit.
+That is the honest form of the claim: *which* horn is slower reproduces across halves;
+*how much* slower does not, is not pinned by the conditional slices, and rests on argmins
+at the edge of the grid.
 
 **Multi-horizon scoring backfired here — a clean negative against the literature's
 expectation.** Replacing the one-step error with clip rollouts (uniformly sampled 2–40 tick

@@ -52,6 +52,20 @@ def argmin_interior(best, grid):
         f"or none; 'none' = no slew limit counts as the boundary, not as an interior point)")
 
 
+# Which action column is which horn. NOT (left, right): the parser stacks the two
+# commands right-first --
+#   imulog.py:  cmd_v = np.stack([a_right, a_left], 1)      (growbot-imulog-1 adapter)
+# and the twin agrees, in its policy head and in its XML --
+#   growbot_sim.py:  a = np.tanh(x[:2])  # [aRight, aLeft]
+#                    # XML: joint_1 is right_leg, joint_2 is left_leg
+# So column 0 is the RIGHT horn and column 1 is the LEFT one. Reading that pair the
+# other way round costs nothing numerically and publishes every per-side parameter
+# under its partner's name, which is a defect no error metric can show: the fit is
+# identical, only the attribution is inverted. Every label in this module and in its
+# callers is derived from these two constants, never from the column order.
+RIGHT_COL, LEFT_COL = 0, 1
+
+
 def realized_from_commands(A, D, kw):
     """Replay a candidate servo over commanded angles; reset at episode ends."""
     sv = ServoModel(**kw); out = np.zeros_like(A); sv.reset()
@@ -69,11 +83,58 @@ def realized_per_side(A, D, kw_l, kw_r):
     target vector, the slew clip and the deadband apply per component), so running
     one model per side over the full command vector and keeping that side's column
     is exactly per-side parameters -- no change to the model itself.
+
+    kw_l is the LEFT horn's triple and kw_r the RIGHT one; they land on LEFT_COL and
+    RIGHT_COL respectively, which is column 1 and column 0. See those constants.
     """
     out = np.zeros_like(A)
-    for col, kw in ((0, kw_l), (1, kw_r)):
+    for col, kw in ((LEFT_COL, kw_l), (RIGHT_COL, kw_r)):
         out[:, col] = realized_from_commands(A, D, kw)[:, col]
     return out
+
+
+def slower_side(kw_l, kw_r):
+    """Which horn a per-side fit calls slower: lower slew limit first, then longer delay.
+
+    'slew None' is NO slew limit, i.e. the fastest hypothesis on the grid, so it sorts
+    at the fast end rather than raising on a comparison with a number. Returns
+    'left', 'right' or 'neither' -- the last one when the two triples tie, where the
+    fit has found no asymmetry to attribute.
+    """
+    def rank(kw):                                   # bigger = slower
+        s = kw["slew_rad_s"]
+        return (-(np.inf if s is None else float(s)), kw["delay_ticks"])
+    rl, rr = rank(kw_l), rank(kw_r)
+    if rl == rr:
+        return "neither"
+    return "left" if rl > rr else "right"
+
+
+class PerSideServo:
+    """Two independent ServoModels behind one GrowBotSim-compatible servo.
+
+    Same column convention as realized_per_side: the right horn's model drives
+    RIGHT_COL, the left horn's drives LEFT_COL. It exists so a fixture can inject a
+    KNOWN asymmetry into the twin and the identification can then be asked which horn
+    it comes back on -- a symmetric fixture cannot catch a left/right label swap,
+    because under a swap it produces exactly the same answer.
+    """
+
+    def __init__(self, kw_l, kw_r):
+        self.sv = {LEFT_COL: ServoModel(**kw_l), RIGHT_COL: ServoModel(**kw_r)}
+        self.reset()
+
+    def reset(self, pos=None):
+        for s in self.sv.values():
+            s.reset(pos)
+        self.pos = np.zeros(2, np.float32)
+
+    def __call__(self, target, dt):
+        out = np.zeros(2, np.float32)
+        for col, s in self.sv.items():
+            out[col] = s(target, dt)[col]
+        self.pos = out
+        return out
 
 
 def _extend_cuts(D, max_delay):
@@ -186,9 +247,15 @@ def identify_per_side(model, O, A, O2, D, grid, shared, clips=None, seed=0, roun
     feasible point and usually a good one -- and alternately re-optimises one side with
     the other held, until a full round buys nothing.
 
-    Returns (kw_l, kw_r, info). info carries the evaluation count and the per-side
-    determined sets, each computed with the OTHER side held at its solution: the honest
-    reading of a per-side search, where a side's separability depends on its partner.
+    Returns (kw_l, kw_r, info), left horn first. The descent is indexed by ACTION
+    COLUMN throughout and the two horn names are attached once, at the return and in
+    info["side_scores"], from RIGHT_COL / LEFT_COL -- so no caller has to know the
+    column order, and no caller can re-invert it.
+
+    info carries the evaluation count and the per-side sweeps, each measured with the
+    OTHER side held at its solution: the honest reading of a per-side search, where a
+    side's separability depends on its partner. Those sweeps are one-dimensional
+    CONDITIONAL slices, not joint sets -- see the caveat in identification_ablation.
     """
     D_ext = _extend_cuts(D, max(d for d, _, _ in grid))
     if clips is None:
@@ -204,30 +271,33 @@ def identify_per_side(model, O, A, O2, D, grid, shared, clips=None, seed=0, roun
     def as_kw(t):
         return dict(delay_ticks=t[0], slew_rad_s=t[1], deadband=t[2])
 
-    cur = {0: (shared["delay_ticks"], shared["slew_rad_s"], shared["deadband"]),
-           1: (shared["delay_ticks"], shared["slew_rad_s"], shared["deadband"])}
-    best_e = score(realized_per_side(A, D, as_kw(cur[0]), as_kw(cur[1])))
-    evals, side_scores = 1, {0: None, 1: None}
+    start = (shared["delay_ticks"], shared["slew_rad_s"], shared["deadband"])
+    cur = {RIGHT_COL: start, LEFT_COL: start}
+
+    def realized(state):
+        return realized_per_side(A, D, as_kw(state[LEFT_COL]), as_kw(state[RIGHT_COL]))
+
+    best_e = score(realized(cur))
+    evals, col_scores = 1, {RIGHT_COL: None, LEFT_COL: None}
     for _ in range(rounds):
         improved = False
-        for side in (0, 1):
+        for col in (RIGHT_COL, LEFT_COL):       # column order: 0 then 1
             trials = []
             for t in grid:
-                other = cur[1 - side]
-                kw_l, kw_r = (as_kw(t), as_kw(other)) if side == 0 else (as_kw(other), as_kw(t))
-                trials.append((score(realized_per_side(A, D, kw_l, kw_r)), t))
+                trials.append((score(realized({**cur, col: t})), t))
                 evals += 1
             trials.sort(key=lambda x: x[0])
-            side_scores[side] = trials
+            col_scores[col] = trials
             if trials[0][0] < best_e - 1e-12:
-                best_e, cur[side], improved = trials[0][0], trials[0][1], True
+                best_e, cur[col], improved = trials[0][0], trials[0][1], True
         if not improved:
             break
-    # expose the per-side sweeps in the (err, kw) shape determined_sets() consumes
+    # expose the per-side sweeps in the (err, kw) shape determined_sets() consumes,
+    # keyed by HORN NAME so a caller cannot re-derive the mapping and get it wrong
     info = {"evaluations": evals, "best_err": best_e,
-            "side_scores": {s: [(e, as_kw(t)) for e, t in (side_scores[s] or [])]
-                            for s in (0, 1)}}
-    return as_kw(cur[0]), as_kw(cur[1]), info
+            "side_scores": {name: [(e, as_kw(t)) for e, t in (col_scores[c] or [])]
+                            for name, c in (("left", LEFT_COL), ("right", RIGHT_COL))}}
+    return as_kw(cur[LEFT_COL]), as_kw(cur[RIGHT_COL]), info
 
 
 def _key(kw):

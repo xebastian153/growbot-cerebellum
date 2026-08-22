@@ -1148,21 +1148,88 @@ if __name__ == "__main__":
     # One servo drives both horns here, so a per-side search that lands on two different
     # answers is reading noise, and the coordinate descent must come back to the shared
     # solution's neighbourhood rather than away from it.
+    #
+    # This bound is ASSERTED, not printed. It used to be folded into the PASS/FAIL string
+    # and then dropped, so the process exited 0 on a failure and the line above it was the
+    # only trace. It also constrained the two delays only, while the thing the report
+    # publishes as the asymmetry is the SLEW; and its second clause,
+    # best_err <= scores[0][0] + 1e-9, was true by construction -- the descent starts AT
+    # the shared solution and only accepts strict improvements, so it could never fail.
+    # That clause is replaced by one that can: on a symmetric fixture the per-side fit
+    # must not SEPARATE from the shared fit, i.e. its gain must not exceed the log's own
+    # confidence band. That is the repo's own criterion for "this log can see it", pointed
+    # at the claim per-side actually makes.
     kw_l, kw_r, ps_info = identify_per_side(model, O[fit], A[fit], O2[fit], D[fit], grid, best)
     ps_delays = {kw_l["delay_ticks"], kw_r["delay_ticks"]}
-    ps_ok = (ps_delays <= {true_ticks - 1, true_ticks, true_ticks + 1}
-             and ps_info["best_err"] <= scores[0][0] + 1e-9)
+    ps_slews = {kw_l["slew_rad_s"], kw_r["slew_rad_s"]}
+    ps_delay_ok = ps_delays <= {true_ticks - 1, true_ticks, true_ticks + 1}
+    ps_slew_ok = ps_slews <= near_slew
+    ps_gain = scores[0][0] - ps_info["best_err"]
+    ps_gain_ok = ps_gain <= band
+    ps_ok = ps_delay_ok and ps_slew_ok and ps_gain_ok
     print(f"  per side: L(delay {kw_l['delay_ticks']}, slew {kw_l['slew_rad_s']})  "
           f"R(delay {kw_r['delay_ticks']}, slew {kw_r['slew_rad_s']})  "
           f"in {ps_info['evaluations']} evaluations; err {ps_info['best_err']:.5f} vs shared "
-          f"{scores[0][0]:.5f} -- both sides within one grid step of the single injected "
-          f"servo: {ps_delays <= {true_ticks - 1, true_ticks, true_ticks + 1}}")
-    ok = delay_ok and slew_ok and ps_ok
-    print("\nROUND-TRIP", "PASS" if ok else "FAIL",
-          "- delay and slew determined to one grid step through 60/30 Hz jittered sampling, "
-          "and the per-side search stays on the symmetric answer" if ok else "")
+          f"{scores[0][0]:.5f}")
+    print(f"    both delays within one grid step of the single injected servo: {ps_delay_ok}; "
+          f"both slews: {ps_slew_ok}")
+    print(f"    per-side fit gain over shared {ps_gain:.5f} vs band {band:.5f} -- "
+          f"{'not separated, as a symmetric fixture requires' if ps_gain_ok else 'SEPARATED: an asymmetry was invented'}")
     assert delay_ok, f"injected delay {true_ticks} ticks not determined: set {delay_set}"
     assert slew_ok, f"injected slew {TRUE['slew_rad_s']} rad/s not determined: set {slew_set}"
+    assert ps_delay_ok, (f"per-side delays {sorted(ps_delays)} left the injected "
+                         f"{true_ticks} +-1 grid step")
+    assert ps_slew_ok, (f"per-side slews {sorted(ps_slews, key=lambda v: (v is None, v))} "
+                        f"left one grid step of the injected {TRUE['slew_rad_s']}: "
+                        f"an asymmetry the fixture does not have")
+    assert ps_gain_ok, (f"per-side fit beats the shared fit by {ps_gain:.5f} > band {band:.5f} "
+                        f"on a fixture with ONE servo driving both horns: invented asymmetry")
+
+    # --- per-side ATTRIBUTION: which horn, not just how much -----------------------
+    # The check above is symmetric, so it passes unchanged if the left and right labels
+    # are swapped -- and they were: realized_per_side put the left triple on action
+    # column 0, which imulog.parse and the twin both define as the RIGHT leg, so every
+    # published per-side attribution was inverted while every error number stayed
+    # identical. Only an ASYMMETRIC fixture can catch that. One horn is deliberately
+    # crippled here (slow slew and a long delay) and the identification has to hand the
+    # slow triple back on that same horn.
+    from growbot_sim import collect as _collect
+    from servo_id import PerSideServo, slower_side
+    ASYM = dict(n=6000, seed=5,
+                fast=dict(delay_ticks=0, slew_rad_s=None, deadband=0.0),
+                slow=dict(delay_ticks=5, slew_rad_s=1.5, deadband=0.0),
+                slow_horn="right")
+    print(f"\ngenerating {ASYM['n'] / 50:.0f} s asymmetric fixture (hidden: {ASYM['slow_horn']} horn "
+          f"delay {ASYM['slow']['delay_ticks']} ticks / slew {ASYM['slow']['slew_rad_s']} rad/s, "
+          f"the other horn ideal)...", flush=True)
+    per_side_servo = PerSideServo(kw_l=ASYM["fast"], kw_r=ASYM["slow"])
+    Oy, Ay, O2y, Dy, _ = _collect(ASYM["n"], seed=ASYM["seed"], body="walk", servo=per_side_servo)
+    _, best_y = identify(model, Oy, Ay, O2y, Dy, grid)
+    kw_ly, kw_ry, _ = identify_per_side(model, Oy, Ay, O2y, Dy, grid, best_y)
+    got_slow = slower_side(kw_ly, kw_ry)
+    slow_kw = kw_ry if ASYM["slow_horn"] == "right" else kw_ly
+    si_a = slews.index(ASYM["slow"]["slew_rad_s"])
+    near_slow = set(slews[max(0, si_a - 1):si_a + 2])
+    side_ok = got_slow == ASYM["slow_horn"]
+    slow_slew_ok = slow_kw["slew_rad_s"] in near_slow
+    print(f"  identified: L(delay {kw_ly['delay_ticks']}, slew {kw_ly['slew_rad_s']})  "
+          f"R(delay {kw_ry['delay_ticks']}, slew {kw_ry['slew_rad_s']})")
+    print(f"  slower horn identified as {got_slow!r}, injected on {ASYM['slow_horn']!r}: "
+          f"{'ok' if side_ok else 'WRONG SIDE -- the left/right labels are inverted'}")
+    print(f"  that horn's slew {slow_kw['slew_rad_s']} within one grid step of the injected "
+          f"{ASYM['slow']['slew_rad_s']}: {slow_slew_ok}")
+    assert side_ok, (f"the slow horn was injected on the {ASYM['slow_horn']} and came back "
+                     f"on the {got_slow}: per-side left/right attribution is inverted")
+    assert slow_slew_ok, (f"the crippled horn's slew came back {slow_kw['slew_rad_s']}, more "
+                          f"than one grid step from the injected {ASYM['slow']['slew_rad_s']}")
+
+    ok = delay_ok and slew_ok and ps_ok and side_ok and slow_slew_ok
+    print("\nROUND-TRIP", "PASS" if ok else "FAIL",
+          "- delay and slew determined to one grid step through 60/30 Hz jittered sampling, "
+          "the per-side search stays on the symmetric answer, and on a deliberately "
+          "asymmetric fixture the slow horn comes back on the side it was injected on"
+          if ok else "")
+    assert ok
 
     # --- sensor-side round-trip: the same standard, applied to sensor_id.py --------
     from sensor_id import (dt_stats, allan_deviation, filter_lag, still_windows,

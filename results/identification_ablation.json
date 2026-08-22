@@ -281,7 +281,7 @@
      }
     }
    },
-   "seconds": 1.0
+   "seconds": 1.1
   },
   {
    "variant": "+multi-horizon",
@@ -398,7 +398,7 @@
      }
     }
    },
-   "seconds": 6.4
+   "seconds": 6.5
   },
   {
    "variant": "+per-side",
@@ -438,18 +438,73 @@
    "per_side_solution": {
     "left": {
      "delay_ticks": 6,
-     "slew_rad_s": 1.0,
+     "slew_rad_s": 6.0,
      "deadband": 0.06981317007977318
     },
     "right": {
      "delay_ticks": 6,
-     "slew_rad_s": 6.0,
+     "slew_rad_s": 1.0,
      "deadband": 0.06981317007977318
     },
     "evaluations": 1009,
     "best_err": 0.4983222186565399,
     "shared_err": 0.5046908259391785,
-    "left_delay_determined": [
+    "left_argmin_interior": false,
+    "right_argmin_interior": false,
+    "argmin_interior": false,
+    "interior_why": {
+     "left": "argmin is AT THE BOUNDARY of the grid (delay 0-6 ticks, slew 1.0-8.0 rad/s or none; 'none' = no slew limit counts as the boundary, not as an interior point)",
+     "right": "argmin is AT THE BOUNDARY of the grid (delay 0-6 ticks, slew 1.0-8.0 rad/s or none; 'none' = no slew limit counts as the boundary, not as an interior point)"
+    },
+    "slower_side": "right",
+    "fit_gain_over_shared": 0.00636860728263855,
+    "fit_gain_vs_band": {
+     "gain": 0.00636860728263855,
+     "band": 0.006315527808666229,
+     "ratio": 1.0084045982505982,
+     "separated": true,
+     "marginal": true
+    },
+    "split_half": {
+     "A": {
+      "left": {
+       "delay": 5,
+       "slew": 6.0
+      },
+      "right": {
+       "delay": 6,
+       "slew": 2.0
+      },
+      "slower": "right"
+     },
+     "B": {
+      "left": {
+       "delay": 6,
+       "slew": 2.0
+      },
+      "right": {
+       "delay": 6,
+       "slew": 1.0
+      },
+      "slower": "right"
+     },
+     "slower_agree": true,
+     "argmin_agree": false
+    },
+    "left_delay_conditional": [
+     4,
+     5,
+     6
+    ],
+    "left_slew_conditional": [
+     3.0,
+     4.0,
+     5.0,
+     6.0,
+     8.0,
+     null
+    ],
+    "right_delay_conditional": [
      1,
      2,
      3,
@@ -457,23 +512,10 @@
      5,
      6
     ],
-    "left_slew_determined": [
+    "right_slew_conditional": [
      1.0,
      1.5,
      2.0
-    ],
-    "right_delay_determined": [
-     4,
-     5,
-     6
-    ],
-    "right_slew_determined": [
-     3.0,
-     4.0,
-     5.0,
-     6.0,
-     8.0,
-     null
     ]
    },
    "held_out": {
@@ -550,7 +592,7 @@
      }
     }
    },
-   "seconds": 4.8
+   "seconds": 9.4
   },
   {
    "variant": "+all three",
@@ -595,19 +637,61 @@
    ],
    "per_side_solution": {
     "left": {
-     "delay_ticks": 6,
-     "slew_rad_s": 1.0,
-     "deadband": 0.06981317007977318
-    },
-    "right": {
      "delay_ticks": 5,
      "slew_rad_s": 4.0,
      "deadband": 0.0
     },
+    "right": {
+     "delay_ticks": 6,
+     "slew_rad_s": 1.0,
+     "deadband": 0.06981317007977318
+    },
     "evaluations": 1009,
     "best_err": 1.3205712014039739,
     "shared_err": 1.424516096172124,
-    "left_delay_determined": [
+    "left_argmin_interior": true,
+    "right_argmin_interior": false,
+    "argmin_interior": false,
+    "interior_why": {
+     "left": "argmin is INTERIOR to the grid (delay 0-6 ticks, slew 1.0-8.0 rad/s or none; 'none' = no slew limit counts as the boundary, not as an interior point)",
+     "right": "argmin is AT THE BOUNDARY of the grid (delay 0-6 ticks, slew 1.0-8.0 rad/s or none; 'none' = no slew limit counts as the boundary, not as an interior point)"
+    },
+    "slower_side": "right",
+    "fit_gain_over_shared": 0.10394489476815005,
+    "fit_gain_vs_band": {
+     "gain": 0.10394489476815005,
+     "band": 0.08086443293061632,
+     "ratio": 1.2854216742895772,
+     "separated": true,
+     "marginal": false
+    },
+    "split_half": {
+     "A": {
+      "left": {
+       "delay": 0,
+       "slew": 5.0
+      },
+      "right": {
+       "delay": 6,
+       "slew": 1.0
+      },
+      "slower": "right"
+     },
+     "B": {
+      "left": {
+       "delay": 4,
+       "slew": 3.0
+      },
+      "right": {
+       "delay": 6,
+       "slew": 1.0
+      },
+      "slower": "right"
+     },
+     "slower_agree": true,
+     "argmin_agree": false
+    },
+    "left_delay_conditional": [
      0,
      1,
      2,
@@ -616,19 +700,7 @@
      5,
      6
     ],
-    "left_slew_determined": [
-     1.0
-    ],
-    "right_delay_determined": [
-     0,
-     1,
-     2,
-     3,
-     4,
-     5,
-     6
-    ],
-    "right_slew_determined": [
+    "left_slew_conditional": [
      1.5,
      2.0,
      3.0,
@@ -637,6 +709,18 @@
      6.0,
      8.0,
      null
+    ],
+    "right_delay_conditional": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+     6
+    ],
+    "right_slew_conditional": [
+     1.0
     ]
    },
    "held_out": {
@@ -713,7 +797,7 @@
      }
     }
    },
-   "seconds": 19.6
+   "seconds": 40.2
   }
  ],
  "delay_decomposition": {

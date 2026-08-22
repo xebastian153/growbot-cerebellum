@@ -51,10 +51,19 @@ did not move the IMU at 100 ms, so if the spin gap is in the actuator it is in i
   normalized error), where the shared version was worse than no model at all on one task —
   `servo_id`'s grid fits a single (delay, slew, deadband) triple for both servos.
   Both were tried (`identification_ablation.py`): per-side more than doubled the held-out
-  roll gain and separated the two horns' slews into disjoint determined sets, while the
-  multi-horizon score backfired on 16 s of walking — the argmin ran to the grid's low
-  boundary and the delay set widened to everything. The horizon ablation does not
-  transfer at this data scale; the per-joint one does.
+  roll gain, while the multi-horizon score backfired on 16 s of walking — the argmin ran
+  to the grid's low boundary and the delay set widened to everything. The horizon ablation
+  does not transfer at this data scale; the per-joint one transfers as a *gain*, but not
+  as an identification. This entry previously said per-side "separated the two horns'
+  slews into disjoint determined sets". It does not. Those two sets are one-dimensional
+  conditional slices, each swept with the partner frozen at its own optimum and cut with
+  the band from the shared sweeps, so their disjointness restates "the two argmins differ
+  by more than the band" rather than confirming it; both per-side argmins also sit on the
+  grid boundary, and the per-side fit improvement (0.0064) is a ratio of 1.01 against its
+  own band (0.0063). What holds is narrower and was tested separately: re-fitting per-side
+  on each half puts the slower horn on the same side both times — the **right** one. (The
+  left/right labels in this repo were inverted until that check was written; action column
+  0 is the right leg.)
   https://arxiv.org/abs/2505.14266
 
 **Tested:** `actuator_proxy.py` / `servo_id.py` / `real2sim.py`. A slew-limited servo opens

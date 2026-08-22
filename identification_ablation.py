@@ -35,7 +35,8 @@ from forward import MLP, make_windows
 from sim2real_proxy import K
 from gap_report import evaluate_axes, AXES
 from servo_id import (identify, identify_per_side, realized_from_commands, realized_per_side,
-                      confidence_band, determined_sets, default_grid, argmin_interior)
+                      confidence_band, determined_sets, default_grid, argmin_interior,
+                      slower_side)
 
 HORIZONS = [5, 25]                      # 100 ms and 500 ms, as everywhere else
 CLIPS = {"min_ticks": 2, "max_ticks": 40, "n_starts": 400}   # 40 ms .. 800 ms clips
@@ -119,18 +120,60 @@ def run_variant(name, model, O, A, O2, D, mode, grid, clips, per_side, notes):
         kw_l, kw_r, info = identify_per_side(model, O[fit], A[fit], O2[fit], D[fit],
                                              grid, best, clips=clips)
         R = realized_per_side(A, D, kw_l, kw_r)
+        # The per-side solution needs its OWN interiority verdict. `interior` above is
+        # about the shared argmin and says nothing about where the two per-side argmins
+        # landed; servo_id's rule -- "a boundary argmin is the search running out, not
+        # an identification" -- applies to every argmin this script publishes.
+        li, lwhy = argmin_interior(kw_l, grid)
+        ri, rwhy = argmin_interior(kw_r, grid)
+        # Does the per-side fit separate itself from the shared fit, by the same band
+        # every other claim here is cut with? A fit improvement no larger than the
+        # band is not an improvement this log can see.
+        fit_gain = float(scores[0][0] - info["best_err"])
         row["per_side_solution"] = {
             "left": {**kw_l, "deadband": float(kw_l["deadband"])},
             "right": {**kw_r, "deadband": float(kw_r["deadband"])},
             "evaluations": info["evaluations"], "best_err": info["best_err"],
-            "shared_err": scores[0][0]}
-        # each side's determined set, with the OTHER side held at its solution: on a
-        # per-side search a side's separability is conditional on its partner
-        for side, key in ((0, "left"), (1, "right")):
-            ss = info["side_scores"][side]
+            "shared_err": scores[0][0],
+            "left_argmin_interior": bool(li), "right_argmin_interior": bool(ri),
+            "argmin_interior": bool(li and ri),
+            "interior_why": {"left": lwhy, "right": rwhy},
+            "slower_side": slower_side(kw_l, kw_r),
+            "fit_gain_over_shared": fit_gain,
+            "fit_gain_vs_band": {
+                "gain": fit_gain, "band": float(band),
+                "ratio": float(fit_gain / band) if band > 0 else None,
+                "separated": bool(fit_gain > band),
+                # A bare "separated" boolean at gain/band = 1.02 reads like a result and
+                # is a coin flip. Anything inside 10% of the band is reported as MARGINAL,
+                # because the band is itself a noise estimate from two halves and is not
+                # known to that precision.
+                "marginal": bool(band > 0 and 0.9 * band <= fit_gain <= 1.1 * band)}}
+        # The per-side fit's own split-half stability. The `split_half` above is the
+        # SHARED fit's; the claim being published ("which horn is slower") is a per-side
+        # claim, so it needs a per-side test. Each half is re-fitted from its own shared
+        # argmin, exactly as the full fit is.
+        lA, rA, _ = identify_per_side(model, O[hA], A[hA], O2[hA], D[hA], grid, bA, clips=clips)
+        lB, rB, _ = identify_per_side(model, O[hB], A[hB], O2[hB], D[hB], grid, bB, clips=clips)
+        slowA, slowB = slower_side(lA, rA), slower_side(lB, rB)
+        def _pair(l, r):
+            return {"left": {"delay": l["delay_ticks"], "slew": l["slew_rad_s"]},
+                    "right": {"delay": r["delay_ticks"], "slew": r["slew_rad_s"]}}
+        row["per_side_solution"]["split_half"] = {
+            "A": {**_pair(lA, rA), "slower": slowA},
+            "B": {**_pair(lB, rB), "slower": slowB},
+            "slower_agree": bool(slowA == slowB and slowA != "neither"),
+            "argmin_agree": bool(_pair(lA, rA) == _pair(lB, rB))}
+        # Each side's CONDITIONAL slice, with the OTHER side held at its solution: on
+        # a per-side search a side's separability is conditional on its partner. These
+        # are one-dimensional slices through a joint surface, each centred on its own
+        # argmin and cut with the band from the SHARED sweeps -- not joint determined
+        # sets, and see per_side_separation below for what their disjointness is worth.
+        for key in ("left", "right"):
+            ss = info["side_scores"][key]
             ds, sset_side = determined_sets(ss, ss[0][1], grid, band)
-            row["per_side_solution"][key + "_delay_determined"] = [int(v) for v in ds]
-            row["per_side_solution"][key + "_slew_determined"] = [
+            row["per_side_solution"][key + "_delay_conditional"] = [int(v) for v in ds]
+            row["per_side_solution"][key + "_slew_conditional"] = [
                 None if v is None else float(v) for v in sset_side]
     else:
         R = realized_from_commands(A, D, best)
@@ -143,10 +186,16 @@ def run_variant(name, model, O, A, O2, D, mode, grid, clips, per_side, notes):
 def fmt_row(r):
     a = r["argmin"]
     who = f"delay {a['delay_ticks']}, slew {a['slew_rad_s']}, db {np.rad2deg(a['deadband']):.0f} deg"
+    if not r["argmin_interior"]:
+        who += " [boundary]"
     if r["per_side"]:
-        l, rr = r["per_side_solution"]["left"], r["per_side_solution"]["right"]
-        who = (f"L(delay {l['delay_ticks']}, slew {l['slew_rad_s']})  "
-               f"R(delay {rr['delay_ticks']}, slew {rr['slew_rad_s']})")
+        ps = r["per_side_solution"]
+        l, rr = ps["left"], ps["right"]
+        # '!' marks an argmin sitting on the grid's edge -- the search ran out there
+        who = (f"L(delay {l['delay_ticks']}, slew {l['slew_rad_s']})"
+               f"{'' if ps['left_argmin_interior'] else '!'}  "
+               f"R(delay {rr['delay_ticks']}, slew {rr['slew_rad_s']})"
+               f"{'' if ps['right_argmin_interior'] else '!'}")
     w = r["held_out"].get("walking", r["held_out"].get("all", {}))
     g500 = w.get("500", {})
     gains = "  ".join(f"{ax} {g500[ax]['gain_pts']:+5.1f}" for ax in AXES if ax in g500)
@@ -222,6 +271,49 @@ def main():
           + "  ".join(f"{ax:>9}" for ax in AXES))
     for r in variants:
         print(fmt_row(r))
+    print("  '!' on a per-side entry = that horn's argmin sits on the grid's edge")
+
+    print("\n== what the per-side split is and is not evidence for")
+    print("  Read before quoting any per-side number:")
+    print("  - the two per-side sweeps are ONE-DIMENSIONAL CONDITIONAL slices. Each is")
+    print("    taken with the partner frozen at its coordinate-descent optimum and each")
+    print("    is centred on its own argmin, cut with the band from the SHARED sweeps.")
+    print("    Their disjointness therefore restates 'the two argmins differ by more than")
+    print("    the band'; it is not independent evidence for an asymmetry.")
+    print("  - the per-side fit is only separated from the shared fit when its fit gain")
+    print("    exceeds that same band. Below the band, 'per-side fits better' is noise.")
+    for r in variants:
+        if not r["per_side"]:
+            continue
+        ps = r["per_side_solution"]
+        l, rr, sh = ps["left"], ps["right"], ps["split_half"]
+        fg = ps["fit_gain_vs_band"]
+        print(f"\n  {r['variant']}")
+        print(f"    solution         L(delay {l['delay_ticks']}, slew {l['slew_rad_s']})"
+              f"  R(delay {rr['delay_ticks']}, slew {rr['slew_rad_s']})"
+              f"   -> slower horn: {ps['slower_side']}")
+        print(f"    argmin interior  left {ps['left_argmin_interior']}, "
+              f"right {ps['right_argmin_interior']}")
+        print(f"      left  {ps['interior_why']['left']}")
+        print(f"      right {ps['interior_why']['right']}")
+        print(f"    conditional slices  left  delay {ps['left_delay_conditional']}  "
+              f"slew {ps['left_slew_conditional']}")
+        print(f"                        right delay {ps['right_delay_conditional']}  "
+              f"slew {ps['right_slew_conditional']}")
+        if fg["marginal"]:
+            sep = (f"MARGINAL -- gain/band = {fg['ratio']:.2f}, i.e. the per-side fit sits "
+                   f"ON the band rather than clear of it; not a separation this log can "
+                   f"be said to show")
+        elif fg["separated"]:
+            sep = f"SEPARATED (gain/band = {fg['ratio']:.2f})"
+        else:
+            sep = (f"NOT SEPARATED (gain/band = {fg['ratio']:.2f}) -- the per-side fit is "
+                   f"not distinguishable from the shared one on this log")
+        print(f"    fit gain over shared {fg['gain']:.4f} vs band {fg['band']:.4f}: {sep}")
+        print(f"    per-side split-half  A slower={sh['A']['slower']}  "
+              f"B slower={sh['B']['slower']}  "
+              f"-> {'AGREE' if sh['slower_agree'] else 'DISAGREE'} on which horn is slower; "
+              f"argmins {'agree' if sh['argmin_agree'] else 'disagree'}")
 
     base = variants[0]
     al = next((v for v in variants if v["variant"] == "+aligned"), None)
