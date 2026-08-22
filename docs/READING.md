@@ -273,6 +273,24 @@ Things that came in sideways and left something behind.
   model (condition on excitation mode / body) and worth considering before the
   dream digests GrowBot's experience. Action space = target joint positions + PD,
   same as GrowBot and our model; she says it is not the bottleneck.
+- **GEN-1.5 (Generalist AI, company blog).** Claims in-context learning of new
+  physical tasks: 59 % average success one-shot with zero gradient steps, 83 % after
+  10 steps on 5 minutes of data, on ten short-horizon manipulation tasks. A large
+  multimodal model over 30 s of video plus sensors, language and proprioception,
+  emitting 100 Hz action trajectories, pretrained eight months on real captures and
+  containing "no simulation data, neither rendered video nor simulated dynamics".
+  Read with the caveats it earns: a blog post with no model size, no dataset scale,
+  no platform, no latency and — the one that matters — no baseline, so a 59 % on
+  self-described "simple and short-horizon" tasks has no floor to sit above; the
+  authors do say the rates are modest and that in-context skills are more brittle
+  than finetuned ones. What it leaves behind is one inverted idea worth keeping: they
+  report zero-shot transfer from *simulated prompts*, so a simulator specifies the
+  task instead of supplying the dynamics — the opposite of the role a twin plays
+  here. It does not bear on this repo's question. Task specification and body
+  dynamics are different axes: the measured servo here is roughly half the speed the
+  twin assumed, and correcting it moved the real 500 ms gap by +14 to +28 pts on
+  roll, which no amount of in-context task learning addresses.
+  https://generalistai.com/blog/gen-1.5
 - **TimesFM 2.5 (Google).** Measured, not read: 200M-param zero-shot forecaster
   ties persistence on the twin IMU (85.0 vs 82.0 % @100 ms, 55.0 vs 55.2 % @500 ms),
   loses to the 25k-param action-conditioned MLP (96 / 79 %). Its covariate path is
