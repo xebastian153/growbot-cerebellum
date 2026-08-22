@@ -173,6 +173,12 @@ def _R_to_zyx_rpy(R):
 #             command, or a window that is neither still nor driven). Left
 #             unmapped, so it is scored against the twin's overall row and
 #             printed as such rather than silently credited to a regime.
+# What to call a stretch where the commands are active and the body is answering. The
+# name matters because gap_report maps it to a twin regime: a walk lane compares against
+# the twin's policy gait, an `act` lane against its keyframe excitation. Unlisted verbs
+# keep "walking", so every previously parsed file is untouched.
+GAIT_DRIVEN_LABEL = {"act": "acting"}
+
 SEG_WIN_MS = 400.0             # rolling window for the stillness / activity tests
 SEG_MIN_MS = 240.0             # runs shorter than this are absorbed (impact is exempt)
 SEG_IMPACT_G = 3.0             # |accel| / g at a stillness boundary = impact
@@ -273,7 +279,7 @@ def _runs(label):
     return out
 
 
-def segment_growbot_v1(imu_t, rpy, gyro, acc, cmd_t, cmd_lr, end_why=None):
+def segment_growbot_v1(imu_t, rpy, gyro, acc, cmd_t, cmd_lr, end_why=None, gait=None):
     """Synthesize regime events for a growbot-imulog-1 record from its own data.
 
     Returns [(t_ms, "<regime>_start"), ...] in _mode_per_tick's dialect, one per
@@ -281,7 +287,13 @@ def segment_growbot_v1(imu_t, rpy, gyro, acc, cmd_t, cmd_lr, end_why=None):
     SEG_* constants above; every one of them is a number this file's docstring
     justifies, not a tuned knob.
 
-    Order of precedence, loosest claim first: still -> walking -> fall -> impact.
+    Order of precedence, loosest claim first: still -> driven -> fall -> impact.
+
+    The driven label is named after the VERB the header says produced the commands,
+    because the twin regime it is comparable to depends on it: a walk lane is the
+    twin's policy gait, while an `act` lane is a keyframe schedule and has nothing to
+    do with walking. Calling both "walking" would score a gesture session against the
+    twin's walking floor -- a number that looks like a gap and is a category error.
     The impact windows sit on top because they ARE the boundaries the other
     classes meet at, and runs shorter than SEG_MIN_MS are absorbed into their
     predecessor so a single noisy sample cannot manufacture a regime.
@@ -306,7 +318,7 @@ def segment_growbot_v1(imu_t, rpy, gyro, acc, cmd_t, cmd_lr, end_why=None):
 
     label = np.full(n, "unknown", dtype=object)
     label[still] = "still"
-    label[(~still) & cmd_active] = "walking"
+    label[(~still) & cmd_active] = GAIT_DRIVEN_LABEL.get(str(gait), "walking")
 
     # fall: only where the header says the session ended tipped, and only when the
     # attitude leaves this file's own rest and stays away until the recording ends
@@ -401,6 +413,12 @@ def _convert_growbot_v1(obj):
                          f"pose {h.get('pose_fields')} -- the converter indexes by position")
     imu = np.asarray(obj["imu"], np.float64)
     pose = np.asarray(obj["pose"], np.float64)
+    # A capture with no commands at all is legal -- a still session sends nothing -- and
+    # numpy gives an empty list shape (0,), not (0, 5). Reshape rather than reject: the
+    # alternative is a parser that refuses the one recording whose whole point is that
+    # the body was never driven.
+    if pose.size == 0:
+        pose = pose.reshape(0, len(want_pose))
     if imu.ndim != 2 or imu.shape[1] != len(want_imu) or pose.ndim != 2 or pose.shape[1] != len(want_pose):
         raise ValueError(f"growbot-imulog-1 row shapes {imu.shape}/{pose.shape} do not match the declared fields")
 
@@ -441,7 +459,7 @@ def _convert_growbot_v1(obj):
               "dropped_imu": h.get("dropped_imu"), "dropped_pose": h.get("dropped_pose")}
     events = segment_growbot_v1(imu_t, rpy, gyro, imu[:, 2:5],
                                 pose[ok, 1].astype(np.float64), pose[ok, 2:4],
-                                h.get("end_why"))
+                                h.get("end_why"), h.get("gait"))
     header["segments"] = [(round(t, 1), n) for t, n in events]
     return header, imu_t, list(imu_v), cmd_t, list(cmd_v), events
 
@@ -589,8 +607,13 @@ def parse(path, gap_ms=GAP_MS, ang_lead_ms=None):
         in_gap |= (at < imu_t[0]).any(1) | (at > imu_t[-1]).any(1)
     obs = np.concatenate([ang_g, gyro_g], 1).astype(np.float32)
     # commands: zero-order hold (last command at or before grid time; neutral before the first)
-    idx = np.searchsorted(cmd_t, grid, side="right") - 1
-    act = np.where(idx[:, None] >= 0, cmd_v[np.clip(idx, 0, None)], 0.0).astype(np.float32)
+    # A record with no commands holds neutral throughout -- the same answer the hold
+    # already gives for the stretch before the first command, just for the whole file.
+    if len(cmd_t) == 0:
+        act = np.zeros((len(grid), 2), np.float32)
+    else:
+        idx = np.searchsorted(cmd_t, grid, side="right") - 1
+        act = np.where(idx[:, None] >= 0, cmd_v[np.clip(idx, 0, None)], 0.0).astype(np.float32)
     O, A, O2 = obs[:-1], act[:-1], obs[1:]
     # a transition is invalid if EITHER endpoint was interpolated inside a gap
     D = (in_gap[:-1] | in_gap[1:]).copy(); D[-1] = True
@@ -893,8 +916,18 @@ def preflight(path):
     def warn(m): out.append(("WARN", m))
     def info(m): out.append(("ok", m))
 
-    if len(imu_t) < 100 or len(cmd_t) < 10:
-        return fail(f"too few rows (imu {len(imu_t)}, cmd {len(cmd_t)})"), out
+    # A still capture legitimately carries no commands, so an empty command stream is a
+    # property of the session, not a broken contract. What still has to hold is that the
+    # IMU is long enough to say anything about, and that a file claiming to be DRIVEN
+    # actually carries the commands that drove it.
+    driven = len(cmd_t) > 0 or str(header.get("gait", "")) not in ("still", "idle")
+    if len(imu_t) < 100:
+        return fail(f"too few IMU rows ({len(imu_t)})"), out
+    if driven and len(cmd_t) < 10:
+        return fail(f"too few command rows ({len(cmd_t)}) for a '{header.get('gait')}' "
+                    f"session -- a driven lane must carry the commands that drove it"), out
+    if len(cmd_t) == 0:
+        info(f"no command rows: '{header.get('gait')}' session, nothing was sent to the servos")
     # --- timestamps: order, units, one clock ---
     order = header.get("_sorted_on_read", {})
     for name, k in (("IMU", "imu_inversions"), ("command", "cmd_inversions")):
@@ -939,10 +972,11 @@ def preflight(path):
                            "an assumption about a stretch the log does not observe")
             warn(f"{name} stream has {n_gap} dt above the {GAP_MS:.0f} ms gap threshold "
                  f"(max {d.max():.0f} ms) -- {consequence}")
-    lo, hi = max(imu_t[0], cmd_t[0]), min(imu_t[-1], cmd_t[-1])
-    overlap = max(0.0, hi - lo) / max(imu_t[-1] - imu_t[0], 1e-9)
-    if overlap < 0.5:
-        F = fail(f"IMU and command timestamp ranges overlap only {overlap * 100:.0f}% -- different clocks?")
+    if len(cmd_t):
+        lo, hi = max(imu_t[0], cmd_t[0]), min(imu_t[-1], cmd_t[-1])
+        overlap = max(0.0, hi - lo) / max(imu_t[-1] - imu_t[0], 1e-9)
+        if overlap < 0.5:
+            F = fail(f"IMU and command timestamp ranges overlap only {overlap * 100:.0f}% -- different clocks?")
     # --- units in practice, not in the header ---
     ang = np.abs(imu_v[:, :3])
     if header.get("imu_units", "rad") == "rad" and float(np.percentile(ang, 99)) > 7.0:
@@ -950,12 +984,12 @@ def preflight(path):
     gyro99 = float(np.percentile(np.abs(imu_v[:, 3:]), 99))
     if gyro99 > 50:
         warn(f"99th pct |gyro| = {gyro99:.0f}: deg/s suspected (rad/s rarely exceeds ~20 on this body)")
-    pose_rng = float(cmd_v.min()), float(cmd_v.max())
-    if header.get("pose_units", "deg") == "deg" and (pose_rng[0] < -10 or pose_rng[1] > 190):
+    pose_rng = (float(cmd_v.min()), float(cmd_v.max())) if len(cmd_v) else (90.0, 90.0)
+    if len(cmd_v) and header.get("pose_units", "deg") == "deg" and (pose_rng[0] < -10 or pose_rng[1] > 190):
         F = fail(f"pose range {pose_rng} incompatible with degrees around 90 = neutral")
-    if header.get("pose_units", "deg") == "deg" and pose_rng[1] < 3.2:
+    if len(cmd_v) and header.get("pose_units", "deg") == "deg" and pose_rng[1] < 3.2:
         F = fail(f"pose range {pose_rng} looks like RADIANS but the header says degrees")
-    if header.get("pose_units") == "rad" and max(abs(pose_rng[0]), abs(pose_rng[1])) > 1.65:
+    if len(cmd_v) and header.get("pose_units") == "rad" and max(abs(pose_rng[0]), abs(pose_rng[1])) > 1.65:
         F = fail(f"pose range {pose_rng} exceeds the +-1.57 rad ctrlrange -- degrees in practice, "
                  f"or a wrong calibration inversion")
     if "trims_in_values" not in header:
@@ -1083,6 +1117,31 @@ if __name__ == "__main__":
           f"gyro {gyro_err:.1e} rad/s, action {act_err:.1e} rad through mount + W3C angles + servo cal "
           f"(signs, offsets, gain 0.99, turn 1.5)")
     assert same_g, "growbot-imulog-1 dialect does not round-trip"
+
+    # --- a capture with no commands at all ------------------------------------------
+    # The still lane sends nothing, so its pose array is empty. The hidden secret is
+    # the orientation itself: strip every command from a file we already know the
+    # answer for, and the IMU must survive byte-for-byte while the commands become
+    # neutral and the whole record reads as one still segment. A parser that rejected
+    # the empty array, or invented a command to fill it, fails both halves.
+    with open("/tmp/imulog_fixture_v1.json") as fh:
+        _nc = json.load(fh)
+    _nc["pose"] = []
+    _nc["header"] = dict(_nc["header"], gait="still", end_why="tap")
+    with open("/tmp/imulog_nocmd_v1.json", "w") as fh:
+        json.dump(_nc, fh)
+    On, An, O2n, Dn, hn, mn = parse("/tmp/imulog_nocmd_v1.json")
+    # No DRIVEN label may appear: 'walking'/'acting' mean the agent was commanding the
+    # servos, and this file records none. Motion with no command is honestly 'unknown',
+    # which is what the source fixture's driven stretches must become.
+    _driven = set(GAIT_DRIVEN_LABEL.values()) | {"walking"}
+    nocmd_ok = (len(On) == len(Og) and float(np.abs(On[:, 3:] - Og[:, 3:]).max()) < 1e-9
+                and float(np.abs(An).max()) == 0.0 and not (set(np.unique(mn)) & _driven)
+                and "still" in set(np.unique(mn)) and hn.get("n_pose_rows") == 0)
+    print(f"empty-command capture: {'PASS' if nocmd_ok else 'FAIL'} — {len(On)} ticks, IMU identical "
+          f"to the same file with commands, actions all neutral, no driven regime claimed "
+          f"(labels {sorted(set(np.unique(mn)))})")
+    assert nocmd_ok, "a capture with no commands must parse, hold neutral and read as still"
 
     # --- growbot-imulog-1 segmentation: the regimes the format does not carry -------
     # Hidden secrets: a 10 s motionless prefix, driven walking after it, and a tip at

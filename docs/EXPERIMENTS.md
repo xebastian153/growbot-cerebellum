@@ -558,6 +558,86 @@ statistic that looked stable only because nothing had stressed it:
   had never survived into a set, which is to say the crash was waiting for exactly the
   under-determined case the function exists to report.
 
+## The gesture and still captures — the still lane pays out, the gesture lane cannot
+
+Two captures were requested to break the identification deadlock: `~15 s` of periodic
+walking had left the servo delay undetermined over the whole grid, and no still segment
+long enough for an Allan read existed in the walk lane. The maintainer sent a 3.6 min
+gesture session (`gait: "act"`, 12,014 IMU rows, 53 pose rows) and a 76 s still capture
+(`gait: "still"`, 4,471 IMU rows, **an empty pose array**), with the warning that in act
+files "the pose rows are the commanded keyframe schedule (send time plus cumulative ms
+offsets), not the 30Hz stream".
+
+### The still lane: the phone's gyro noise, measured
+
+`sensor_id.py SEND-still-76s.json`. The record is genuinely still — one 75.7 s segment,
+gyro RMS **0.004 rad/s** against the 0.15 threshold, orientation drift 1.3° over the
+record. The `7.1 deg/s` peak is the taps that start and stop the recording, at 0–2.2 s
+and 71.7–73 s, not a disturbance in the body of the capture.
+
+One dropout of **1051 ms at t = 8.6 s** sits inside that segment, and it mattered more
+than its size suggests. Allan integrates the rate into an angle assuming a single
+uniform sample period, so ~61 missing samples do not blur the curve, they insert a step
+the sensor never produced and bias every tau above the gap. Splitting the still windows
+at dropouts and using the longest gap-free run changed the outcome from one axis
+reporting to three:
+
+| | ARW (rad/s/√Hz) | before the gap split |
+|---|---|---|
+| wx | **6.42e-04** | undetermined |
+| wy | **3.05e-04** | 3.27e-04 |
+| wz | **1.26e-04** | undetermined |
+
+Conditions: 66 s gap-free run, 3,956 samples, fs 59.88 Hz, gyro RMS 0.003 rad/s.
+**Bias instability stays undetermined on all three axes**: the tau range reaches only
+~17 s, so a flicker floor, if this sensor has one, is beyond what 76 s can show. `wz`
+shows an ARW/rate-random-walk crossover notch at 6.8 s rather than a plateau.
+
+The fusion-filter lag could **not** be replicated from this file, and could not have
+been: peak correlations of 0.17 / 0.29 / 0.13 are far below the 0.50 gate, because a
+motionless body gives the cross-correlation nothing to lock onto. The walk lane's
++13.0 / +13.8 / +12.8 ms stands unreplicated rather than contradicted — measuring it
+needs motion, which is exactly what a still capture excludes.
+
+### The gesture lane: the glide engine, not the servo
+
+The `act` verb carries a duration and the log does not record it. The header documents
+its own example — `{l:130, r:50, ms:700}` — which is a 40° move in 700 ms, a commanded
+ramp of **1.00 rad/s**. `realized_from_commands` replays a *step* and lets the candidate
+servo's slew shape the trajectory; the body received a *ramp* the log never stored.
+
+That is not a noise problem, it is a wrong-quantity problem, and the arithmetic says so
+before any identification runs: at 1.00 rad/s the commanded ramp is **slower** than the
+2.0–3.0 rad/s the walk lane determines, so the horn is never asked to move at its own
+limit. Whatever slew best explains this file is the glide engine's rate.
+
+The identification confirms it exactly. `gesture_id.py`, same grid and protocol on both
+files, identify on the first half:
+
+| | argmin | delay determined | slew determined | band | split-half |
+|---|---|---|---|---|---|
+| gesture (act) | delay 0, slew **1.0** ⚠ | [0…6] — the whole grid | [1.0 … none] — the whole grid | 0.1203 | DISAGREE |
+| walk-1 (official) | delay 5, slew 2.0 | [2, 3, 4, 5, 6] | [2.0, 3.0] | 0.0063 | DISAGREE |
+
+⚠ at the grid boundary. The slew argmin lands on 1.0 rad/s, the glide rate, to two
+decimal places.
+
+**The capture we asked for determines strictly less than the walking file it was meant
+to improve on.** Its confidence band is 19× wider, and both parameters come back as the
+entire grid. The excitation is genuinely better — steps of 40–110° across 5–175°, against
+a gait's one narrow band — and it does not help, because no candidate servo can explain a
+ramp it was never shown, so every hypothesis scores similarly badly and the band swallows
+the grid. Three further properties of the file compound it: 54 % of keyframes arrive while
+the previous glide is still playing (median gap 0.60 s against a 700 ms median glide), and
+six stretches totalling ~60 s run under commands up to 71° off neutral with the body not
+responding at all — the preflight says so, in the same words it used for the tipped walk.
+
+The reading is not "the gesture capture is noisy". It is: **this file determines neither
+delay nor slew, and its slew argmin is a measurement of the glide engine.** The request
+was for the wrong thing. Varied excitation cannot help while the log records endpoints
+instead of what was sent; what would resolve it is the `ms` value per act, or the realized
+30 Hz command stream — either one turns the same 3.6 minutes into an identifiable record.
+
 ## Coverage — **RETRACTED**: the experiment was invalid twice over
 
 > **Retraction.** This section previously published a negative result — "synthesized

@@ -1,0 +1,114 @@
+{
+ "glide": {
+  "n_keyframes": 53,
+  "span_s": 215.67530615234375,
+  "step_deg": {
+   "median": 40.0,
+   "max": 110.0
+  },
+  "inter_keyframe_s": {
+   "min": 0.15,
+   "p25": 0.35,
+   "median": 0.6,
+   "max": 28.9811875
+  },
+  "glide_rate_rad_s": 0.9973310011396169,
+  "glide_ms_needed": {
+   "median": 700.0,
+   "max": 1925.0
+  },
+  "frac_keyframes_arriving_mid_glide": 0.5384615384615384
+ },
+ "runs": [
+  {
+   "log": "SEND-gesture-3.6min.json",
+   "label": "gesture (act)",
+   "ticks": 10872,
+   "fit_ticks": 5436,
+   "argmin": {
+    "delay_ticks": 0.0,
+    "slew_rad_s": 1.0,
+    "deadband": 0.06981317007977318
+   },
+   "band": 0.12029526491761207,
+   "delay_determined": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+   ],
+   "slew_determined": [
+    1.0,
+    1.5,
+    2.0,
+    3.0,
+    4.0,
+    5.0,
+    6.0,
+    8.0,
+    null
+   ],
+   "argmin_interior": false,
+   "interior_why": "argmin is AT THE BOUNDARY of the grid (delay 0-6 ticks, slew 1.0-8.0 rad/s or none, deadband 0-4 deg; 'none' = no slew limit counts as the boundary, not as an interior point)",
+   "split_half": {
+    "A": {
+     "delay_ticks": 0.0,
+     "slew_rad_s": 1.0,
+     "deadband": 0.06981317007977318
+    },
+    "B": {
+     "delay_ticks": 6.0,
+     "slew_rad_s": 1.0,
+     "deadband": 0.06981317007977318
+    },
+    "agree": false
+   }
+  },
+  {
+   "log": "imu-walk-1-2026-08-20T17-50-14-713Z.json",
+   "label": "walk-1 (official)",
+   "ticks": 809,
+   "fit_ticks": 404,
+   "argmin": {
+    "delay_ticks": 5.0,
+    "slew_rad_s": 2.0,
+    "deadband": 0.03490658503988659
+   },
+   "band": 0.006315527808666229,
+   "delay_determined": [
+    2,
+    3,
+    4,
+    5,
+    6
+   ],
+   "slew_determined": [
+    2.0,
+    3.0
+   ],
+   "argmin_interior": true,
+   "interior_why": "argmin is INTERIOR to the grid (delay 0-6 ticks, slew 1.0-8.0 rad/s or none, deadband 0-4 deg; 'none' = no slew limit counts as the boundary, not as an interior point)",
+   "split_half": {
+    "A": {
+     "delay_ticks": 6.0,
+     "slew_rad_s": 5.0,
+     "deadband": 0.06981317007977318
+    },
+    "B": {
+     "delay_ticks": 6.0,
+     "slew_rad_s": 2.0,
+     "deadband": 0.06981317007977318
+    },
+    "agree": false
+   }
+  }
+ ],
+ "reading": {
+  "slew_interpretable": false,
+  "slew_reason": "the identified slew 1.0 rad/s is the glide engine's commanded ramp (1.00 rad/s from the header's own act), not the horn's limit: the ramp is slower than the [2.0, 3.0] rad/s the walk lane determines, so the horn is never asked to move at its limit",
+  "delay_tightened_vs_walk": false
+ }
+}

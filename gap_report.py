@@ -38,7 +38,7 @@ REGIME_MAP = {"walk": "policy", "spin": "policy", "gesture": "keyframe",
               # earns the twin's policy floor. 'impact' and 'unknown' are deliberately
               # ABSENT: they have no twin counterpart, so they fall back to the twin's
               # overall row and are printed as such rather than credited to a regime.
-              "walking": "policy", "fall": "fallen",
+              "walking": "policy", "acting": "keyframe", "fall": "fallen",
               # a gait name from a file that DOES carry event rows; the nearest twin
               # regime is policy walking (the same alternating gait family). For
               # growbot-imulog-1 this is now unreachable: the segmenter labels every

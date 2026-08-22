@@ -584,6 +584,10 @@ def main():
     print(f"\nclock ({len(args.log)} file(s); dt within files only, {SEAM_MS:.0f} ms seam between files)")
     dt_by_stream = {}
     for name, d in (("imu", np.concatenate(imu_d)), ("cmd", np.concatenate(cmd_d))):
+        if len(d) == 0:                       # a still capture sends nothing: no cadence to report
+            dt_by_stream[name] = None
+            print(f"  {name}  no rows -- nothing was sent to the servos in this session")
+            continue
         st = _stats_from_diffs(d)
         dt_by_stream[name] = st
         print(f"  {name}  dt ms: median {st['median_ms']:.1f}  p95 {st['p95_ms']:.1f}  "
@@ -652,8 +656,31 @@ def main():
     allan = None
     still_meta = None
     if stills:
-        t0, t1 = max(stills, key=lambda w: w[1] - w[0])
-        sel = (imu_t >= t0) & (imu_t < t1)
+        # Allan integrates the rate into an angle assuming a single uniform sample
+        # period, so a dropout inside the segment is not a small blemish: the missing
+        # samples silently vanish from the time axis and the integrated angle acquires
+        # a step the sensor never produced, biasing every tau above the gap. Split the
+        # candidate windows at dropouts first and take the longest CONTIGUOUS run.
+        contiguous = []
+        for w0, w1 in stills:
+            m = np.flatnonzero((imu_t >= w0) & (imu_t < w1))
+            if len(m) < 2:
+                continue
+            cuts = np.flatnonzero(np.diff(imu_t[m]) > GAP_MS)
+            for a, b in zip(np.r_[0, cuts + 1], np.r_[cuts + 1, len(m)]):
+                if b - a >= 2:
+                    contiguous.append((float(imu_t[m[a]]), float(imu_t[m[b - 1]])))
+        dropped = len(contiguous) - len(stills)
+        if not contiguous:
+            contiguous = list(stills)
+        t0, t1 = max(contiguous, key=lambda w: w[1] - w[0])
+        whole = max(stills, key=lambda w: w[1] - w[0])
+        if (whole[1] - whole[0]) - (t1 - t0) > GAP_MS:
+            print(f"\n  the longest still window spans {(whole[1] - whole[0]) / 1000:.0f} s but "
+                  f"contains a dropout: Allan uses its longest gap-free run "
+                  f"({(t1 - t0) / 1000:.0f} s) instead, because the estimator assumes one "
+                  f"uniform sample period and missing samples would bias the long taus")
+        sel = (imu_t >= t0) & (imu_t <= t1)
         span = (t1 - t0) / 1000.0
         seg_dt = dt_stats(imu_t[sel])
         vs = verify_still(imu_v[sel, :3], imu_v[sel, 3:])

@@ -39,6 +39,7 @@ Sim-only until a real IMU log exists.
 | `timesfm_baseline.py` | Google TimesFM 2.5 zero-shot as an action-blind baseline |
 | `gap_report.py` | the day-of-log command: gap per regime and axis as real − twin floor, optional after-identified-servo column |
 | `real_log_report.py` | the full day-of-log run on the maintainer's real walk files, **per file**: computed adapter evidence, per-segment gap, extended-grid servo identification, the agent-gain differential test, sensor-side numbers (needs the untracked walk logs) |
+| `gesture_id.py` | what an `act` capture can identify: the glide engine's ramp (1.0 rad/s, from the header's own documented act) is slower than the horn's slew, so the slew argmin measures the glide and the file determines neither parameter (needs the untracked captures) |
 | `real2sim.py` | the loop closed: identified servo → twin's `ServoModel` → retrain → score on walk-1's held-out half, at three points of the identification band, plus a zero-delay smoothing-only cell and a nominal control (needs the untracked walk logs) |
 | `coverage.py` | **retracted** 2×2 factorial: {nominal, identified servo} × {standard, +sit↔stand transition data}. Kept with its sanity precondition fixed; see the retraction in `docs/EXPERIMENTS.md` |
 | `identification_ablation.py` | four changes to how the servo is identified — observation/command channel alignment, multi-horizon scoring, per-side servos — each scored on walk-1's held-out half (needs the untracked walk logs) |

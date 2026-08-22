@@ -201,8 +201,19 @@ meet the gyro, and doing so moves the identified delay from 5 ticks to 4 and nar
 determined set, with no change to held-out accuracy — the correction is to the attribution,
 not to the prediction (`identification_ablation.py`). What is left is the actuator plus the
 gyro's own absolute lag, which this log cannot measure, so 80 ms is an upper bound on the
-actuator rather than its value. Allan deviation stays undetermined — the longest still
-segment in the walk lane is about 1 s, and the parameters need minutes.
+actuator rather than its value.
+
+Allan deviation needed its own capture, and got one: a 76 s still session (empty pose
+array — a still lane sends nothing) gives angle random walk **6.42e-04 / 3.05e-04 /
+1.26e-04 rad/s/√Hz** on wx/wy/wz, from its longest gap-free run (66 s, 3,956 samples at
+59.88 Hz, gyro RMS 0.003 rad/s). Splitting the still window at its one 1051 ms dropout is
+what made that readable on all three axes rather than one: the estimator integrates rate
+into angle at a single assumed sample period, so missing samples are a step, not a blur.
+Bias instability remains undetermined — 76 s reaches a tau of only ~17 s, below any
+flicker floor this sensor might have. The filter lag cannot be replicated from a still
+capture at all (peak correlations 0.13–0.29 against a 0.50 gate): a motionless body gives
+the cross-correlation nothing to lock onto, so the walk lane's number stands unreplicated
+rather than confirmed.
 
 ## What is *not* on this list, and why
 

@@ -1,0 +1,27 @@
+preflight: PASS
+preflight: PASS
+
+== the glide, from the header's own documented act
+  40 deg in 700 ms = 1.00 rad/s commanded ramp
+  53 keyframes over 216 s; steps median 40 deg, max 110 deg
+  at that rate a median step needs 700 ms, the largest 1925 ms
+  inter-keyframe gap median 0.60 s, min 0.15 s
+  54% of keyframes arrive while the previous glide is still playing
+
+== identification, same grid and protocol on both files
+
+  gesture (act): 10872 ticks, identify on the first 5436
+    argmin delay 0 ticks, slew 1.0, deadband 4 deg   [AT THE GRID BOUNDARY]
+    determined: delay [0, 1, 2, 3, 4, 5, 6]  slew [1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0, None]  (band 0.12030)
+    split-half: A=0/1.0  B=6/1.0  DISAGREE
+
+  walk-1 (official): 809 ticks, identify on the first 404
+    argmin delay 5 ticks, slew 2.0, deadband 2 deg
+    determined: delay [2, 3, 4, 5, 6]  slew [2.0, 3.0]  (band 0.00632)
+    split-half: A=6/5.0  B=6/2.0  DISAGREE
+
+== reading
+  slew from this file is NOT the servo's: the identified slew 1.0 rad/s is the glide engine's commanded ramp (1.00 rad/s from the header's own act), not the horn's limit: the ramp is slower than the [2.0, 3.0] rad/s the walk lane determines, so the horn is never asked to move at its limit
+  delay set: gesture [0, 1, 2, 3, 4, 5, 6] vs walk-1 [2, 3, 4, 5, 6] -- not tighter
+
+wrote results/gesture_id_SEND-gesture-3_6min.json
