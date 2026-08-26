@@ -43,7 +43,7 @@ def quat_to_rpy(q):
 
 
 def perturb(m, mass_scale=1.0, dcom=(0.0, 0.0, 0.0), leg_scale=1.0, gain_mult=1.0, friction=None,
-            friction_torsional=None, friction_rolling=None, condim=None):
+            friction_torsional=None, friction_rolling=None, condim=None, base_mass_delta=0.0):
     """Apply one DR corner to a loaded model. Same edits as dr_sweep_spin.build_model.
 
     `friction` is MuJoCo's SLIDING coefficient, geom_friction column 0 -- the only one
@@ -54,6 +54,9 @@ def perturb(m, mass_scale=1.0, dcom=(0.0, 0.0, 0.0), leg_scale=1.0, gain_mult=1.
     (measured, see contact_friction.py). `condim=4` activates torsional, `condim=6`
     activates rolling as well. All three new arguments default to None = leave the
     model as loaded, so every existing caller reproduces bit-identically.
+    `base_mass_delta` (kg) is added to the base body only -- a heavier or lighter phone
+    sits on the base, the legs do not change -- and scales the base inertia with it.
+    Default 0.0 = no-op.
     """
     base = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, "base_body")
     legs = [(mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_GEOM, g), mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, b))
@@ -62,6 +65,10 @@ def perturb(m, mass_scale=1.0, dcom=(0.0, 0.0, 0.0), leg_scale=1.0, gain_mult=1.
     leg_mass0 = float(m.body_mass[legs[0][1]])
     m.body_mass[:] *= mass_scale
     m.body_inertia[:] *= mass_scale
+    if base_mass_delta:
+        r = (float(m.body_mass[base]) + base_mass_delta) / float(m.body_mass[base])
+        m.body_mass[base] *= r
+        m.body_inertia[base] *= r
     m.body_ipos[base] += np.array(dcom)
     for gid, bid in legs:
         half = half0 * leg_scale

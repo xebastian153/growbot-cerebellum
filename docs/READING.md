@@ -271,9 +271,10 @@ https://techcrunch.com/2026/01/13/neo-humanoid-maker-1x-releases-world-model-to-
 recipe that transfers well models the ACTUATOR first (learned actuator nets, custom
 actuator classes, delay randomization, system ID) and randomizes *targeted* factors
 second; none wins by blanket-randomizing mass and friction. That is what the twin
-measured independently: body parameters never reach the IMU — including torsional
-friction once the twin was made able to apply it at all — actuator delay and slew
-open the gap, identify it and feed it back. The Real2Sim loop is standard practice at
+measured independently: mass, gain and sliding friction never reach the IMU at any
+horizon tested — nor torsional friction once the twin was made able to apply it at
+all — while a 3 cm centre-of-mass shift does at 500 ms (`body_params.py`); actuator
+delay and slew open the gap, identify it and feed it back. The Real2Sim loop is standard practice at
 the top of the field. One caveat separates this project: the industry's system ID uses
 encoders and torque sensors; `servo_id.py` identifies the actuator from IMU + commands
 alone, because a $30 body carries nothing else — a variant none of the above documents.

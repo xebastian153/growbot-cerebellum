@@ -104,6 +104,98 @@ def condim_audit(steps=6000, seed=0, body="olie"):
     return out
 
 
+def score_corners(nominal, corner_list, seeds, corner_steps, horizons, body="olie"):
+    """One row per corner: the published legacy metric plus per-axis within-0.2rad at each
+    horizon, seeds shared across corners. The evaluation primitives are sim2real_proxy's
+    and forward's; nothing here re-implements them."""
+    rows = []
+    for name, dr, group in corner_list:
+        per_seed = []
+        for sd in seeds:
+            O, A, O2, D, _ = collect(corner_steps, seed=sd, body=body, dr=dr)
+            legacy = horizon_within(nominal, O, A, D, h=5, seed=0)[0]
+            ro = rollout_error(nominal, O, A, D, K, horizons, seed=0)
+            per_seed.append({
+                "seed": sd, "n_ticks": int(len(O)),
+                "legacy_within_0.2rad_rollpitch_100ms": legacy,
+                "per_axis": {str(h): {"within_0.2rad_axis": ro[h]["within_0.2rad_axis"],
+                                      "rmse_axis_rad": ro[h]["rmse_axis_rad"]} for h in horizons},
+            })
+        def agg(get):
+            v = np.array([get(s) for s in per_seed], float)
+            return {"mean": float(v.mean()), "spread": float(v.max() - v.min())}
+        rows.append({
+            "corner": name, "group": group, "dr": {k: v for k, v in dr.items() if k != "mass_scale"} if dr.get("mass_scale", 1.0) == 1.0 else dict(dr),
+            "seeds": list(seeds), "per_seed": per_seed,
+            "legacy_100ms": agg(lambda s: s["legacy_within_0.2rad_rollpitch_100ms"]),
+            "axis": {str(h): {a: agg(lambda s, h=h, a=a: s["per_axis"][str(h)]["within_0.2rad_axis"][a])
+                              for a in ("roll", "pitch", "yaw")} for h in horizons},
+        })
+        print(f"  collected+scored: {name}", flush=True)
+    return rows
+
+
+def decide(rows, horizons, seeds):
+    """Threshold from the nominal row's seed spread; verdict per corner, axis and horizon."""
+    nom = rows[0]
+    spread = max(nom["legacy_100ms"]["spread"],
+                 max(nom["axis"][str(h)][a]["spread"] for h in horizons
+                     for a in ("roll", "pitch", "yaw")))
+    thresh = max(0.03, 2.0 * spread)
+    print(f"\n  nominal seed spread (worst metric, {len(seeds)} seeds): "
+          f"{spread * 100:.2f} pts -> material threshold {thresh * 100:.2f} pts")
+    verdicts = {}
+    for r in rows[1:]:
+        d = r["legacy_100ms"]["mean"] - nom["legacy_100ms"]["mean"]
+        mats = {}
+        for h in horizons:
+            for ax in ("roll", "pitch", "yaw"):
+                dd = r["axis"][str(h)][ax]["mean"] - nom["axis"][str(h)][ax]["mean"]
+                mats[f"{ax}@{h}"] = {"delta_pts": float(dd * 100), "material": bool(abs(dd) > thresh)}
+        verdicts[r["corner"]] = {"legacy_delta_pts": float(d * 100),
+                                 "legacy_material": bool(abs(d) > thresh), "axis": mats}
+    return spread, thresh, verdicts
+
+
+def print_tables(rows, verdicts, thresh, horizons, title="PART B -- results"):
+    nom = rows[0]
+    print("\n" + "=" * 78)
+    print(f"{title} (within 0.2 rad, % of starts; delta vs nominal in pts)")
+    print("=" * 78)
+    hdr = f"{'corner':<52}{'legacy':>9}" + "".join(
+        f"{ax[:4] + '@' + str(h):>11}" for h in horizons for ax in ("roll", "pitch", "yaw"))
+    print(hdr); print("-" * len(hdr))
+    for r in rows:
+        line = f"{r['corner']:<52}{r['legacy_100ms']['mean'] * 100:>8.1f}%"
+        for h in horizons:
+            for ax in ("roll", "pitch", "yaw"):
+                line += f"{r['axis'][str(h)][ax]['mean'] * 100:>10.1f}%"
+        print(line)
+    print("\ndelta vs nominal (pts), material marked *")
+    print(hdr); print("-" * len(hdr))
+    for r in rows[1:]:
+        v = verdicts[r["corner"]]
+        line = f"{r['corner']:<52}{v['legacy_delta_pts']:>+8.1f}{'*' if v['legacy_material'] else ' '}"
+        for h in horizons:
+            for ax in ("roll", "pitch", "yaw"):
+                m = v["axis"][f"{ax}@{h}"]
+                line += f"{m['delta_pts']:>+10.1f}{'*' if m['material'] else ' '}"
+        print(line)
+
+
+def any_material(rows, verdicts, group, axis_prefix=None):
+    out = []
+    for r in rows[1:]:
+        if r["group"] != group:
+            continue
+        v = verdicts[r["corner"]]
+        hit = [k for k, m in v["axis"].items() if m["material"] and
+               (axis_prefix is None or k.startswith(axis_prefix))]
+        if hit or (axis_prefix is None and v["legacy_material"]):
+            out.append((r["corner"], hit))
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--epochs", type=int, default=60)
@@ -142,87 +234,17 @@ def main():
     print(f"\n  training the frozen nominal model ({args.epochs} epochs)...", flush=True)
     nominal = MLP(hidden=128, epochs=args.epochs).fit(Xtr, Ytr)
 
-    rows = []
-    for name, dr, group in corners():
-        per_seed = []
-        for sd in args.seeds:
-            O, A, O2, D, _ = collect(args.corner_steps, seed=sd, body="olie", dr=dr)
-            legacy = horizon_within(nominal, O, A, D, h=5, seed=0)[0]
-            ro = rollout_error(nominal, O, A, D, K, args.horizons, seed=0)
-            per_seed.append({
-                "seed": sd, "n_ticks": int(len(O)),
-                "legacy_within_0.2rad_rollpitch_100ms": legacy,
-                "per_axis": {str(h): {"within_0.2rad_axis": ro[h]["within_0.2rad_axis"],
-                                      "rmse_axis_rad": ro[h]["rmse_axis_rad"]} for h in args.horizons},
-            })
-        def agg(get):
-            v = np.array([get(s) for s in per_seed], float)
-            return {"mean": float(v.mean()), "spread": float(v.max() - v.min())}
-        rows.append({
-            "corner": name, "group": group, "dr": {k: v for k, v in dr.items() if k != "mass_scale"},
-            "seeds": args.seeds, "per_seed": per_seed,
-            "legacy_100ms": agg(lambda s: s["legacy_within_0.2rad_rollpitch_100ms"]),
-            "axis": {str(h): {a: agg(lambda s, h=h, a=a: s["per_axis"][str(h)]["within_0.2rad_axis"][a])
-                              for a in ("roll", "pitch", "yaw")} for h in args.horizons},
-        })
-        print(f"  collected+scored: {name}", flush=True)
-
-    nom = rows[0]
-    spread = max(nom["legacy_100ms"]["spread"],
-                 max(nom["axis"][str(h)][a]["spread"] for h in args.horizons
-                     for a in ("roll", "pitch", "yaw")))
-    thresh = max(0.03, 2.0 * spread)
-    print(f"\n  nominal seed spread (worst metric, {len(args.seeds)} seeds): "
-          f"{spread * 100:.2f} pts -> material threshold {thresh * 100:.2f} pts")
-
-    print("\n" + "=" * 78)
-    print("PART B -- results (within 0.2 rad, % of starts; delta vs nominal in pts)")
-    print("=" * 78)
-    hdr = f"{'corner':<52}{'legacy':>9}" + "".join(
-        f"{ax[:4] + '@' + str(h):>11}" for h in args.horizons for ax in ("roll", "pitch", "yaw"))
-    print(hdr); print("-" * len(hdr))
-    for r in rows:
-        line = f"{r['corner']:<52}{r['legacy_100ms']['mean'] * 100:>8.1f}%"
-        for h in args.horizons:
-            for ax in ("roll", "pitch", "yaw"):
-                line += f"{r['axis'][str(h)][ax]['mean'] * 100:>10.1f}%"
-        print(line)
-    print("\ndelta vs nominal (pts), material marked *")
-    print(hdr); print("-" * len(hdr))
-    verdicts = {}
-    for r in rows[1:]:
-        line = f"{r['corner']:<52}"
-        d = r["legacy_100ms"]["mean"] - nom["legacy_100ms"]["mean"]
-        line += f"{d * 100:>+8.1f}{'*' if abs(d) > thresh else ' '}"
-        mats = {}
-        for h in args.horizons:
-            for ax in ("roll", "pitch", "yaw"):
-                dd = r["axis"][str(h)][ax]["mean"] - nom["axis"][str(h)][ax]["mean"]
-                mats[f"{ax}@{h}"] = {"delta_pts": float(dd * 100), "material": bool(abs(dd) > thresh)}
-                line += f"{dd * 100:>+10.1f}{'*' if abs(dd) > thresh else ' '}"
-        print(line)
-        verdicts[r["corner"]] = {"legacy_delta_pts": float(d * 100),
-                                 "legacy_material": bool(abs(d) > thresh), "axis": mats}
-
-    def any_material(group, axis_prefix=None):
-        out = []
-        for r in rows[1:]:
-            if r["group"] != group:
-                continue
-            v = verdicts[r["corner"]]
-            hit = [k for k, m in v["axis"].items() if m["material"] and
-                   (axis_prefix is None or k.startswith(axis_prefix))]
-            if hit or (axis_prefix is None and v["legacy_material"]):
-                out.append((r["corner"], hit))
-        return out
+    rows = score_corners(nominal, corners(), args.seeds, args.corner_steps, args.horizons)
+    spread, thresh, verdicts = decide(rows, args.horizons, args.seeds)
+    print_tables(rows, verdicts, thresh, args.horizons)
 
     print("\n" + "=" * 78)
     print("VERDICT")
     print("=" * 78)
-    inert_hits = any_material("inert")
-    tor_hits = any_material("torsional")
-    tor_yaw = any_material("torsional", "yaw")
-    roll_hits = any_material("rolling")
+    inert_hits = any_material(rows, verdicts, "inert")
+    tor_hits = any_material(rows, verdicts, "torsional")
+    tor_yaw = any_material(rows, verdicts, "torsional", "yaw")
+    roll_hits = any_material(rows, verdicts, "rolling")
     print(f"  torsional/rolling AT condim 3 (as shipped): "
           f"{'moves the IMU' if inert_hits else 'no material effect on any axis -- inert, as Part A predicts'}")
     print(f"  torsional with the mechanism ON (condim 4): "

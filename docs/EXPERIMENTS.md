@@ -57,11 +57,12 @@ So the project's DR does not show up in the IMU at 100 ms — consistent with it
 transfer — and the spin gap is unlikely to be mass/CoM/leg/gain. Contact is the untested
 factor, and contact drives yaw, which drives spin.
 
-Two limits of this section, both established later and both on that axis: the corner
-labelled "friction 0.6–1.4" varies **sliding** friction alone (`geom_friction[:, 0]`),
-and the metric here scores roll and pitch only — yaw is not in it. Both are addressed
-under *Contact friction* below, which tests the contact factor this paragraph calls
-untested and leaves the negative standing.
+Three limits of this section, all established later: the corner labelled "friction
+0.6–1.4" varies **sliding** friction alone (`geom_friction[:, 0]`); the metric scores
+roll and pitch only — yaw is not in it; and it scores 100 ms only. *Contact friction*
+below addresses the first two and leaves the negative standing. *Body parameters at
+500 ms* addresses the third and does not: mass, gain and sliding friction stay invisible
+at 500 ms, but the centre of mass is material there on every axis.
 
 ## Contact friction — the twin has no torsional friction, and the DR negative could not have seen one
 
@@ -162,6 +163,77 @@ bit-identity Part A measured, now visible in the metric.
 
 Reproduce: `.venv/bin/python contact_friction.py` → `results/contact_friction.json`,
 `results/logs/contact_friction.txt`. Total 140 s.
+
+## Body parameters at 500 ms — mass is invisible, the centre of mass is not
+
+Every GrowBot is assembled by a different person around a different phone. The *Sim-to-real
+proxy* section above found body-parameter randomisation invisible in the IMU, but it scored
+one horizon and two axes: `horizon_within(..., h=5)`, 100 ms, roll and pitch. *Contact
+friction* closed that limit for friction. This section closes it for the parameters a
+builder actually changes — mass, centre of mass, leg length — on the identical protocol
+(`body_params.py`, reusing `contact_friction.py`'s scoring and `sim2real_proxy.py`'s own 13
+corners so the old table and this one are the same points), at 100 **and** 500 ms, yaw
+included.
+
+**Anchors.** The twin's base body is 427 g, the whole body 480 g. Phones span
+roughly 150–250 g, so two corners ask the phone question directly: ±75 g on the base
+alone, legs untouched (a whole-body mass_scale of 0.844 / 1.156). The published DR
+ends stay as they are: mass 0.8 / 1.25, CoM x ±0.03 m and z −0.01 / +0.015 m, leg 0.85 / 1.15.
+Three more corners move the centre of mass on one axis at a time, which is what a longer
+phone or a higher mount does.
+
+**Decision rule, stated before the numbers.** Material = |Δ vs nominal| > max(3.0 pts,
+2× the nominal seed spread). Measured spread over 3 shared seeds: 2.30 pts → threshold
+**4.60 pts**. Two limits, verbatim: this is forward-model *prediction* accuracy, not policy
+*transfer*; and every real-log number in this repo comes from **one** unit and **one** phone,
+so this sweep says what the twin predicts across units, not what a second real robot does.
+
+**At 100 ms nothing moves.** The largest shift on any axis in any corner is 2.7 pts and
+the largest on the published metric is 2.7 pts, both under the threshold. The original
+negative reproduces exactly at the horizon it was measured.
+
+**At 500 ms, within 0.2 rad, Δ vs nominal in pts** (nominal 85.2 / 86.9 / 75.6 on
+roll / pitch / yaw; material in bold):
+
+| corner | legacy 100 ms | roll | pitch | yaw |
+|---|---|---|---|---|
+| mass 0.80 | −0.6 | −0.8 | −0.6 | −0.5 |
+| mass 1.25 | −0.2 | +2.5 | +0.8 | +1.5 |
+| phone −75 g on the base | +0.5 | +0.2 | −0.5 | −1.6 |
+| phone +75 g on the base | −0.2 | +1.4 | −0.3 | −0.9 |
+| leg 0.85 | −0.0 | +2.7 | −4.0 | −2.7 |
+| leg 1.15 | −0.4 | −1.6 | **−7.4** | −3.0 |
+| gain 0.75 | −0.3 | +1.0 | +0.4 | −0.0 |
+| gain 1.25 | −1.1 | −0.5 | −0.3 | −2.1 |
+| sliding friction 0.6 | −0.3 | +1.3 | +0.4 | −1.4 |
+| sliding friction 1.4 | −0.3 | −0.1 | −0.4 | −1.2 |
+| CoM back/low (published corner) | −0.7 | −4.6 | **−10.6** | −4.3 |
+| CoM fwd/high (published corner) | −2.7 | **−13.1** | **−29.4** | **−10.9** |
+| CoM x −0.03 only | −2.5 | **−7.8** | **−14.2** | **−8.1** |
+| CoM x +0.03 only | −1.6 | **−12.4** | **−33.8** | **−12.2** |
+| CoM z +0.015 only | −0.7 | **−5.1** | **−4.8** | −1.4 |
+| worst A (heavy, long, weak, slippery) | −2.6 | **−13.1** | **−26.7** | **−10.1** |
+| worst B (light, short, strong, grippy) | −0.7 | −3.7 | −3.5 | **−6.4** |
+
+**What holds.** Mass does not reach the IMU at 500 ms either: ±25 % on the whole body and
+±75 g on the base alone both stay inside the threshold on every axis. Neither do servo gain
+nor sliding friction. For the question that motivated the sweep — a heavier or lighter phone
+— the published negative survives at the horizon where the real gap lives.
+
+**What does not hold.** The **centre of mass** reaches the IMU at 500 ms, and hard. A 3 cm
+shift along the body axis alone costs 33.8 pts of pitch forward and 14.2 back, with roll
+and yaw material in both directions; 1.5 cm higher costs 5.1 / 4.8 on roll / pitch. Leg
+length 1.15 is material on pitch (-7.4). The published worst-case corners inherit it:
+worst A is material on all three axes, worst B on yaw. So the sentence "body parameters
+never reach the IMU" was true of the horizon and axes it was measured on and is false at
+500 ms for one parameter — and that parameter is exactly what a different phone in a
+different mount changes.
+
+**What it means for a builder.** The cerebellum shipped in this repo was trained at one
+centre of mass. Its 100 ms predictions should survive a phone swap; its 500 ms predictions
+will not survive a phone that sits 3 cm further forward or back. Since the real logs come
+from one unit, this is a prediction of the twin about other units, not a measurement of
+them — the same limit as every DR number in this file.
 
 ## Yaw floor — mostly noise, not model: scaling is flat and privileged state adds little (negative)
 
