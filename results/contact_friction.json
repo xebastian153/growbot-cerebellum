@@ -1514,6 +1514,292 @@
      }
     }
    }
+  },
+  {
+   "corner": "condim 6, torsional 0.1 rolling 0.0001 (rolling OFF)",
+   "group": "isolation",
+   "dr": {
+    "condim": 6,
+    "friction_torsional": 0.1,
+    "friction_rolling": 0.0001
+   },
+   "seeds": [
+    0,
+    1,
+    2
+   ],
+   "per_seed": [
+    {
+     "seed": 0,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.948,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.9575,
+        "pitch": 0.9675,
+        "yaw": 0.9575
+       },
+       "rmse_axis_rad": {
+        "roll": 0.14131127297878265,
+        "pitch": 0.0864206850528717,
+        "yaw": 0.16131247580051422
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.858,
+        "pitch": 0.859,
+        "yaw": 0.745
+       },
+       "rmse_axis_rad": {
+        "roll": 0.4710268974304199,
+        "pitch": 0.25040847063064575,
+        "yaw": 0.49634242057800293
+       }
+      }
+     }
+    },
+    {
+     "seed": 1,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.9333333333333333,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.9545,
+        "pitch": 0.9665,
+        "yaw": 0.952
+       },
+       "rmse_axis_rad": {
+        "roll": 0.2007284164428711,
+        "pitch": 0.09341994673013687,
+        "yaw": 0.2246331423521042
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.8485,
+        "pitch": 0.852,
+        "yaw": 0.7105
+       },
+       "rmse_axis_rad": {
+        "roll": 0.48206594586372375,
+        "pitch": 0.24576906859874725,
+        "yaw": 0.5296710133552551
+       }
+      }
+     }
+    },
+    {
+     "seed": 2,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.9473333333333334,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.966,
+        "pitch": 0.972,
+        "yaw": 0.9675
+       },
+       "rmse_axis_rad": {
+        "roll": 0.12099699676036835,
+        "pitch": 0.0931999534368515,
+        "yaw": 0.15138329565525055
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.8755,
+        "pitch": 0.8855,
+        "yaw": 0.7665
+       },
+       "rmse_axis_rad": {
+        "roll": 0.41627225279808044,
+        "pitch": 0.221620574593544,
+        "yaw": 0.433889776468277
+       }
+      }
+     }
+    }
+   ],
+   "legacy_100ms": {
+    "mean": 0.942888888888889,
+    "spread": 0.014666666666666606
+   },
+   "axis": {
+    "5": {
+     "roll": {
+      "mean": 0.9593333333333334,
+      "spread": 0.011499999999999955
+     },
+     "pitch": {
+      "mean": 0.9686666666666667,
+      "spread": 0.005499999999999949
+     },
+     "yaw": {
+      "mean": 0.959,
+      "spread": 0.01550000000000007
+     }
+    },
+    "25": {
+     "roll": {
+      "mean": 0.8606666666666666,
+      "spread": 0.026999999999999913
+     },
+     "pitch": {
+      "mean": 0.8654999999999999,
+      "spread": 0.033499999999999974
+     },
+     "yaw": {
+      "mean": 0.7406666666666667,
+      "spread": 0.05599999999999994
+     }
+    }
+   }
+  },
+  {
+   "corner": "condim 6, torsional 0.005 rolling 0.1 (torsional OFF)",
+   "group": "isolation",
+   "dr": {
+    "condim": 6,
+    "friction_torsional": 0.005,
+    "friction_rolling": 0.1
+   },
+   "seeds": [
+    0,
+    1,
+    2
+   ],
+   "per_seed": [
+    {
+     "seed": 0,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.9093333333333333,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.9385,
+        "pitch": 0.9505,
+        "yaw": 0.9465
+       },
+       "rmse_axis_rad": {
+        "roll": 0.15160544216632843,
+        "pitch": 0.1235773116350174,
+        "yaw": 0.15395958721637726
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.5785,
+        "pitch": 0.4475,
+        "yaw": 0.498
+       },
+       "rmse_axis_rad": {
+        "roll": 0.4967567026615143,
+        "pitch": 0.46083471179008484,
+        "yaw": 0.6218030452728271
+       }
+      }
+     }
+    },
+    {
+     "seed": 1,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.8546666666666667,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.9025,
+        "pitch": 0.935,
+        "yaw": 0.8995
+       },
+       "rmse_axis_rad": {
+        "roll": 0.1663055568933487,
+        "pitch": 0.1178894117474556,
+        "yaw": 0.19107767939567566
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.531,
+        "pitch": 0.4545,
+        "yaw": 0.4435
+       },
+       "rmse_axis_rad": {
+        "roll": 0.5214648842811584,
+        "pitch": 0.41878437995910645,
+        "yaw": 0.7058139443397522
+       }
+      }
+     }
+    },
+    {
+     "seed": 2,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.8933333333333333,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.936,
+        "pitch": 0.932,
+        "yaw": 0.9395
+       },
+       "rmse_axis_rad": {
+        "roll": 0.1684139221906662,
+        "pitch": 0.13963979482650757,
+        "yaw": 0.2056332230567932
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.5725,
+        "pitch": 0.4355,
+        "yaw": 0.515
+       },
+       "rmse_axis_rad": {
+        "roll": 0.4860316514968872,
+        "pitch": 0.46442073583602905,
+        "yaw": 0.6407433152198792
+       }
+      }
+     }
+    }
+   ],
+   "legacy_100ms": {
+    "mean": 0.8857777777777778,
+    "spread": 0.05466666666666664
+   },
+   "axis": {
+    "5": {
+     "roll": {
+      "mean": 0.9256666666666667,
+      "spread": 0.03600000000000003
+     },
+     "pitch": {
+      "mean": 0.9391666666666666,
+      "spread": 0.01849999999999996
+     },
+     "yaw": {
+      "mean": 0.9285,
+      "spread": 0.04700000000000004
+     }
+    },
+    "25": {
+     "roll": {
+      "mean": 0.5606666666666668,
+      "spread": 0.04749999999999999
+     },
+     "pitch": {
+      "mean": 0.4458333333333333,
+      "spread": 0.019000000000000017
+     },
+     "yaw": {
+      "mean": 0.48550000000000004,
+      "spread": 0.07150000000000001
+     }
+    }
+   }
   }
  ],
  "verdicts": {
@@ -1786,7 +2072,67 @@
      "material": false
     }
    }
+  },
+  "condim 6, torsional 0.1 rolling 0.0001 (rolling OFF)": {
+   "legacy_delta_pts": -0.3333333333333188,
+   "legacy_material": false,
+   "axis": {
+    "roll@5": {
+     "delta_pts": -0.7000000000000006,
+     "material": false
+    },
+    "pitch@5": {
+     "delta_pts": -0.6833333333333247,
+     "material": false
+    },
+    "yaw@5": {
+     "delta_pts": -0.2500000000000058,
+     "material": false
+    },
+    "roll@25": {
+     "delta_pts": 0.8499999999999841,
+     "material": false
+    },
+    "pitch@25": {
+     "delta_pts": -0.35000000000001696,
+     "material": false
+    },
+    "yaw@25": {
+     "delta_pts": -1.5666666666666718,
+     "material": false
+    }
+   }
+  },
+  "condim 6, torsional 0.005 rolling 0.1 (torsional OFF)": {
+   "legacy_delta_pts": -6.044444444444441,
+   "legacy_material": true,
+   "axis": {
+    "roll@5": {
+     "delta_pts": -4.066666666666663,
+     "material": false
+    },
+    "pitch@5": {
+     "delta_pts": -3.633333333333333,
+     "material": false
+    },
+    "yaw@5": {
+     "delta_pts": -3.300000000000003,
+     "material": false
+    },
+    "roll@25": {
+     "delta_pts": -29.15,
+     "material": true
+    },
+    "pitch@25": {
+     "delta_pts": -42.31666666666668,
+     "material": true
+    },
+    "yaw@25": {
+     "delta_pts": -27.083333333333336,
+     "material": true
+    }
+   }
   }
  },
- "runtime_s": 139.59790444374084
+ "runtime_s": 162.70818305015564
 }

@@ -124,6 +124,8 @@ rule `yaw_floor.py` and `real2sim.py` use. Measured nominal spread over 3 seeds:
 | condim 4, torsional 1.0 (decade above XML) | 94.3 % | 96.6 % | 72.2 % | −3.5 |
 | condim 6, torsional 0.1 rolling 0.1 (XML values) | 89.6 % | 94.2 % | 53.0 % | **−22.6** |
 | condim 6, MuJoCo default contact | 94.5 % | 95.8 % | 75.0 % | −0.7 |
+| condim 6, torsional 0.1 rolling 0.0001 (rolling OFF) | 94.3 % | 95.9 % | 74.1 % | −1.6 |
+| condim 6, torsional 0.005 rolling 0.1 (torsional OFF) | 88.6 % | 92.8 % | 48.6 % | **−27.1** |
 
 The two condim-3 rows are exactly `+0.0` on every axis and every horizon — the same
 bit-identity Part A measured, now visible in the metric.
@@ -138,9 +140,10 @@ bit-identity Part A measured, now visible in the metric.
   at the shipped contact dimension.
 - **One thing does move the body, and it is the coefficient nobody applied.** At condim 6
   the XML's own rolling value of 0.1 — 1000× MuJoCo's default — costs 22.6 pts of yaw and
-  41.7 of pitch at 500 ms. The isolation is in the table: condim 6 at MuJoCo's defaults is
-  flat, and condim 4 at the XML's torsional value is flat, so the mover is the rolling
-  coefficient, not the contact dimension. Anyone who raises `condim` to model torsional
+  41.7 of pitch at 500 ms. The isolation is direct, not inferred: at condim 6 with the XML's torsional value
+  and rolling switched off (0.0001), yaw moves −1.6 pts — flat; with torsional switched
+  off (0.005) and the XML's rolling value kept, yaw moves −27.1 pts, more than the XML
+  row itself. The mover is the rolling coefficient, not the contact dimension. Anyone who raises `condim` to model torsional
   friction will silently switch on that rolling resistance as well and get a different
   robot.
 - **What it does not settle.** This metric is forward-model *prediction* accuracy, not

@@ -69,6 +69,12 @@ def corners():
            condim=6, friction_torsional=XML_TORSIONAL, friction_rolling=XML_ROLLING),
         mk(f"condim 6, MuJoCo default contact ({MJ_TORSIONAL}/{MJ_ROLLING})", "rolling",
            condim=6, friction_torsional=MJ_TORSIONAL, friction_rolling=MJ_ROLLING),
+        # isolation: the two rows above change BOTH coefficients between them, so which one
+        # moves the body is an inference until each is switched off alone at condim 6
+        mk(f"condim 6, torsional {XML_TORSIONAL} rolling {MJ_ROLLING} (rolling OFF)", "isolation",
+           condim=6, friction_torsional=XML_TORSIONAL, friction_rolling=MJ_ROLLING),
+        mk(f"condim 6, torsional {MJ_TORSIONAL} rolling {XML_ROLLING} (torsional OFF)", "isolation",
+           condim=6, friction_torsional=MJ_TORSIONAL, friction_rolling=XML_ROLLING),
     ]
 
 
@@ -224,6 +230,14 @@ def main():
     print(f"    of which YAW specifically: {'YES -- ' + ', '.join(c for c, _ in tor_yaw) if tor_yaw else 'no'}")
     print(f"  torsional+rolling (condim 6): "
           f"{'moves the IMU on ' + ', '.join(sorted({k for _, h in roll_hits for k in h})) if roll_hits else 'no material effect'}")
+    iso = {r["corner"]: verdicts[r["corner"]]["axis"]["yaw@25"]["delta_pts"]
+           for r in rows[1:] if r["group"] == "isolation"}
+    if iso:
+        off_roll = next(v for k, v in iso.items() if "rolling OFF" in k)
+        off_tor = next(v for k, v in iso.items() if "torsional OFF" in k)
+        print(f"  isolation at condim 6, yaw @500 ms: rolling OFF -> {off_roll:+.1f} pts, "
+              f"torsional OFF -> {off_tor:+.1f} pts -> the mover is "
+              f"{'ROLLING' if abs(off_tor) > thresh * 100 and abs(off_roll) <= thresh * 100 else 'not cleanly separated'}")
 
     out = {"config": vars(args),
            "xml_friction": {"sliding": XML_SLIDING, "torsional": XML_TORSIONAL, "rolling": XML_ROLLING},
