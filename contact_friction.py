@@ -104,31 +104,50 @@ def condim_audit(steps=6000, seed=0, body="olie"):
     return out
 
 
-def score_corners(nominal, corner_list, seeds, corner_steps, horizons, body="olie"):
-    """One row per corner: the published legacy metric plus per-axis within-0.2rad at each
-    horizon, seeds shared across corners. The evaluation primitives are sim2real_proxy's
-    and forward's; nothing here re-implements them."""
+def score_corners(nominal, corner_list, seeds, corner_steps, horizons, body="olie", extra=None):
+    """One row per corner: the published legacy metric plus per-axis within-0.2rad and
+    per-axis RMSE at each horizon, seeds shared across corners. The evaluation primitives
+    are sim2real_proxy's and forward's; nothing here re-implements them.
+
+    Seeds are shared in the sense that corner k and corner l are collected from the same
+    seed, so they start from the same initial condition -- NOT in the sense of common
+    random numbers. `collect()` draws `sim.rng.random()` only when the body has fallen,
+    so two corners whose fall behaviour differs consume the stream at different rates and
+    desynchronise. Paired-difference statistics do not apply; the per-corner seed spread
+    reported beside every verdict is the honest uncertainty.
+
+    `extra(nominal, O, A, O2, D, M, dr, body, horizons, seed) -> dict` (default None) is
+    merged into that seed's record. It exists because the mode channel `collect()` returns
+    is what a fall-rate / regime / oracle partition needs, and this function used to drop
+    it on the floor.
+    """
     rows = []
     for name, dr, group in corner_list:
         per_seed = []
         for sd in seeds:
-            O, A, O2, D, _ = collect(corner_steps, seed=sd, body=body, dr=dr)
+            O, A, O2, D, M = collect(corner_steps, seed=sd, body=body, dr=dr)
             legacy = horizon_within(nominal, O, A, D, h=5, seed=0)[0]
             ro = rollout_error(nominal, O, A, D, K, horizons, seed=0)
-            per_seed.append({
+            rec = {
                 "seed": sd, "n_ticks": int(len(O)),
                 "legacy_within_0.2rad_rollpitch_100ms": legacy,
                 "per_axis": {str(h): {"within_0.2rad_axis": ro[h]["within_0.2rad_axis"],
                                       "rmse_axis_rad": ro[h]["rmse_axis_rad"]} for h in horizons},
-            })
+            }
+            if extra is not None:
+                rec.update(extra(nominal, O, A, O2, D, M, dr, body, horizons, sd))
+            per_seed.append(rec)
         def agg(get):
             v = np.array([get(s) for s in per_seed], float)
-            return {"mean": float(v.mean()), "spread": float(v.max() - v.min())}
+            return {"mean": float(v.mean()), "spread": float(v.max() - v.min()),
+                    "per_seed": [float(x) for x in v]}
         rows.append({
             "corner": name, "group": group, "dr": {k: v for k, v in dr.items() if k != "mass_scale"} if dr.get("mass_scale", 1.0) == 1.0 else dict(dr),
             "seeds": list(seeds), "per_seed": per_seed,
             "legacy_100ms": agg(lambda s: s["legacy_within_0.2rad_rollpitch_100ms"]),
             "axis": {str(h): {a: agg(lambda s, h=h, a=a: s["per_axis"][str(h)]["within_0.2rad_axis"][a])
+                              for a in ("roll", "pitch", "yaw")} for h in horizons},
+            "rmse": {str(h): {a: agg(lambda s, h=h, a=a: s["per_axis"][str(h)]["rmse_axis_rad"][a])
                               for a in ("roll", "pitch", "yaw")} for h in horizons},
         })
         print(f"  collected+scored: {name}", flush=True)
@@ -157,7 +176,7 @@ def decide(rows, horizons, seeds):
     return spread, thresh, verdicts
 
 
-def print_tables(rows, verdicts, thresh, horizons, title="PART B -- results"):
+def print_tables(rows, verdicts, horizons, title="PART B -- results"):
     nom = rows[0]
     print("\n" + "=" * 78)
     print(f"{title} (within 0.2 rad, % of starts; delta vs nominal in pts)")
@@ -236,7 +255,7 @@ def main():
 
     rows = score_corners(nominal, corners(), args.seeds, args.corner_steps, args.horizons)
     spread, thresh, verdicts = decide(rows, args.horizons, args.seeds)
-    print_tables(rows, verdicts, thresh, args.horizons)
+    print_tables(rows, verdicts, args.horizons)
 
     print("\n" + "=" * 78)
     print("VERDICT")

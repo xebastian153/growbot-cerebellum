@@ -61,8 +61,13 @@ Three limits of this section, all established later: the corner labelled "fricti
 0.6–1.4" varies **sliding** friction alone (`geom_friction[:, 0]`); the metric scores
 roll and pitch only — yaw is not in it; and it scores 100 ms only. *Contact friction*
 below addresses the first two and leaves the negative standing. *Body parameters at
-500 ms* addresses the third and does not: mass, gain and sliding friction stay invisible
-at 500 ms, but the centre of mass is material there on every axis.
+500 ms* addresses the third and does not: mass — whether −20 % / +25 % on the whole body
+or ±75 g at a fixed centre of mass — gain and sliding friction stay invisible at 500 ms,
+but the centre of mass is material there, and so is leg length 1.15 on pitch (−7.4). Not
+on every axis, though: of the five CoM corners, three move all three axes, CoM back/low
+moves pitch alone and CoM z +0.015 roll alone. And of the largest drop, 3 cm forward on
+pitch, 45 % is the stream itself getting harder rather than the frozen model being wrong —
+a model trained on that body pays it too.
 
 ## Contact friction — the twin has no torsional friction, and the DR negative could not have seen one
 
@@ -164,76 +169,204 @@ bit-identity Part A measured, now visible in the metric.
 Reproduce: `.venv/bin/python contact_friction.py` → `results/contact_friction.json`,
 `results/logs/contact_friction.txt`. Total 140 s.
 
-## Body parameters at 500 ms — mass is invisible, the centre of mass is not
+## Body parameters at 500 ms — a 3 cm centre-of-mass shift costs 33.8 pts of pitch, and 45 % of that is the body, not the model
 
-Every GrowBot is assembled by a different person around a different phone. The *Sim-to-real
-proxy* section above found body-parameter randomisation invisible in the IMU, but it scored
-one horizon and two axes: `horizon_within(..., h=5)`, 100 ms, roll and pitch. *Contact
-friction* closed that limit for friction. This section closes it for the parameters a
-builder actually changes — mass, centre of mass, leg length — on the identical protocol
-(`body_params.py`, reusing `contact_friction.py`'s scoring and `sim2real_proxy.py`'s own 13
-corners so the old table and this one are the same points), at 100 **and** 500 ms, yaw
+Shifting the base centre of mass 3 cm forward drops 500 ms pitch predictability by 33.8 pts
+(38.5 / 34.9 / 28.1 across three seeds), while ±75 g at a fixed centre of mass moves nothing
+on any axis. At +3 cm the twin's whole-body CoM crosses into the foot support box, and a
+model trained on that body still pays 13.5 of the 30.2 points — so part of that drop is the
+body itself, not the model.
+
+The *Sim-to-real proxy* section above found body-parameter randomisation invisible in the
+IMU, but it scored one horizon and two axes: `horizon_within(..., h=5)`, 100 ms, roll and
+pitch. *Contact friction* closed that limit for friction. This section closes it for the
+parameters a builder actually changes — mass, centre of mass, leg length — on the identical
+protocol (`body_params.py`, reusing `contact_friction.py`'s scoring and `sim2real_proxy.py`'s
+own 13 corners so the old table and this one are the same points), at 100 **and** 500 ms, yaw
 included.
 
-**Anchors.** The twin's base body is 427 g, the whole body 480 g. Phones span
-roughly 150–250 g, so two corners ask the phone question directly: ±75 g on the base
-alone, legs untouched (a whole-body mass_scale of 0.844 / 1.156). The published DR
-ends stay as they are: mass 0.8 / 1.25, CoM x ±0.03 m and z −0.01 / +0.015 m, leg 0.85 / 1.15.
-Three more corners move the centre of mass on one axis at a time, which is what a longer
-phone or a higher mount does.
+**Anchors, and what the ±75 g corners are not.** The twin's base body is 427 g and the whole
+body 480 g, and **the twin carries no phone at all**: that 427 g is battery plus structure
+(`sim/growbot_olie_body.xml`, lines 16–19), with its centre of mass at x −30.8 mm, z −3.0 mm,
+i.e. at the battery, below the torso mid-plane. `base_mass_delta` adds or removes mass **at
+that existing centre of mass**, leaving `body_ipos` untouched, so the ±75 g corners
+(whole-body mass_scale 0.844 / 1.156) isolate mass at a fixed CoM. They are not a phone swap,
+and **no corner in this file represents a mounted phone**: a real 200 g phone would be +200 g
+on 480 g, a whole-body mass_scale of 1.42, outside every corner tested here and outside the
+published DR range (0.80–1.25) as well. The CoM corners are the published DR endpoints — CoM
+x ±0.03 m, z −0.01 / +0.015 m, mass 0.80 / 1.25, leg 0.85 / 1.15 — anchored to that sweep and
+to nothing else. For scale only: with mass fixed, 30 mm of base-CoM shift is what moving a
+200 g phone 94 mm would do, beyond the 84 mm torso half-length.
 
-**Decision rule, stated before the numbers.** Material = |Δ vs nominal| > max(3.0 pts,
-2× the nominal seed spread). Measured spread over 3 shared seeds: 2.30 pts → threshold
-**4.60 pts**. Two limits, verbatim: this is forward-model *prediction* accuracy, not policy
-*transfer*; and every real-log number in this repo comes from **one** unit and **one** phone,
-so this sweep says what the twin predicts across units, not what a second real robot does.
+**Balance geometry, measured from the model.** The two leg geoms sit at x = 0 with a half-x of
+10.5 mm, so the feet can support the body over x ±10.5 mm. The nominal whole-body CoM sits at
+x −19.30 mm — 8.8 mm **behind** that box. The +3 cm corner moves it to −0.71 mm, **inside** it;
+the −3 cm corner moves it to −41.34 mm, 30.8 mm further outside. So +3 cm is not only a
+parameter change, it is a change of balance regime, and the two directions are not
+symmetric — which is exactly what the table below shows (−33.8 pts of pitch forward against
+−14.2 back for the same 3 cm) and what the partition after it is there to separate from model
+error.
 
-**At 100 ms nothing moves.** The largest shift on any axis in any corner is 2.7 pts and
-the largest on the published metric is 2.7 pts, both under the threshold. The original
-negative reproduces exactly at the horizon it was measured.
+**Decision rule, stated before the numbers, and changed from the earlier run.** Material =
+|mean Δ vs nominal| > max(3.0 pts, 2× the nominal seed spread **of that metric and horizon**).
+The earlier version of this section took the worst nominal spread across all metrics (yaw at
+100 ms, 2.30 pts) and applied the resulting 4.60-pt bar to every metric and every horizon,
+which makes a null on a quiet metric far too easy to declare. Per metric the nominal spreads
+are 0.87 (legacy), 1.50 / 0.25 / 2.30 (roll / pitch / yaw at 100 ms) and 1.50 / 1.15 / 1.25 at
+500 ms, so every bar is now 3.00 pts except yaw at 100 ms, which stays at 4.60. Six verdicts
+flip under the new rule, all from flat to material: CoM back/low roll −4.6 and yaw −4.3,
+leg 0.85 pitch −4.0, leg 1.15 yaw −3.0, worst B roll −3.7 and pitch −3.5.
 
-**At 500 ms, within 0.2 rad, Δ vs nominal in pts** (nominal 85.2 / 86.9 / 75.6 on
-roll / pitch / yaw; material in bold):
+Two further corrections to how these numbers are read:
+
+- **The seeds are not paired.** Corners share seeds in the sense that they start from the
+  same initial condition — not in the sense of common random numbers. `collect()` draws
+  `sim.rng.random()` only when the body has fallen, so two corners whose fall behaviour
+  differs consume the stream at different rates and desynchronise. Paired-difference
+  reasoning does not apply here.
+- **Every verdict is published beside the seed spread of the corner it was measured on**, the
+  honesty note the *Contact friction* table already carries, and a verdict is reported as
+  moving an axis only when it is material **and resolved**: the corner's three seeds separate
+  from nominal's three by more than that same bar. A mean past the bar with overlapping seed
+  ranges is not resolved at three seeds, whichever side of the bar it fell on. 20 of the 102
+  axis rows have a seed spread that reaches their own threshold.
+
+**At 100 ms nothing moves.** The largest shift on any axis in any corner is 2.7 pts and the
+largest on the published metric is 2.7 pts, both under the bar, and no corner separates from
+nominal by seeds. The original negative reproduces exactly at the horizon it was measured.
+
+**At 500 ms, within 0.2 rad, Δ vs nominal in pts ± that corner's own 3-seed spread** (nominal
+85.2 / 86.9 / 75.6 on roll / pitch / yaw). **Bold** = material *and* resolved, i.e. reported
+as moved; `?` = material by the mean but not resolved at three seeds. Every row carries its
+own spread whether it moved or not:
 
 | corner | legacy 100 ms | roll | pitch | yaw |
 |---|---|---|---|---|
-| mass 0.80 | −0.6 | −0.8 | −0.6 | −0.5 |
-| mass 1.25 | −0.2 | +2.5 | +0.8 | +1.5 |
-| phone −75 g on the base | +0.5 | +0.2 | −0.5 | −1.6 |
-| phone +75 g on the base | −0.2 | +1.4 | −0.3 | −0.9 |
-| leg 0.85 | −0.0 | +2.7 | −4.0 | −2.7 |
-| leg 1.15 | −0.4 | −1.6 | **−7.4** | −3.0 |
-| gain 0.75 | −0.3 | +1.0 | +0.4 | −0.0 |
-| gain 1.25 | −1.1 | −0.5 | −0.3 | −2.1 |
-| sliding friction 0.6 | −0.3 | +1.3 | +0.4 | −1.4 |
-| sliding friction 1.4 | −0.3 | −0.1 | −0.4 | −1.2 |
-| CoM back/low (published corner) | −0.7 | −4.6 | **−10.6** | −4.3 |
-| CoM fwd/high (published corner) | −2.7 | **−13.1** | **−29.4** | **−10.9** |
-| CoM x −0.03 only | −2.5 | **−7.8** | **−14.2** | **−8.1** |
-| CoM x +0.03 only | −1.6 | **−12.4** | **−33.8** | **−12.2** |
-| CoM z +0.015 only | −0.7 | **−5.1** | **−4.8** | −1.4 |
-| worst A (heavy, long, weak, slippery) | −2.6 | **−13.1** | **−26.7** | **−10.1** |
-| worst B (light, short, strong, grippy) | −0.7 | −3.7 | −3.5 | **−6.4** |
+| mass 0.80 | −0.6 ±0.4 | −0.8 ±3.0 | −0.6 ±2.6 | −0.5 ±0.6 |
+| mass 1.25 | −0.2 ±2.0 | +2.5 ±0.8 | +0.8 ±1.6 | +1.5 ±1.0 |
+| base −75 g at a fixed CoM | +0.5 ±0.3 | +0.2 ±1.1 | −0.5 ±2.5 | −1.6 ±3.7 |
+| base +75 g at a fixed CoM | −0.2 ±0.7 | +1.4 ±2.3 | −0.3 ±1.1 | −0.9 ±0.7 |
+| leg 0.85 | −0.0 ±0.2 | +2.7 ±3.1 | −4.0 ±2.5 `?` | −2.7 ±1.8 |
+| leg 1.15 | −0.4 ±0.9 | −1.6 ±3.5 | **−7.4 ±3.7** | −3.0 ±1.1 `?` |
+| gain 0.75 | −0.3 ±0.7 | +1.0 ±1.5 | +0.4 ±0.8 | −0.0 ±0.5 |
+| gain 1.25 | −1.1 ±1.4 | −0.5 ±5.6 | −0.3 ±4.8 | −2.1 ±3.2 |
+| sliding friction 0.6 | −0.3 ±0.5 | +1.3 ±3.3 | +0.4 ±2.9 | −1.4 ±2.6 |
+| sliding friction 1.4 | −0.3 ±0.5 | −0.1 ±1.2 | −0.4 ±1.6 | −1.2 ±2.6 |
+| CoM back/low (published corner) | −0.7 ±2.1 | −4.6 ±3.6 `?` | **−10.6 ±4.3** | −4.3 ±2.0 `?` |
+| CoM fwd/high (published corner) | −2.7 ±0.9 | **−13.1 ±3.8** | **−29.4 ±5.1** | **−10.9 ±1.9** |
+| CoM x −0.03 only | −2.5 ±2.7 | **−7.8 ±2.0** | **−14.2 ±2.5** | **−8.1 ±3.7** |
+| CoM x +0.03 only | −1.6 ±1.5 | **−12.4 ±4.4** | **−33.8 ±10.4** | **−12.2 ±6.2** |
+| CoM z +0.015 only | −0.7 ±1.7 | **−5.1 ±1.0** | −4.8 ±1.7 `?` | −1.4 ±1.1 |
+| worst A (heavy, long, weak, slippery) | −2.6 ±1.3 | **−13.1 ±2.2** | **−26.7 ±2.8** | **−10.1 ±4.6** |
+| worst B (light, short, strong, grippy) | −0.7 ±1.0 | −3.7 ±5.9 `?` | −3.5 ±3.5 `?` | **−6.4 ±2.8** |
 
-**What holds.** Mass does not reach the IMU at 500 ms either: ±25 % on the whole body and
-±75 g on the base alone both stay inside the threshold on every axis. Neither do servo gain
-nor sliding friction. For the question that motivated the sweep — a heavier or lighter phone
-— the published negative survives at the horizon where the real gap lives.
+**The same rows against RMSE.** within-0.2 rad is a threshold crossing; RMSE is the error
+magnitude behind it, and an axis that moves one without the other has not moved. Δ RMSE vs
+nominal (nominal 0.462 / 0.238 / 0.519 rad on roll / pitch / yaw at 500 ms):
 
-**What does not hold.** The **centre of mass** reaches the IMU at 500 ms, and hard. A 3 cm
-shift along the body axis alone costs 33.8 pts of pitch forward and 14.2 back, with roll
-and yaw material in both directions; 1.5 cm higher costs 5.1 / 4.8 on roll / pitch. Leg
-length 1.15 is material on pitch (-7.4). The published worst-case corners inherit it:
-worst A is material on all three axes, worst B on yaw. So the sentence "body parameters
-never reach the IMU" was true of the horizon and axes it was measured on and is false at
-500 ms for one parameter — and that parameter is exactly what a different phone in a
-different mount changes.
+| corner | roll within / RMSE | pitch within / RMSE | yaw within / RMSE |
+|---|---|---|---|
+| base −75 g at a fixed CoM | +0.2 pts / −8.3 % | −0.5 pts / −3.4 % | −1.6 pts / +7.4 % |
+| base +75 g at a fixed CoM | +1.4 pts / −6.3 % | −0.3 pts / +2.9 % | −0.9 pts / +3.9 % |
+| CoM back/low | −4.6 pts / −7.5 % | −10.6 pts / +5.8 % | −4.3 pts / +6.2 % |
+| CoM fwd/high | −13.1 pts / +33.0 % | −29.4 pts / +123.3 % | −10.9 pts / +15.0 % |
+| CoM x −0.03 only | −7.8 pts / +26.0 % | −14.2 pts / +33.2 % | −8.1 pts / +30.8 % |
+| CoM x +0.03 only | −12.4 pts / +4.1 % | −33.8 pts / +129.4 % | −12.2 pts / +7.5 % |
+| CoM z +0.015 only | −5.1 pts / +40.4 % | −4.8 pts / +11.6 % | −1.4 pts / +27.7 % |
 
-**What it means for a builder.** The cerebellum shipped in this repo was trained at one
-centre of mass. Its 100 ms predictions should survive a phone swap; its 500 ms predictions
-will not survive a phone that sits 3 cm further forward or back. Since the real logs come
-from one unit, this is a prediction of the twin about other units, not a measurement of
-them — the same limit as every DR number in this file.
+On the headline corner the two metrics agree on **pitch only**: RMSE more than doubles
+(+129.4 %) where within-0.2 rad loses 33.8 pts, while roll and yaw cross the threshold with an
+error magnitude that barely moves (+4.1 % and +7.5 %). The claim for CoM x +0.03 is therefore
+made about pitch. The −3 cm corner is corroborated on all three axes (+26.0 / +33.2 / +30.8 %),
+and so is CoM z on roll (+40.4 %).
+
+### Is the drop the model, or the body?
+
+The frozen model is scored on each corner's own stream, so a corner that is intrinsically
+harder to predict costs points even for a model that knows the body perfectly. `score_corners`
+now keeps the mode channel `collect()` returns, so every corner also reports its fall rate
+(the sim's own `fallen()`: |roll| or |pitch| > 1.2 rad), its regime mix, its per-regime
+accuracy, and an **oracle** — a model trained on that corner's own first half, with frozen and
+oracle both scored on the held-out second half. That splits each drop exactly:
+
+    frozen_c − frozen_nom  =  (oracle_c − oracle_nom)  +  [mismatch_c − mismatch_nom]
+                               intrinsic difficulty       model mismatch the corner adds
+
+| corner | fall rate | fast (\|gyro\|>3) | frozen pitch | oracle pitch | drop | intrinsic | mismatch |
+|---|---|---|---|---|---|---|---|
+| nominal (published) | 9.7 % | 11.0 % | 86.1 % | 84.0 % | — | — | — |
+| CoM back/low | 4.4 % | 9.1 % | 77.8 % | 87.4 % | −8.3 | +3.4 | −11.7 |
+| CoM fwd/high | 16.0 % | 12.1 % | 56.4 % | 70.7 % | −29.7 | −13.4 (45 %) | −16.3 |
+| CoM x −0.03 only | 12.0 % | 7.4 % | 72.4 % | 82.8 % | −13.6 | −1.3 (9 %) | −12.3 |
+| CoM x +0.03 only | 10.1 % | 14.0 % | 55.9 % | 70.6 % | −30.2 | −13.5 (45 %) | −16.8 |
+| CoM z +0.015 only | 16.2 % | 8.2 % | 83.1 % | 81.7 % | −3.0 | −2.4 (79 %) | −0.6 |
+| leg 1.15 | 10.4 % | 9.4 % | 80.3 % | 78.9 % | −5.7 | −5.1 (89 %) | −0.6 |
+| base +75 g at a fixed CoM | 9.0 % | 11.3 % | 86.6 % | 83.5 % | +0.6 | −0.5 | +1.1 |
+| worst A | 14.0 % | 10.6 % | 59.9 % | 73.2 % | −26.1 | −10.8 (41 %) | −15.3 |
+
+At CoM x +0.03, **45 % of the pitch drop is intrinsic**: a model trained on that body's own
+data still loses 13.5 of the 30.2 points, and only 16.8 are mismatch the frozen model could in
+principle be blamed for. On roll the split is 50/50 (−6.3 / −6.3 of −12.6) and on yaw the drop
+is 86 % intrinsic (−9.6 of −11.2). What does *not* change is the fall rate: 10.1 % against
+9.7 % nominal, so the body is not falling more often at +3 cm — what moves is time spent in
+fast motion, 14.0 % against 11.0 %. Two corners *do* fall more (CoM fwd/high 16.0 %, CoM z
+16.2 %), and CoM back/low falls *less* (4.4 %) while its oracle is 3.4 pts **better** than
+nominal's — that corner's drop is mismatch, not difficulty.
+
+Per-regime pitch within-0.2 rad at 500 ms, CoM x +0.03 against nominal (1 500 starts per cell,
+1 492 for the fallen cell), shows the drop is not an artefact of the fallen bucket growing:
+
+| regime | nominal | CoM x +0.03 | Δ |
+|---|---|---|---|
+| policy walking | 88.0 % | 54.0 % | −34.0 |
+| sine gait | 88.3 % | 50.2 % | −38.1 |
+| keyframe/OU | 87.9 % | 52.4 % | −35.5 |
+| still | 90.7 % | 46.6 % | −44.1 |
+| fast (\|gyro\|>3) | 77.8 % | 50.2 % | −27.6 |
+| fallen | 79.1 % | 70.7 % | −8.4 |
+
+One limit on the oracle, stated with it: it is trained on 14 741 windows for 20 epochs against
+the frozen model's 400 k ticks and 60 epochs, so it is not a ceiling — on the *nominal* body it
+scores 2.0 pts **below** the frozen model on pitch. The split above subtracts that baseline,
+which is why it measures the *change* in difficulty and the *change* in mismatch rather than
+either in absolute terms. The 100 ms proxy in `sim2real_proxy.py` runs the same construction at
+its own horizon.
+
+**What holds.** Mass does not reach the IMU at 500 ms: −20 % / +25 % on the whole body and
+±75 g at a fixed centre of mass both stay inside the bar on every axis and never separate by
+seeds. Neither does servo gain nor sliding friction. For the mass half of the question that
+motivated the sweep — is the twin's prediction sensitive to how much the body weighs — the
+published negative survives at the horizon where the real gap lives. The other half of what
+swapping a phone would do is move the centre of mass, and that is the next paragraph, not
+this one. Nulls are nulls at this precision, not proofs of flatness: gain 1.25 carries seed
+spreads of 5.6 / 4.8 / 3.2 pts and base −75 g a yaw spread of 3.7, all at or above their own
+3.00-pt bar.
+
+**What does not hold.** The **centre of mass** reaches the IMU at 500 ms, and hard. Moving it
+3 cm along the body axis alone costs 33.8 pts of pitch forward and 14.2 back, with roll and yaw
+material and resolved in both directions but corroborated by RMSE only in the back direction.
+The published combined corner CoM fwd/high moves all three axes; CoM back/low moves pitch
+alone (−10.6) and CoM z +0.015 roll alone (−5.1), so "material on every axis" is false for two
+of the five CoM corners. Leg length 1.15 is material and resolved on pitch (−7.4) and belongs
+in this list with them; leg 0.85 reaches the bar on pitch (−4.0) but three seeds do not resolve
+it. The published worst-case corners inherit the CoM: worst A moves all three axes, worst B
+yaw. So the sentence "body parameters never reach the IMU" was true of the horizon and axes it
+was measured on, and is false at 500 ms for the centre of mass and for leg length.
+
+**What it means for a builder.** The cerebellum shipped in this repo was trained at one centre
+of mass. Its 100 ms predictions survive every corner tested here. Its 500 ms pitch predictions
+do not survive a centre of mass 3 cm further forward or back — but roughly half of that
+particular loss is the body being harder to predict there rather than the model being stale,
+so a better-matched model recovers about half of it and no more. Since the real logs come from
+one unit, this is a prediction of the twin about other units, not a measurement of them — the
+same limit as every DR number in this file.
+
+**Two limits, verbatim.** This is forward-model *prediction* accuracy, not policy *transfer*;
+and every real-log number in this repo comes from **one** unit and **one** phone, so this
+sweep says what the twin predicts across units, not what a second real robot does.
+
+Reproduce: `.venv/bin/python body_params.py` → `results/body_params.json`,
+`results/logs/body_params.txt`. Total 234 s.
 
 ## Yaw floor — mostly noise, not model: scaling is flat and privileged state adds little (negative)
 

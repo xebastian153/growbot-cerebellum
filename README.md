@@ -28,7 +28,7 @@ Sim-only until a real IMU log exists.
 | `export_js.py` | exports weights + reference vectors for the JS runner |
 | `forward-model/` | **the PR payload**: `growbot_forward.js`, `growbot_planner.js`, `forward_85mm.json`, `test_forward.mjs`, README |
 | `sim2real_proxy.py` | frozen vs online-residual vs oracle across the project's 13 DR corners |
-| `body_params.py` | the same 13 corners plus a ±75 g phone and one-axis CoM shifts, scored at 100 and 500 ms with yaw — closes the proxy's horizon limit |
+| `body_params.py` | the same 13 corners plus ±75 g at a fixed centre of mass and one-axis CoM shifts, scored at 100 and 500 ms with yaw, each drop split into stream difficulty and model mismatch — closes the proxy's horizon limit |
 | `multistep.py` | H-step unrolled training loss vs one-step |
 | `pets.py`, `pets_fall.py` | probabilistic ensemble + particle planner: calibration by regime, mimic, fall recovery |
 | `fall_recovery.py` | planner vs hold-still vs scripted wiggle from real fallen states, by severity |
@@ -104,7 +104,7 @@ Full write-ups with conditions and per-regime splits: [docs/EXPERIMENTS.md](docs
 | Mimic game | planning without a model is worse than doing nothing; with it, error halves (0.210 → 0.095 rad) and 39/40 traces beat hold-still |
 | JS runner | float32-equivalent to the trained net; the equivalence test caught a real convention bug |
 | Body-parameter DR proxy | **negative at 100 ms** — mass/CoM/leg/gain/*sliding* friction never reach the IMU there; contact chatter dominates the gyro. Re-scored at 500 ms below |
-| Body parameters at 500 ms | mass stays invisible (±25 %, and ±75 g of phone on the base: all under the 4.6-pt threshold on every axis), gain and sliding friction too — but the **centre of mass** is material: a 3 cm shift alone costs 33.8 pts of pitch, roll and yaw with it. A different phone's *weight* is fine; its *position* is not |
+| Body parameters at 500 ms | shifting the base **centre of mass** 3 cm forward drops 500 ms pitch predictability by 33.8 pts (38.5 / 34.9 / 28.1 across seeds; RMSE +129 %), 3 cm back by 14.2, and leg 1.15 by 7.4 — while mass moves nothing, neither −20 % / +25 % on the whole body nor ±75 g at a fixed centre of mass, and neither do gain or sliding friction. At +3 cm the whole-body CoM crosses into the foot support box (x ±10.5 mm) and a model trained on that body still pays 13.5 of the 30.2 pts, so 45 % of the drop is the body, not the model. **No corner here mounts a phone**: the twin carries none, and a 200 g one would be mass_scale 1.42, outside the sweep |
 | Contact friction | the twin has **no torsional friction**: at the shipped `condim=3` the XML's torsional and rolling coefficients are inert (bit-identical under a ×100 change). Switched on, torsional still moves nothing on any axis, yaw included — the DR negative survives a proper test. The XML's own unapplied rolling value costs 22.6 pts of yaw at 500 ms if enabled |
 | Actuator dynamics | the sim-to-real signature that *is* there: a slew-limited servo opens a 3–4 pt gap; the servo is identifiable from IMU + commands alone |
 | Multi-step training loss | +1.3 pts at 500 ms, consistent across seeds, saturates by H=5 |
@@ -128,10 +128,12 @@ imagination: right about the shape of the next 100–500 ms, especially under th
 and falls the video says the creature cannot picture; good enough to win the mimic game;
 small enough to run in the phone browser.
 
-**Doesn't, yet.** Everything here has learned MuJoCo. Two experiments designed to stand
-in for "a different body" came back flat (body parameters, metadata) — the twin's physics is
-too clean for output-side correction to have anything to correct. The third, actuator
-dynamics, found the real signature: the gap lives on the *input* side (where the horn actually
+**Doesn't, yet.** Everything here has learned MuJoCo. Of the two experiments designed to
+stand in for "a different body", metadata came back flat, and body parameters came back flat
+only for mass, gain and sliding friction: a 3 cm centre-of-mass shift does reach the IMU at
+500 ms, and about half of even that is the body being harder to predict rather than the model
+being stale, so there is less for output-side correction to correct than a 33.8-pt drop looks
+like. The third, actuator dynamics, found the real signature: the gap lives on the *input* side (where the horn actually
 is), and it is recoverable from IMU + commands alone. The learning
 half — compare prediction with the *real* IMU on device and update from the error — needs
 a body and a log. That is the next step.

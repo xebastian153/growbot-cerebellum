@@ -273,8 +273,12 @@ actuator classes, delay randomization, system ID) and randomizes *targeted* fact
 second; none wins by blanket-randomizing mass and friction. That is what the twin
 measured independently: mass, gain and sliding friction never reach the IMU at any
 horizon tested — nor torsional friction once the twin was made able to apply it at
-all — while a 3 cm centre-of-mass shift does at 500 ms (`body_params.py`); actuator
-delay and slew open the gap, identify it and feed it back. The Real2Sim loop is standard practice at
+all — while a 3 cm centre-of-mass shift does at 500 ms, on all three axes, and leg
+length 1.15 does on pitch (−7.4 pts, `body_params.py`); of that 33.8-pt pitch drop
+at +3 cm, 45 % is the stream itself getting harder, since a model trained on that
+body still pays 13.5 of the 30.2 held-out points — targeted randomization has to be
+aimed at the geometry, and even then half of what it buys back is not model error.
+Actuator delay and slew open the gap, identify it and feed it back. The Real2Sim loop is standard practice at
 the top of the field. One caveat separates this project: the industry's system ID uses
 encoders and torque sensors; `servo_id.py` identifies the actuator from IMU + commands
 alone, because a $30 body carries nothing else — a variant none of the above documents.

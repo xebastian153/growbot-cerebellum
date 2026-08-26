@@ -144,12 +144,17 @@ class MLP:
 # evaluation: one step, and rolled out on its own predictions
 # ----------------------------------------------------------------------
 
-def rollout_error(model, obs, act, done, K, horizons, n_starts=2000, seed=0):
+def rollout_error(model, obs, act, done, K, horizons, n_starts=2000, seed=0, start_mask=None):
     """Open-loop imagination: feed the model its own predictions for H steps.
 
     Returns per-horizon RMSE on (roll, pitch) in radians and on gyro in rad/s,
     plus the fraction of starts where the imagined roll/pitch stays within 0.2 rad
     of the truth at that horizon.
+
+    `start_mask` (bool per tick, default None = every eligible tick) restricts the
+    starts to a subset -- one regime, one balance state -- so the same rollout maths
+    can be split by what the body was doing at the start instead of re-implemented.
+    None reproduces every earlier caller bit-identically.
     """
     rng = np.random.default_rng(seed)
     N = len(obs)
@@ -162,6 +167,10 @@ def rollout_error(model, obs, act, done, K, horizons, n_starts=2000, seed=0):
     for j in range(0, Hmax):
         ok &= np.roll(~done, -j)         # no done in t..t+Hmax-1
     ok[:K] = False; ok[N - Hmax - 1:] = False
+    if start_mask is not None:
+        ok &= np.asarray(start_mask, bool)
+    if not ok.any():
+        return {h: None for h in horizons}
     starts = rng.choice(np.flatnonzero(ok), size=min(n_starts, ok.sum()), replace=False)
 
     fdim = F.shape[1]
@@ -191,6 +200,7 @@ def rollout_error(model, obs, act, done, K, horizons, n_starts=2000, seed=0):
             ang_err = np.arctan2(np.sin(pred_ang - true_ang), np.cos(pred_ang - true_ang))
             gyro_err = cur[:, 6:] - truth[:, 6:]
             out[h] = {
+                "n_starts": int(len(starts)),
                 # headline (roll/pitch) kept for continuity with every published table
                 "rmse_rollpitch_rad": float(np.sqrt((ang_err[:, :2] ** 2).mean())),
                 "rmse_gyro_rads": float(np.sqrt((gyro_err ** 2).mean())),
