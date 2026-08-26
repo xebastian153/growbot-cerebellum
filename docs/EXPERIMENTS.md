@@ -66,8 +66,9 @@ or ±75 g at a fixed centre of mass — gain and sliding friction stay invisible
 but the centre of mass is material there, and so is leg length 1.15 on pitch (−7.4). Not
 on every axis, though: of the five CoM corners, three move all three axes, CoM back/low
 moves pitch alone and CoM z +0.015 roll alone. And of the largest drop, 3 cm forward on
-pitch, 45 % is the stream itself getting harder rather than the frozen model being wrong —
-a model trained on that body pays it too.
+pitch, 37–55 % across three seeds is the stream itself getting harder rather than the frozen
+model being wrong — a model trained on that body pays 13.5 of the 30.2 **held-out** points
+too, a different quantity from the 33.8-pt full-stream figure.
 
 ## Contact friction — the twin has no torsional friction, and the DR negative could not have seen one
 
@@ -169,13 +170,25 @@ bit-identity Part A measured, now visible in the metric.
 Reproduce: `.venv/bin/python contact_friction.py` → `results/contact_friction.json`,
 `results/logs/contact_friction.txt`. Total 140 s.
 
-## Body parameters at 500 ms — a 3 cm centre-of-mass shift costs 33.8 pts of pitch, and 45 % of that is the body, not the model
+## Body parameters at 500 ms — a 3 cm centre-of-mass shift costs 33.8 pts of pitch, and 37–55 % of the held-out drop is the body, not the model
 
 Shifting the base centre of mass 3 cm forward drops 500 ms pitch predictability by 33.8 pts
 (38.5 / 34.9 / 28.1 across three seeds), while ±75 g at a fixed centre of mass moves nothing
-on any axis. At +3 cm the twin's whole-body CoM crosses into the foot support box, and a
-model trained on that body still pays 13.5 of the 30.2 points — so part of that drop is the
-body itself, not the model.
+on any axis. At +3 cm the twin's whole-body CoM crosses into the foot support box, and on the
+**held-out half** a model trained on that body still pays 13.5 of the 30.2 points there — so
+part of that drop is the body itself, not the model.
+
+Three things about that last sentence, the first two of which an earlier version of this
+section got wrong. **The 13.5 and the 30.2 are held-out-half points, and the 33.8 above them
+is the full-stream table figure**: they are different quantities measured on different data,
+and one is never divided into the other. **The share is not one number**: per seed it is
+37 / 42 / 55 %, so it is published as a range — the point estimate 45 % this section carried
+is the ratio of the two means, and standing alone it hid a spread wider than most of the
+effects this file calls null. And **three seeds resolve the drop but not the split**: the
+corner's frozen seeds separate from nominal's by 22.6 pts against a 4.60-pt bar, while the
+oracle's separate by 9.4 against the 11.70-pt bar its own nominal spread sets. The direction
+of the split is supported; its magnitude is a measurement this run makes, not one it pins
+down.
 
 The *Sim-to-real proxy* section above found body-parameter randomisation invisible in the
 IMU, but it scored one horizon and two axes: `horizon_within(..., h=5)`, 100 ms, roll and
@@ -198,14 +211,33 @@ x ±0.03 m, z −0.01 / +0.015 m, mass 0.80 / 1.25, leg 0.85 / 1.15 — anchored
 to nothing else. For scale only: with mass fixed, 30 mm of base-CoM shift is what moving a
 200 g phone 94 mm would do, beyond the 84 mm torso half-length.
 
-**Balance geometry, measured from the model.** The two leg geoms sit at x = 0 with a half-x of
-10.5 mm, so the feet can support the body over x ±10.5 mm. The nominal whole-body CoM sits at
-x −19.30 mm — 8.8 mm **behind** that box. The +3 cm corner moves it to −0.71 mm, **inside** it;
-the −3 cm corner moves it to −41.34 mm, 30.8 mm further outside. So +3 cm is not only a
-parameter change, it is a change of balance regime, and the two directions are not
+**Balance geometry, and a correction to the millimetres.** The two leg geoms sit at x = 0 with
+a half-x of 10.5 mm, so the feet can support the body over x ±10.5 mm — a **body-frame**
+extent. Measured in that same frame, at the reference pose with every joint at zero, the
+nominal whole-body CoM sits at x **−27.42 mm**, 16.9 mm **behind** the box. The +3 cm corner
+moves it to **−0.71 mm**, **inside** it with 9.8 mm to spare; the −3 cm corner moves it to
+**−54.12 mm**, 43.6 mm outside.
+
+The numbers this section published first — −19.30, −0.71 and −41.34 mm — were wrong for two
+of the three rows, and the error was a pose artefact, not a physics disagreement.
+`balance_geometry()` read the CoM in **world** x while comparing it against a body-frame box,
+and it read it at whatever pose `GrowBotSim.__init__` had left the body in, because `reset()`
+steps 0.5 s of physics before anything is measured. The nominal and −3 cm bodies settle
+**rotated −34.5° in pitch**, so those two rows were a body-frame offset projected onto a world
+axis: they read 8.1 and 12.8 mm short. The +3 cm body settles level (−0.1°), which is why its
+−0.71 mm was already right and why the artefact was invisible in the one row the argument
+leans on. Pose dependence of the corrected number is small and bounded: the legs are 11.0 % of
+the mass with their own CoM 37 mm below their hinges, so a full ±90° swing moves the
+body-frame CoM by at most 4.1 mm, and at the settled pose it moves it by less than 0.1 mm.
+The whole world-versus-body gap is base rotation.
+
+**The qualitative reading survives the correction, and it is the only part of it this section
+uses**: nominal and −3 cm sit outside the support box, +3 cm sits inside it. So +3 cm is not
+only a parameter change, it is a change of balance regime, and the two directions are not
 symmetric — which is exactly what the table below shows (−33.8 pts of pitch forward against
 −14.2 back for the same 3 cm) and what the partition after it is there to separate from model
-error.
+error. What the correction does remove is any reading of the *margins* as small: the nominal
+CoM is 16.9 mm outside a 10.5 mm box, not 8.8.
 
 **Decision rule, stated before the numbers, and changed from the earlier run.** Material =
 |mean Δ vs nominal| > max(3.0 pts, 2× the nominal seed spread **of that metric and horizon**).
@@ -215,15 +247,23 @@ which makes a null on a quiet metric far too easy to declare. Per metric the nom
 are 0.87 (legacy), 1.50 / 0.25 / 2.30 (roll / pitch / yaw at 100 ms) and 1.50 / 1.15 / 1.25 at
 500 ms, so every bar is now 3.00 pts except yaw at 100 ms, which stays at 4.60. Six verdicts
 flip under the new rule, all from flat to material: CoM back/low roll −4.6 and yaw −4.3,
-leg 0.85 pitch −4.0, leg 1.15 yaw −3.0, worst B roll −3.7 and pitch −3.5.
+leg 0.85 pitch −4.0, leg 1.15 yaw −3.0, worst B roll −3.7 and pitch −3.5. **All six are
+unresolved at three seeds** (separations −0.2 to −2.4 pts against their own 3.00-pt bars) and
+**none of the six is reported as moved**. The flip says the earlier bar was too generous, not
+that six new effects were found.
 
 Two further corrections to how these numbers are read:
 
 - **The seeds are not paired.** Corners share seeds in the sense that they start from the
-  same initial condition — not in the sense of common random numbers. `collect()` draws
-  `sim.rng.random()` only when the body has fallen, so two corners whose fall behaviour
-  differs consume the stream at different rates and desynchronise. Paired-difference
-  reasoning does not apply here.
+  same initial condition — not in the sense of common random numbers. This section previously
+  gave the wrong reason for that ("`collect()` draws `sim.rng.random()` only when the body has
+  fallen"), and the code says otherwise: the push test draws `sim.rng.random()` on **every
+  tick**, whether or not a push follows; `Excitation` draws mode-dependently; `fresh()` draws
+  once per episode; and the fall check adds a further draw only when the body is *already*
+  fallen. Two corners therefore diverge at the first tick where their dynamics differ and
+  never realign — desynchronisation does not need a fall to start it. The conclusion is the
+  one it always was, and it holds for stronger reasons: paired-difference reasoning does not
+  apply here.
 - **Every verdict is published beside the seed spread of the corner it was measured on**, the
   honesty note the *Contact friction* table already carries, and a verdict is reported as
   moving an axis only when it is material **and resolved**: the corner's three seeds separate
@@ -292,53 +332,122 @@ oracle both scored on the held-out second half. That splits each drop exactly:
     frozen_c − frozen_nom  =  (oracle_c − oracle_nom)  +  [mismatch_c − mismatch_nom]
                                intrinsic difficulty       model mismatch the corner adds
 
-| corner | fall rate | fast (\|gyro\|>3) | frozen pitch | oracle pitch | drop | intrinsic | mismatch |
+**Everything below is per seed, with its spread and its verdict.** The first version of this
+table published three-seed means and nothing else — no spread, no per-seed values, no
+resolution mark — which is exactly the defect the axis verdicts above were rewritten to
+remove, reintroduced one section later. Each quantity now carries the same two questions the
+axis table asks: is the mean past a bar of max(3.0 pts, 2× the **nominal** spread of that same
+quantity), and do the corner's three seeds separate from nominal's three by more than that bar
+(`seed_separation`, unpaired). The bars differ by quantity because the spreads do: on pitch the
+frozen bar is 4.60 pts and the oracle bar is **11.70**, because the oracle is a small-data model
+whose own nominal seeds run 81.9 / 82.6 / 87.7.
+
+Fall rate, frozen and oracle held-out pitch, mean ± 3-seed spread (nominal fall rate
+9.7 ± 2.9 %, fast 11.0 ± 1.0 %, frozen 86.1 ± 2.3 %, oracle 84.0 ± 5.8 %):
+
+| corner | fall rate | fast (\|gyro\|>3) | frozen pitch | oracle pitch | drop | intrinsic | intrinsic share, per seed | drop resolved | intrinsic resolved |
+|---|---|---|---|---|---|---|---|---|---|
+| nominal (published) | 9.7 ±2.9 % | 11.0 ±1.0 % | 86.1 ±2.3 % | 84.0 ±5.8 % | — | — | — | — | — |
+| CoM back/low | 4.4 ±0.1 % | 9.1 ±0.9 % | 77.8 ±2.3 % | 87.4 ±4.0 % | −8.3 ±1.3 | +3.4 ±4.0 | −72 / −38 / −17 % | yes | no |
+| CoM fwd/high | 16.0 ±2.4 % | 12.1 ±0.5 % | 56.4 ±14.0 % | 70.7 ±2.2 % | −29.7 ±12.9 | −13.4 ±5.3 | 32 / 39 / 75 % | yes | no |
+| CoM x −0.03 only | 12.0 ±4.0 % | 7.4 ±0.8 % | 72.4 ±4.2 % | 82.8 ±3.5 % | −13.6 ±3.1 | −1.3 ±2.9 | −1 / 8 / 23 % | yes | no |
+| CoM x +0.03 only | 10.1 ±2.6 % | 14.0 ±1.1 % | 55.9 ±12.0 % | 70.6 ±3.2 % | −30.2 ±13.2 | −13.5 ±8.3 | 37 / 42 / 55 % | yes | **no** |
+| CoM z +0.015 only | 16.2 ±2.0 % | 8.2 ±1.0 % | 83.1 ±1.2 % | 81.7 ±0.9 % | −3.0 ±2.0 | −2.4 ±5.6 | 17 / 28 / 139 % | no | no |
+| leg 1.15 | 10.4 ±2.8 % | 9.4 ±0.3 % | 80.3 ±5.8 % | 78.9 ±5.2 % | −5.7 ±3.6 | −5.1 ±3.4 | 39 / 105 / 161 % | no | no |
+| base +75 g at a fixed CoM | 9.0 ±2.7 % | 11.3 ±0.5 % | 86.6 ±1.0 % | 83.5 ±1.3 % | +0.6 ±2.3 | −0.5 ±7.1 | 117 % (2 seeds under 1 pt) | no | no |
+| worst A | 14.0 ±4.0 % | 10.6 ±0.4 % | 59.9 ±4.3 % | 73.2 ±2.2 % | −26.1 ±5.5 | −10.8 ±6.4 | 29 / 42 / 54 % | yes | no |
+
+The per-seed shares are seed-**index** readings — corner seed *i* against nominal seed *i* —
+not paired differences, for the reason given in the decision-rule bullets above; a share is
+only formed where that seed's own drop reaches 1 pt. A positive intrinsic figure against a
+negative drop, as at CoM back/low, means the oracle did *better* on that corner than on
+nominal: the whole drop there is mismatch and then some.
+
+**The headline corner, all three axes, per seed.** At CoM x +0.03 the held-out pitch drop is
+−30.2 pts (−22.6 / −35.8 / −32.2) and the part of it a model trained on that body still pays
+is −13.5 (−9.4 / −13.3 / −17.7), leaving −16.8 of mismatch. Exactly: −13.47 and −16.75 against
+a drop of −30.22 — the one-decimal figures do not re-add, and the section quotes them rather
+than a tidier pair that would. The intrinsic share is **37 / 42 / 55 % across the three
+seeds**; the 45 % this section used to print is the ratio of the two means and is not
+reported alone any more.
+
+| axis | drop (3 seeds) | intrinsic (3 seeds) | mismatch | share | drop resolved | intrinsic resolved | oracle's own deficit |
 |---|---|---|---|---|---|---|---|
-| nominal (published) | 9.7 % | 11.0 % | 86.1 % | 84.0 % | — | — | — |
-| CoM back/low | 4.4 % | 9.1 % | 77.8 % | 87.4 % | −8.3 | +3.4 | −11.7 |
-| CoM fwd/high | 16.0 % | 12.1 % | 56.4 % | 70.7 % | −29.7 | −13.4 (45 %) | −16.3 |
-| CoM x −0.03 only | 12.0 % | 7.4 % | 72.4 % | 82.8 % | −13.6 | −1.3 (9 %) | −12.3 |
-| CoM x +0.03 only | 10.1 % | 14.0 % | 55.9 % | 70.6 % | −30.2 | −13.5 (45 %) | −16.8 |
-| CoM z +0.015 only | 16.2 % | 8.2 % | 83.1 % | 81.7 % | −3.0 | −2.4 (79 %) | −0.6 |
-| leg 1.15 | 10.4 % | 9.4 % | 80.3 % | 78.9 % | −5.7 | −5.1 (89 %) | −0.6 |
-| base +75 g at a fixed CoM | 9.0 % | 11.3 % | 86.6 % | 83.5 % | +0.6 | −0.5 | +1.1 |
-| worst A | 14.0 % | 10.6 % | 59.9 % | 73.2 % | −26.1 | −10.8 (41 %) | −15.3 |
+| roll | −12.6 (−10.2 / −12.9 / −14.8) | −6.3 (−7.2 / −4.0 / −7.8) | −6.3 | 31 / 52 / 71 % | yes (−9.8 vs 6.1) | no (−3.4 vs 8.2) | −4.4 |
+| pitch | −30.2 (−22.6 / −35.8 / −32.2) | −13.5 (−9.4 / −13.3 / −17.7) | −16.8 | 37 / 42 / 55 % | yes (−22.6 vs 4.6) | no (−9.4 vs 11.7) | −2.0 |
+| yaw | −11.2 (−6.9 / −13.6 / −13.3) | −9.6 (−6.9 / −11.9 / −10.0) | −1.6 | 76 / 88 / 100 % | yes (−6.9 vs 3.6) | yes (−6.8 vs 4.7) | −6.7 |
 
-At CoM x +0.03, **45 % of the pitch drop is intrinsic**: a model trained on that body's own
-data still loses 13.5 of the 30.2 points, and only 16.8 are mismatch the frozen model could in
-principle be blamed for. On roll the split is 50/50 (−6.3 / −6.3 of −12.6) and on yaw the drop
-is 86 % intrinsic (−9.6 of −11.2). What does *not* change is the fall rate: 10.1 % against
-9.7 % nominal, so the body is not falling more often at +3 cm — what moves is time spent in
-fast motion, 14.0 % against 11.0 %. Two corners *do* fall more (CoM fwd/high 16.0 %, CoM z
-16.2 %), and CoM back/low falls *less* (4.4 %) while its oracle is 3.4 pts **better** than
-nominal's — that corner's drop is mismatch, not difficulty.
+**What three seeds resolve here, and what they do not.** The *drop* is resolved on all three
+axes: the corner's seeds and nominal's do not overlap, by a wide margin on pitch. The *split*
+is not. On pitch the intrinsic component separates by 9.4 pts against an 11.70-pt bar derived
+from the oracle's own nominal spread, so **the direction of the split is supported and its
+magnitude is not resolved at three seeds** — 37–55 % is the range this run measured, not a
+band it excludes the outside of. Only yaw's intrinsic component clears its bar, and yaw comes
+with the caveat in the next paragraph. A fourth seed is the cheap fix and this run does not
+have one.
 
-Per-regime pitch within-0.2 rad at 500 ms, CoM x +0.03 against nominal (1 500 starts per cell,
-1 492 for the fallen cell), shows the drop is not an artefact of the fallen bucket growing:
+**Read every intrinsic figure against the oracle's own error.** The oracle is not a ceiling
+(see the paragraph after next), and on the *nominal* body it trails the frozen model by
+**4.4 / 2.0 / 6.7 pts** on roll / pitch / yaw — on nominal seed 2 it even *beats* it on pitch,
+87.7 against 87.2. The intrinsic figure at +3 cm is 6.6× that deficit on pitch, which is why
+the pitch split is the one this section makes a claim about. On roll (−6.3 against a 4.4-pt
+deficit) and yaw (−9.6 against 6.7) it is only about 1.4× the yardstick's own error, so those
+two splits are **reported and not claimed**, yaw's resolution notwithstanding. Three
+small-drop rows in the table above have to be read against that yardstick as well, and none of
+them has a resolved split: base +75 g (intrinsic −0.5, 0.3× the pitch deficit) and CoM z
++0.015 (−2.4, 1.2×) sit at or under it outright, and leg 1.15 (−5.1) is 2.5× it but separates
+by seeds on neither its drop nor its split. No split is claimed for any of the three.
+
+**Fall rate is time, not events.** `fall_rate` is the fraction of *ticks* in which
+`fallen()` is true, not how often the body tips over. At +3 cm it reads 10.1 ± 2.6 % against
+9.7 ± 2.9 % nominal — overlapping seed ranges, unresolved — so this run says the body does not
+spend materially more time down, and it says nothing at all about how often it goes down. What
+does move is time in fast motion, 14.0 ± 1.1 % against 11.0 ± 1.0 %. Two corners read higher
+(CoM fwd/high 16.0 ± 2.4 %, CoM z 16.2 ± 2.0 %) and CoM back/low reads lower (4.4 ± 0.1 %)
+while its oracle is 3.4 pts **better** than nominal's — that corner's drop is mismatch, not
+difficulty — but none of those three separates from nominal by seeds either.
+
+Per-regime pitch within-0.2 rad at 500 ms, CoM x +0.03 against nominal, mean ± 3-seed spread
+(1 500 starts per cell, 1 492 for the fallen cell):
 
 | regime | nominal | CoM x +0.03 | Δ |
 |---|---|---|---|
-| policy walking | 88.0 % | 54.0 % | −34.0 |
-| sine gait | 88.3 % | 50.2 % | −38.1 |
-| keyframe/OU | 87.9 % | 52.4 % | −35.5 |
-| still | 90.7 % | 46.6 % | −44.1 |
-| fast (\|gyro\|>3) | 77.8 % | 50.2 % | −27.6 |
-| fallen | 79.1 % | 70.7 % | −8.4 |
+| policy walking | 88.0 ±4.2 % | 54.0 ±16.7 % | −34.0 |
+| sine gait | 88.3 ±1.1 % | 50.2 ±6.5 % | −38.1 |
+| keyframe/OU | 87.9 ±3.4 % | 52.4 ±7.6 % | −35.5 |
+| still | 90.7 ±3.3 % | 46.6 ±11.6 % | −44.1 |
+| fast (\|gyro\|>3) | 77.8 ±4.1 % | 50.2 ±6.6 % | −27.6 |
+| fallen | 79.1 ±9.9 % | 70.7 ±8.1 % | −8.4 |
 
-One limit on the oracle, stated with it: it is trained on 14 741 windows for 20 epochs against
-the frozen model's 400 k ticks and 60 epochs, so it is not a ceiling — on the *nominal* body it
-scores 2.0 pts **below** the frozen model on pitch. The split above subtracts that baseline,
-which is why it measures the *change* in difficulty and the *change* in mismatch rather than
-either in absolute terms. The 100 ms proxy in `sim2real_proxy.py` runs the same construction at
-its own horizon.
+The drop is present in every bucket, so it is not an artefact of the fallen bucket growing.
+But **the bucket that collapses hardest is `still`, at −44.1 pts — more than `fast`, at
+−27.6** — and that ordering deserves to be read against the section's own thesis rather than
+past it. A quiet, not-fallen, not-fast bucket losing the most is at least as consistent with a
+**static offset**: the +3 cm body rests at a different pitch — the geometry probe above settles
+the nominal body at −34.5° and the +3 cm body level, −0.1° — and a frozen model that is simply
+wrong about where "at rest" is would fail hardest exactly where the body sits still and the
+error has nothing to wash it out. That is model mismatch, not intrinsic difficulty. This table
+scores the **frozen model only** and therefore cannot separate the two; the oracle column in
+the partition above is where the separation is attempted, and on pitch it is the unresolved
+half of the split. The honest statement is that the regime table rules out one alternative
+explanation (the fallen bucket) and does not adjudicate this one.
+
+**The oracle is a lower bound, not a ceiling.** It is trained on 14 741 windows for 20 epochs
+against the frozen model's 400 k ticks and 60 epochs, and on the *nominal* body it scores
+4.4 / 2.0 / 6.7 pts **below** the frozen model on roll / pitch / yaw. A better model trained on
+the corner would score higher than it does, so what it measures is a floor on how much of the
+drop training can recover, never the most. The split subtracts the nominal baseline, which is
+why it measures the *change* in difficulty and the *change* in mismatch rather than either in
+absolute terms. `sim2real_proxy.py` builds the same oracle at 100 ms and its docstring now
+says the same thing — it used to call this construction "the ceiling", which was wrong in
+both files for the same reason.
 
 **What holds.** Mass does not reach the IMU at 500 ms: −20 % / +25 % on the whole body and
 ±75 g at a fixed centre of mass both stay inside the bar on every axis and never separate by
 seeds. Neither does servo gain nor sliding friction. For the mass half of the question that
 motivated the sweep — is the twin's prediction sensitive to how much the body weighs — the
-published negative survives at the horizon where the real gap lives. The other half of what
-swapping a phone would do is move the centre of mass, and that is the next paragraph, not
-this one. Nulls are nulls at this precision, not proofs of flatness: gain 1.25 carries seed
+published negative survives at the horizon where the real gap lives. Nulls are nulls at this
+precision, not proofs of flatness: gain 1.25 carries seed
 spreads of 5.6 / 4.8 / 3.2 pts and base −75 g a yaw spread of 3.7, all at or above their own
 3.00-pt bar.
 
@@ -355,18 +464,21 @@ was measured on, and is false at 500 ms for the centre of mass and for leg lengt
 
 **What it means for a builder.** The cerebellum shipped in this repo was trained at one centre
 of mass. Its 100 ms predictions survive every corner tested here. Its 500 ms pitch predictions
-do not survive a centre of mass 3 cm further forward or back — but roughly half of that
-particular loss is the body being harder to predict there rather than the model being stale,
-so a better-matched model recovers about half of it and no more. Since the real logs come from
-one unit, this is a prediction of the twin about other units, not a measurement of them — the
-same limit as every DR number in this file.
+do not survive a centre of mass 3 cm further forward or back — and on the held-out half
+somewhere between a third and a half of that particular loss (37–55 % across three seeds) is
+the body being harder to predict there rather than the model being stale. The oracle that
+measures that is a small-data model and therefore a **lower bound**: a better-matched model
+recovers *at least* the remainder, and this run does not say where its ceiling is. Nor does
+this run resolve the split itself at three seeds — only its direction. Since the real logs
+come from one unit, this is a prediction of the twin about other units, not a measurement of
+them — the same limit as every DR number in this file.
 
 **Two limits, verbatim.** This is forward-model *prediction* accuracy, not policy *transfer*;
 and every real-log number in this repo comes from **one** unit and **one** phone, so this
 sweep says what the twin predicts across units, not what a second real robot does.
 
 Reproduce: `.venv/bin/python body_params.py` → `results/body_params.json`,
-`results/logs/body_params.txt`. Total 234 s.
+`results/logs/body_params.txt`. Total 235 s.
 
 ## Yaw floor — mostly noise, not model: scaling is flat and privileged state adds little (negative)
 

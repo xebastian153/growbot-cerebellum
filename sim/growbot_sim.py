@@ -54,8 +54,10 @@ def perturb(m, mass_scale=1.0, dcom=(0.0, 0.0, 0.0), leg_scale=1.0, gain_mult=1.
     (measured, see contact_friction.py). `condim=4` activates torsional, `condim=6`
     activates rolling as well. All three new arguments default to None = leave the
     model as loaded, so every existing caller reproduces bit-identically.
-    `base_mass_delta` (kg) is added to the base body only -- a heavier or lighter phone
-    sits on the base, the legs do not change -- and scales the base inertia with it.
+    `base_mass_delta` (kg) is added to the base body only: the base mass is scaled to
+    mass + delta and its inertia is scaled by the same ratio, `body_ipos` is left
+    untouched, and the legs do not change. It is therefore mass added at the base's
+    EXISTING centre of mass -- a mass isolation, not a payload mounted somewhere.
     Default 0.0 = no-op.
     """
     base = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, "base_body")

@@ -8,11 +8,20 @@ ANCHORS
   com corners are the published DR endpoints: dcom_x (-0.03, 0.03) m, dcom_z (-0.01, 0.015) m; leg_scale (0.85, 1.15)
   for scale only: with mass fixed, 30 mm of base-CoM shift is what moving a 200 g phone 94 mm would do -- beyond the 84 mm torso half-length
 
-  balance geometry (measured from the model, not asserted):
+  balance geometry, base body frame, every joint at zero -- the frame the support
+  box is defined in (CORRECTED: the first published version of these millimetres read
+  the CoM in WORLD x at the pose reset()'s 0.5 s of stepping leaves, and compared it
+  against a body-frame box):
     foot support box: x +-10.5 mm (both leg geoms sit at x = 0)
-    nominal        whole-body CoM x  -19.30 mm -> outside it by 8.8 mm
-    com x -0.03    whole-body CoM x  -41.34 mm -> outside it by 30.8 mm
-    com x +0.03    whole-body CoM x   -0.71 mm -> INSIDE the support box
+    nominal        whole-body CoM x  -27.42 mm -> outside it by 16.9 mm
+                     settles at pitch  -34.5 deg; same measurement at that settled pose -27.37 mm (+0.05 mm), superseded world-x reading -19.30 mm (+8.12 mm)
+    com x -0.03    whole-body CoM x  -54.12 mm -> outside it by 43.6 mm
+                     settles at pitch  -34.5 deg; same measurement at that settled pose -54.13 mm (-0.01 mm), superseded world-x reading -41.34 mm (+12.78 mm)
+    com x +0.03    whole-body CoM x   -0.71 mm -> INSIDE the support box by 9.8 mm
+                     settles at pitch   -0.1 deg; same measurement at that settled pose -0.72 mm (-0.01 mm), superseded world-x reading -0.71 mm (+0.00 mm)
+    pose dependence is bounded: the legs are 11.0 % of the mass, so a full
+    +-90 deg swing moves the body-frame CoM by at most 4.1 mm; the rows above move
+    it by less than 0.1 mm. The whole world-vs-body gap is base rotation, not leg swing.
     so +3 cm is not only a parameter change: it moves the body into a different
     balance regime, which the partition below is there to separate from model error.
 
@@ -22,9 +31,10 @@ DECISION RULE, stated before the numbers
   Protocol is contact_friction's, i.e. sim2real_proxy's: the frozen nominal forward
   model trained once on data/olie_train.npz, evaluated open-loop on each corner's own
   stream. Corners share SEEDS, i.e. the same initial condition -- not common random
-  numbers: collect() draws sim.rng.random() only when the body has fallen, so streams
-  desynchronise as soon as fall behaviour differs. Differences are unpaired, and the
-  per-corner seed spread is published beside every verdict.
+  numbers: collect() draws sim.rng every tick for the push test, mode-dependently in
+  Excitation and once per episode in fresh(), so two corners diverge at the first tick
+  their dynamics differ and never realign. Differences are unpaired, and the per-corner
+  seed spread is published beside every verdict.
   Metrics per corner:
     within_0.2rad @100ms (roll/pitch only) -- the exact metric of the published negative;
     within_0.2rad per axis @100/500ms -- adds 500 ms and YAW, which it never scored;
@@ -144,40 +154,58 @@ com x -0.03 only (DR endpoint, back)              -7.8p       +26.0%       -14.2
 com x +0.03 only (DR endpoint, forward)          -12.4p        +4.1%       -33.8p      +129.4%       -12.2p        +7.5%
 com z +0.015 only (DR endpoint, higher)           -5.1p       +40.4%        -4.8p       +11.6%        -1.4p       +27.7%
 
-====================================================================================================
-PARTITION at 500 ms -- is the drop the body, or the model?
-====================================================================================================
-  corner                                      fall %  walk %  fast % pitch frozen pitch oraclepitch intrins.
-  ------------------------------------------------------------------------------------------------
-  nominal (published)                           9.7%   15.8%   11.0%        86.1%        84.0%           --
-  mass -                                        9.8%   16.7%    9.9%        87.1%        83.4%         -56%
-  mass +                                        7.2%   16.1%   11.7%        87.3%        84.3%          20%
-  com back/low                                  4.4%   16.4%    9.1%        77.8%        87.4%         -41%
-  com fwd/high                                 16.0%   14.6%   12.1%        56.4%        70.7%          45%
-  leg -                                         7.2%   18.3%   10.4%        83.5%        88.2%        -160%
-  leg +                                        10.4%   16.2%    9.4%        80.3%        78.9%          89%
-  gain -                                        8.4%   17.4%    9.9%        85.8%        83.2%           --
-  gain +                                       10.4%   13.8%   11.9%        83.7%        80.9%         130%
-  friction -                                    8.2%   14.4%   11.3%        86.5%        84.4%           --
-  friction +                                    9.1%   17.6%   11.1%        85.7%        84.5%           --
-  worst A (heavy, long, weak, slippery)        14.0%   13.4%   10.6%        59.9%        73.2%          41%
-  worst B (light, short, strong, grippy)        4.6%   20.9%    8.6%        83.7%        86.5%        -102%
-  base -75 g at a fixed CoM                     9.1%   15.8%   10.3%        86.0%        83.8%           --
-  base +75 g at a fixed CoM                     9.0%   16.2%   11.3%        86.6%        83.5%           --
-  com x -0.03 only (DR endpoint, back)         12.0%   17.7%    7.4%        72.4%        82.8%           9%
-  com x +0.03 only (DR endpoint, forward)      10.1%   16.0%   14.0%        55.9%        70.6%          45%
-  com z +0.015 only (DR endpoint, higher)      16.2%   14.7%    8.2%        83.1%        81.7%          79%
-  frozen/oracle are scored on each corner's held-out second half; intrins. = the share
-  of that corner's frozen drop that a model trained on the corner's own data also pays.
+======================================================================================================================
+PARTITION at 500 ms -- is the drop the body, or the model?   (pitch, mean +- 3-seed spread)
+======================================================================================================================
+  corner                                           fall %       fast %        frozen        oracle      drop   intrinsic   share (3 seeds) res
+  ----------------------------------------------------------------------------------------------------------------------------
+  nominal (published)                            9.7+-2.9     11.0+-1.0      86.1+-2.3      84.0+-5.8       +0.0        +0.0                --    
+  mass -                                         9.8+-3.7      9.9+-1.5      87.1+-0.5      83.4+-2.7       +1.0        -0.6        -35 to 78%  ??
+  mass +                                         7.2+-0.7     11.7+-1.0      87.3+-5.3      84.3+-7.4       +1.3        +0.2         -4 to 52%  ??
+  com back/low                                   4.4+-0.1      9.1+-0.9      77.8+-2.3      87.4+-4.0       -8.3        +3.4       -72 to -17%  R?
+  com fwd/high                                  16.0+-2.4     12.1+-0.5      56.4+-14.0     70.7+-2.2      -29.7       -13.4         32 to 75%  R?
+  leg -                                          7.2+-4.3     10.4+-1.9      83.5+-2.2      88.2+-2.7       -2.6        +4.2      -125 to -65%  ??
+  leg +                                         10.4+-2.8      9.4+-0.3      80.3+-5.8      78.9+-5.2       -5.7        -5.1        39 to 161%  ??
+  gain -                                         8.4+-5.5      9.9+-0.5      85.8+-1.4      83.2+-2.4       -0.3        -0.8        57 to 272%  ??
+  gain +                                        10.4+-6.1     11.9+-0.7      83.7+-5.0      80.9+-6.7       -2.4        -3.1        82 to 102%  ??
+  friction -                                     8.2+-4.0     11.3+-0.6      86.5+-1.0      84.4+-6.2       +0.4        +0.3             -114%  ??
+  friction +                                     9.1+-1.4     11.1+-0.8      85.7+-3.1      84.5+-3.1       -0.4        +0.5        -4 to 179%  ??
+  worst A (heavy, long, weak, slippery)         14.0+-4.0     10.6+-0.4      59.9+-4.3      73.2+-2.2      -26.1       -10.8         29 to 54%  R?
+  worst B (light, short, strong, grippy)         4.6+-2.0      8.6+-0.9      83.7+-3.4      86.5+-4.0       -2.4        +2.4       -115 to 48%  ??
+  base -75 g at a fixed CoM                      9.1+-2.7     10.3+-1.9      86.0+-5.8      83.8+-7.4       -0.1        -0.3         19 to 59%  ??
+  base +75 g at a fixed CoM                      9.0+-2.7     11.3+-0.5      86.6+-1.0      83.5+-1.3       +0.6        -0.5              117%  ??
+  com x -0.03 only (DR endpoint, back)          12.0+-4.0      7.4+-0.8      72.4+-4.2      82.8+-3.5      -13.6        -1.3         -1 to 23%  R?
+  com x +0.03 only (DR endpoint, forward)       10.1+-2.6     14.0+-1.1      55.9+-12.0     70.6+-3.2      -30.2       -13.5         37 to 55%  R?
+  com z +0.015 only (DR endpoint, higher)       16.2+-2.0      8.2+-1.0      83.1+-1.2      81.7+-0.9       -3.0        -2.4        17 to 139%  ??
+  frozen/oracle are scored on each corner's held-out second half; intrinsic = the part of
+  the drop a model trained on the corner's own data also pays; share = the RANGE of the
+  three per-seed shares, never a point estimate. The two marks are drop-resolved and
+  intrinsic-resolved against their own bars (roll 6.1/pitch 4.6/yaw 3.6 pts frozen,
+  roll 8.2/pitch 11.7/yaw 4.7 pts oracle) -- R = separated at 3 seeds, ? = not.
+  The oracle's own deficit on the NOMINAL body, the yardstick's error: roll +4.4, pitch +2.0, yaw +6.7 pts;
+  any intrinsic figure of that order is inside the yardstick, not a measurement of the body.
 
-  per-regime pitch within-0.2rad, com x +0.03 only (DR endpoint, forward) vs nominal (published):
-    regime                 nominal    corner     delta  n starts
-    policy walking           88.0%     54.0%    -34.0p      1500
-    sine gait                88.3%     50.2%    -38.1p      1500
-    keyframe/OU              87.9%     52.4%    -35.5p      1500
-    still                    90.7%     46.6%    -44.1p      1500
-    fast (|gyro|>3)          77.8%     50.2%    -27.6p      1500
-    fallen                   79.1%     70.7%     -8.4p      1492
+  the split at com x +0.03 only (DR endpoint, forward), per seed (corner seed i vs nominal seed i -- seed-index
+  readings of unpaired streams, not paired differences):
+    axis                       drop (3 seeds)               intrinsic (3 seeds)                   share                  resolved
+    roll      -12.6 [-10.2, -12.9, -14.8]        -6.3 [-7.2, -4.0, -7.8]           71%, 31%, 52%    drop yes, intrinsic NO
+    pitch     -30.2 [-22.6, -35.8, -32.2]       -13.5 [-9.4, -13.3, -17.7]           42%, 37%, 55%    drop yes, intrinsic NO
+    yaw       -11.2 [-6.9, -13.6, -13.3]        -9.6 [-6.9, -11.9, -10.0]          100%, 88%, 76%   drop yes, intrinsic yes
+    roll: |intrinsic| 6.3 pts is 1.4x the oracle's own +4.4-pt deficit on the nominal body
+    pitch: |intrinsic| 13.5 pts is 6.6x the oracle's own +2.0-pt deficit on the nominal body
+    yaw: |intrinsic| 9.6 pts is 1.4x the oracle's own +6.7-pt deficit on the nominal body
+
+  per-regime pitch within-0.2rad, com x +0.03 only (DR endpoint, forward) vs nominal (published) (mean +- 3-seed spread):
+    regime                       nominal          corner     delta  n starts
+    fallen                     79.1+-9.9        70.7+-8.1      -8.4p      1492
+    fast (|gyro|>3)            77.8+-4.1        50.2+-6.6     -27.6p      1500
+    keyframe/OU                87.9+-3.4        52.4+-7.6     -35.5p      1500
+    policy walking             88.0+-4.2        54.0+-16.7    -34.0p      1500
+    sine gait                  88.3+-1.1        50.2+-6.5     -38.1p      1500
+    still                      90.7+-3.3        46.6+-11.6    -44.1p      1500
+    A quiet bucket that collapses harder than the fast one is not by itself evidence of
+    intrinsic difficulty: a frozen model carrying a static offset at the corner's new
+    resting pitch would look the same here. This frozen-only table cannot separate them.
 
 ====================================================================================================
 VERDICT
@@ -191,7 +219,16 @@ VERDICT
   sliding friction                         moves nothing on any axis at 100 or 500 ms
 
   the headline corner, com x +0.03 only (DR endpoint, forward):
-    pitch @500 ms -33.8 pts (per seed -38.5, -34.9, -28.1), fall rate 10.1% vs 9.7% nominal
-    of the held-out frozen drop (-30.2 pts), a model trained on this corner's own data still pays -13.5 pts = 45% intrinsic stream difficulty, 55% model mismatch
+    pitch @500 ms -33.8 pts (per seed -38.5, -34.9, -28.1)
+    of the held-out frozen drop (-30.2 pts, per seed -22.6, -35.8, -32.2), a model trained on this
+    corner's own data still pays -13.5 pts (per seed -9.4, -13.3, -17.7) --
+    intrinsic share 37-55 % across the three seeds (42%, 37%, 55%); the pairing is 13.5 of the
+    30.2 HELD-OUT points, which is a different quantity from the full-stream 33.8-pt table figure.
+    resolved at 3 seeds: drop YES (separation -22.6 vs bar 4.6), intrinsic NO (separation -9.4 vs bar 11.7)
+    time in the fallen state 10.1+-2.6% vs 9.7+-2.9% nominal, unresolved at 3 seeds (separation +0.0 vs bar 5.8) -- and note this is
+    the FRACTION OF TICKS spent fallen, not how often the body falls; it does not say the
+    body tips over no more often.
+    the oracle is a small-data model, so it is a LOWER BOUND on what a better-matched model
+    recovers, not a ceiling: on the nominal body it trails the frozen model by roll 4.4, pitch 2.0, yaw 6.7 pts.
 
-wrote results/body_params.json   total 234s
+wrote results/body_params.json   total 235s

@@ -111,15 +111,18 @@ def score_corners(nominal, corner_list, seeds, corner_steps, horizons, body="oli
 
     Seeds are shared in the sense that corner k and corner l are collected from the same
     seed, so they start from the same initial condition -- NOT in the sense of common
-    random numbers. `collect()` draws `sim.rng.random()` only when the body has fallen,
-    so two corners whose fall behaviour differs consume the stream at different rates and
-    desynchronise. Paired-difference statistics do not apply; the per-corner seed spread
-    reported beside every verdict is the honest uncertainty.
+    random numbers. `collect()` consumes `sim.rng` on a schedule the corner's own behaviour
+    sets: one draw every tick for the push test (`sim.rng.random() < push_prob`, taken
+    whether or not a push happens), mode-dependent draws inside `Excitation`, one draw per
+    episode in `fresh()`, and a further draw only when the body is already fallen. Two
+    corners therefore diverge at the first tick where their dynamics differ and never
+    realign -- the desynchronisation does not need a fall to start it. Paired-difference
+    statistics do not apply; the per-corner seed spread reported beside every verdict is
+    the honest uncertainty.
 
-    `extra(nominal, O, A, O2, D, M, dr, body, horizons, seed) -> dict` (default None) is
-    merged into that seed's record. It exists because the mode channel `collect()` returns
-    is what a fall-rate / regime / oracle partition needs, and this function used to drop
-    it on the floor.
+    `extra(nominal, O, A, O2, D, M) -> dict` (default None) is merged into that seed's
+    record. It exists because the mode channel `collect()` returns is what a fall-rate /
+    regime / oracle partition needs, and this function used to drop it on the floor.
     """
     rows = []
     for name, dr, group in corner_list:
@@ -135,7 +138,7 @@ def score_corners(nominal, corner_list, seeds, corner_steps, horizons, body="oli
                                       "rmse_axis_rad": ro[h]["rmse_axis_rad"]} for h in horizons},
             }
             if extra is not None:
-                rec.update(extra(nominal, O, A, O2, D, M, dr, body, horizons, sd))
+                rec.update(extra(nominal, O, A, O2, D, M))
             per_seed.append(rec)
         def agg(get):
             v = np.array([get(s) for s in per_seed], float)

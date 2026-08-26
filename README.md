@@ -104,7 +104,7 @@ Full write-ups with conditions and per-regime splits: [docs/EXPERIMENTS.md](docs
 | Mimic game | planning without a model is worse than doing nothing; with it, error halves (0.210 → 0.095 rad) and 39/40 traces beat hold-still |
 | JS runner | float32-equivalent to the trained net; the equivalence test caught a real convention bug |
 | Body-parameter DR proxy | **negative at 100 ms** — mass/CoM/leg/gain/*sliding* friction never reach the IMU there; contact chatter dominates the gyro. Re-scored at 500 ms below |
-| Body parameters at 500 ms | shifting the base **centre of mass** 3 cm forward drops 500 ms pitch predictability by 33.8 pts (38.5 / 34.9 / 28.1 across seeds; RMSE +129 %), 3 cm back by 14.2, and leg 1.15 by 7.4 — while mass moves nothing, neither −20 % / +25 % on the whole body nor ±75 g at a fixed centre of mass, and neither do gain or sliding friction. At +3 cm the whole-body CoM crosses into the foot support box (x ±10.5 mm) and a model trained on that body still pays 13.5 of the 30.2 pts, so 45 % of the drop is the body, not the model. **No corner here mounts a phone**: the twin carries none, and a 200 g one would be mass_scale 1.42, outside the sweep |
+| Body parameters at 500 ms | shifting the base **centre of mass** 3 cm forward drops 500 ms pitch predictability by 33.8 pts (38.5 / 34.9 / 28.1 across seeds; RMSE +129 %), 3 cm back by 14.2, and leg 1.15 by 7.4 — while mass moves nothing, neither −20 % / +25 % on the whole body nor ±75 g at a fixed centre of mass, and neither do gain or sliding friction. At +3 cm the whole-body CoM crosses into the foot support box (body-frame x ±10.5 mm; the CoM goes from 16.9 mm behind it at nominal to 0.7 mm inside), and on the **held-out half** a model trained on that body still pays 13.5 of the 30.2 pts there — **37–55 % across the three seeds**, a range and not a point estimate, and a different quantity from the 33.8-pt full-stream figure. The drop is resolved by seeds; the split is not, and the oracle behind it is a lower bound, not a ceiling. **No corner here mounts a phone**: the twin carries none, and a 200 g one would be mass_scale 1.42, outside the sweep |
 | Contact friction | the twin has **no torsional friction**: at the shipped `condim=3` the XML's torsional and rolling coefficients are inert (bit-identical under a ×100 change). Switched on, torsional still moves nothing on any axis, yaw included — the DR negative survives a proper test. The XML's own unapplied rolling value costs 22.6 pts of yaw at 500 ms if enabled |
 | Actuator dynamics | the sim-to-real signature that *is* there: a slew-limited servo opens a 3–4 pt gap; the servo is identifiable from IMU + commands alone |
 | Multi-step training loss | +1.3 pts at 500 ms, consistent across seeds, saturates by H=5 |
@@ -131,9 +131,9 @@ small enough to run in the phone browser.
 **Doesn't, yet.** Everything here has learned MuJoCo. Of the two experiments designed to
 stand in for "a different body", metadata came back flat, and body parameters came back flat
 only for mass, gain and sliding friction: a 3 cm centre-of-mass shift does reach the IMU at
-500 ms, and about half of even that is the body being harder to predict rather than the model
-being stale, so there is less for output-side correction to correct than a 33.8-pt drop looks
-like. The third, actuator dynamics, found the real signature: the gap lives on the *input* side (where the horn actually
+500 ms, and on the held-out half 37–55 % of that loss (13.5 of 30.2 pts, across three seeds)
+is the body being harder to predict rather than the model being stale, so there is less for
+output-side correction to correct than the 33.8-pt full-stream drop looks like. The third, actuator dynamics, found the real signature: the gap lives on the *input* side (where the horn actually
 is), and it is recoverable from IMU + commands alone. The learning
 half — compare prediction with the *real* IMU on device and update from the error — needs
 a body and a log. That is the next step.

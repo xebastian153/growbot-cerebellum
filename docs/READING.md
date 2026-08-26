@@ -273,11 +273,15 @@ actuator classes, delay randomization, system ID) and randomizes *targeted* fact
 second; none wins by blanket-randomizing mass and friction. That is what the twin
 measured independently: mass, gain and sliding friction never reach the IMU at any
 horizon tested — nor torsional friction once the twin was made able to apply it at
-all — while a 3 cm centre-of-mass shift does at 500 ms, on all three axes, and leg
-length 1.15 does on pitch (−7.4 pts, `body_params.py`); of that 33.8-pt pitch drop
-at +3 cm, 45 % is the stream itself getting harder, since a model trained on that
-body still pays 13.5 of the 30.2 held-out points — targeted randomization has to be
-aimed at the geometry, and even then half of what it buys back is not model error.
+all — while a 3 cm centre-of-mass shift does at 500 ms **on pitch**, and leg length
+1.15 does on pitch too (−7.4 pts, `body_params.py`). On the held-out half a model
+trained on that body still pays 13.5 of the 30.2 points — 37–55 % across three
+seeds, a range and not a point estimate, and a quantity measured on different data
+from the 33.8-pt full-stream figure. Targeted randomization has to be aimed at the
+geometry, and a third to a half of what it buys back is not model error. Two limits
+travel with that: the split's direction is resolved by seeds and its magnitude is
+not, and the oracle behind it is a small-data model, so it is a lower bound on what
+a better-matched model recovers rather than a ceiling.
 Actuator delay and slew open the gap, identify it and feed it back. The Real2Sim loop is standard practice at
 the top of the field. One caveat separates this project: the industry's system ID uses
 encoders and torque sensors; `servo_id.py` identifies the actuator from IMU + commands

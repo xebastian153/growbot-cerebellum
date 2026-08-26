@@ -19,7 +19,11 @@ For each corner, three numbers at a 100 ms open-loop horizon:
   frozen     the nominal model, as shipped
   adapted    the same model plus the online residual after `warm_s` seconds of
              experience on the new body (updated only from what it could observe)
-  oracle     a model trained on that corner's own data -- the ceiling
+  oracle     a model trained on that corner's own data. It is a LOWER BOUND on what a
+             better-matched model recovers, not a ceiling: it sees `warm_s` seconds of
+             that corner at 20 epochs against the frozen model's 400 k ticks at 60, and
+             on the nominal body it scores BELOW the frozen model. `body_params.py`
+             publishes that deficit per axis at 500 ms.
 """
 
 from __future__ import annotations

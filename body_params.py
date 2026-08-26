@@ -22,12 +22,21 @@ Why the CoM result needs a partition. The nominal whole-body CoM sits BEHIND the
 support box; +3 cm moves it INSIDE. That is a change of balance regime, not only a
 change of body parameter, so a drop in prediction accuracy at that corner can be the
 stream getting genuinely harder rather than the frozen model being wrong about a new
-body. Every corner therefore reports its fall rate, its regime mix, its per-regime
-accuracy, and an oracle (a model trained on that corner's own data) at 500 ms, which
-splits the drop exactly:
+body. Every corner therefore reports its fall rate (the fraction of TICKS spent fallen,
+not how often the body tips), its regime mix, its per-regime accuracy, and an oracle (a
+model trained on that corner's own data) at 500 ms, which splits the drop exactly:
 
     frozen_c - frozen_nom  =  (oracle_c - oracle_nom)  +  [mismatch_c - mismatch_nom]
                               ^ intrinsic difficulty     ^ what training on the body fixes
+
+The oracle is a small-data model -- 14741 windows and 20 epochs against the frozen
+model's 400 k ticks and 60 epochs -- and on the NOMINAL body it scores below the frozen
+model on all three axes. It is therefore a LOWER BOUND on what a better-matched model
+recovers, not a ceiling, and that nominal deficit is published per axis beside every
+split so an intrinsic figure of the same order can be read for what it is. Every
+partition quantity is published per seed with its spread and with the same
+material/resolved marks the axis verdicts carry; no partition number appears as a bare
+mean, and the shares appear as a range across seeds rather than a point estimate.
 
 Two limits, stated up front and repeated in the write-up:
   - this is forward-model PREDICTION accuracy, not policy TRANSFER;
@@ -47,7 +56,7 @@ import mujoco
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent / "sim"))
-from growbot_sim import DR, GrowBotSim                            # noqa: E402
+from growbot_sim import DR, GrowBotSim, quat_to_rpy               # noqa: E402
 from forward import MLP, make_windows, rollout_error              # noqa: E402
 from sim2real_proxy import K, corners as published_corners        # noqa: E402
 from contact_friction import score_corners, decide                # noqa: E402
@@ -93,30 +102,76 @@ def corners():
 # geometry: where the centre of mass sits relative to the feet
 # ----------------------------------------------------------------------
 def balance_geometry(body="olie"):
-    """Whole-body CoM along the body axis vs the foot support box, measured from the model.
+    """Whole-body CoM along the body x axis vs the foot support box, BOTH in the base body
+    frame at the reference pose (every joint at zero).
 
-    The support box is the x-extent of the two leg geoms (they sit at x = 0), i.e. what
-    the body can put weight on without tipping. A CoM outside it is held up by contact
-    torque; a CoM inside it is statically supported. Crossing that line is a change of
-    balance regime, which is why the CoM corners cannot be read as model error alone.
+    The support box is the x-extent of the two leg geoms (they sit at x = 0), i.e. what the
+    body can put weight on without tipping. A CoM outside it is held up by contact torque; a
+    CoM inside it is statically supported. Crossing that line is a change of balance regime,
+    which is why the CoM corners cannot be read as model error alone.
+
+    CORRECTED, and the correction moves the published millimetres. The first version of this
+    function read the whole-body CoM in WORLD x -- `d.xipos` -- while comparing it against a
+    body-frame half-extent, and it read it at whatever pose `GrowBotSim.__init__` had left
+    the body in, because `reset()` steps 0.5 s of physics before anything is measured. The
+    nominal and -3 cm bodies settle rotated about -34.5 deg in pitch, so those two rows were
+    a body-frame offset projected onto a world axis: nominal came out -19.30 mm instead of
+    -27.42, and -3 cm -41.34 instead of -54.12. The +3 cm body settles level (-0.1 deg),
+    which is why its -0.71 mm was already right and why the artefact was invisible in the one
+    row the section leans on. Both quantities are now measured in the same frame.
+
+    Pose dependence of the corrected number is small and is published with it: leg swing is
+    the only pose freedom that moves the body-frame CoM, and the two legs carry 11.0 % of the
+    mass with their own CoM 37 mm below their hinges, so a full +-90 deg swing moves it by at
+    most ~4 mm; at the pose the sim actually settles into it moves it by 0.05 mm. The
+    qualitative reading is unchanged by the correction: nominal and -3 cm sit outside the
+    box, +3 cm sits inside it.
     """
-    def com_x(dr):
-        s = GrowBotSim(seed=0, body=body, dr=dr)
+    def measure(dr):
+        m = GrowBotSim(seed=0, body=body, dr=dr).m
+        base = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, "base_body")
+
+        def body_frame_com_x(mm, dd):
+            R = dd.xmat[base].reshape(3, 3)
+            com = (dd.xipos * mm.body_mass[:, None]).sum(0) / mm.body_mass.sum()
+            return float((R.T @ (com - dd.xpos[base]))[0])
+
+        ref_d = mujoco.MjData(m)                 # reference pose: joints at zero, no stepping
+        mujoco.mj_resetData(m, ref_d)
+        mujoco.mj_kinematics(m, ref_d)
+        ref = body_frame_com_x(m, ref_d)
+
+        s = GrowBotSim(seed=0, body=body, dr=dr)  # the pose reset()'s 0.5 s of stepping leaves
         mujoco.mj_forward(s.m, s.d)
-        base = mujoco.mj_name2id(s.m, mujoco.mjtObj.mjOBJ_BODY, "base_body")
-        com = (s.d.xipos * s.m.body_mass[:, None]).sum(0) / s.m.body_mass.sum()
-        return float(s.m.body_ipos[base, 0]), float(com[0] - s.d.xpos[base, 0])
+        com_w = (s.d.xipos * s.m.body_mass[:, None]).sum(0) / s.m.body_mass.sum()
+        return {"base_ipos_x_m": float(m.body_ipos[base, 0]),
+                "whole_body_com_x_m": ref,
+                "whole_body_com_x_at_settled_pose_m": body_frame_com_x(s.m, s.d),
+                "superseded_world_x_at_settled_pose_m": float(com_w[0] - s.d.xpos[base, 0]),
+                "settled_pitch_rad": float(quat_to_rpy(s.d.qpos[3:7])[1])}
 
     m = GrowBotSim(seed=0, body=body).m
     gid = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_GEOM, "lower_leg_1")
     half_x = float(m.geom_size[gid, 0])
     torso_half_x = float(m.geom_size[mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_GEOM, "torso_geom"), 0])
-    out = {"support_box_half_x_m": half_x, "torso_half_length_m": torso_half_x, "corners": {}}
+    leg_bid = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, "right_leg")
+    leg_frac = float(2 * m.body_mass[leg_bid] / m.body_mass.sum())
+    leg_arm = abs(float(m.body_ipos[leg_bid, 2]))
+    out = {"frame": "base body frame, every joint at zero (the frame the support box is "
+                    "defined in); the superseded reading was world x at the settled pose",
+           "support_box_half_x_m": half_x, "torso_half_length_m": torso_half_x,
+           "leg_mass_fraction": leg_frac,
+           "max_leg_swing_com_shift_mm": float(leg_frac * leg_arm * 1000),
+           "corners": {}}
     for label, dcom in (("nominal", 0.0), ("com x -0.03", DR["dcom_x"][0]), ("com x +0.03", DR["dcom_x"][1])):
-        ipos_x, com_rel = com_x({"mass_scale": 1.0, "dcom": (dcom, 0.0, 0.0)})
-        out["corners"][label] = {"base_ipos_x_m": ipos_x, "whole_body_com_x_m": com_rel,
-                                 "inside_support_box": bool(abs(com_rel) <= half_x),
-                                 "margin_outside_box_mm": float((abs(com_rel) - half_x) * 1000)}
+        c = measure({"mass_scale": 1.0, "dcom": (dcom, 0.0, 0.0)})
+        com_rel = c["whole_body_com_x_m"]
+        c["inside_support_box"] = bool(abs(com_rel) <= half_x)
+        c["margin_outside_box_mm"] = float((abs(com_rel) - half_x) * 1000)
+        c["settled_pose_shift_mm"] = float((c["whole_body_com_x_at_settled_pose_m"] - com_rel) * 1000)
+        c["superseded_world_reading_error_mm"] = float(
+            (c["superseded_world_x_at_settled_pose_m"] - com_rel) * 1000)
+        out["corners"][label] = c
     return out
 
 
@@ -152,7 +207,7 @@ def make_partition(h, oracle_epochs):
     corner's OWN first half, with frozen and oracle both scored on the held-out second
     half so the two are comparable.
     """
-    def partition(nominal, O, A, O2, D, M, dr, body, horizons, seed):
+    def partition(nominal, O, A, O2, D, M):
         fallen, masks = regime_masks(O, M)
         per_regime = {}
         for name, sel in masks.items():
@@ -180,46 +235,114 @@ def make_partition(h, oracle_epochs):
     return partition
 
 
-def partition_table(rows, h):
-    """Per-corner means over seeds, and the exact split of each corner's frozen drop.
+def seed_stat(vals, scale=1.0):
+    """mean, the three seeds themselves, and their spread. Nothing in the partition is
+    published as a bare mean, for the same reason no axis verdict is."""
+    v = [float(x) * scale for x in vals]
+    return {"mean": float(np.mean(v)), "per_seed": v, "spread": float(max(v) - min(v))}
+
+
+def partition_table(rows, floor=0.03):
+    """Per-SEED partition quantities with their spread, and the exact split of each corner's
+    frozen drop, decided by the same two marks the axis table uses.
 
         frozen_c - frozen_n = (oracle_c - oracle_n) + [(frozen_c - oracle_c) - (frozen_n - oracle_n)]
                                intrinsic difficulty    model mismatch the corner adds
-    """
-    def mean_over_seeds(r, get):
-        return float(np.mean([get(s) for s in r["per_seed"]]))
 
+    CORRECTED. The first published version of this table averaged three seeds and reported
+    nothing else -- no spread, no per-seed values, no verdict -- which is precisely the
+    defect the axis verdicts above were rewritten to remove, reintroduced one section later.
+    Every quantity here now carries its three seeds and their spread, and every split
+    carries:
+
+      threshold  max(3.0 pts, 2x the NOMINAL seed spread of that same quantity). The oracle
+                 is a small-data model and its own nominal spread is much wider than the
+                 frozen model's, so the bar the intrinsic component has to clear is wider
+                 too -- that is the point of deriving each bar from its own quantity.
+      resolved   the corner's three seeds separate from nominal's three by more than that
+                 bar (`seed_separation`, the same unpaired criterion the axis table uses).
+
+    The per-seed shares are seed-index readings -- corner seed i against nominal seed i --
+    not paired differences: the streams desynchronise from the first tick where the bodies
+    differ (see `score_corners`). They are published as a RANGE for that reason, and a share
+    is only formed where that seed's frozen drop is at least 1 pt, since a share of a drop
+    near zero is not a quantity.
+    """
     nom = rows[0]
+
+    def held(r, kind, a):
+        return [sd["held_out"][kind][a] for sd in r["per_seed"]]
+
+    regime_names = sorted({n for row in rows for sd in row["per_seed"]
+                           for n in sd["regime_within_0.2rad_axis"]})
     out = {}
     for r in rows:
-        froz = {a: mean_over_seeds(r, lambda s, a=a: s["held_out"]["frozen_within_0.2rad_axis"][a]) for a in AXES}
-        orac = {a: mean_over_seeds(r, lambda s, a=a: s["held_out"]["oracle_within_0.2rad_axis"][a]) for a in AXES}
         reg = {}
-        for name in rows[0]["per_seed"][0]["regime_within_0.2rad_axis"]:
-            vals = [s["regime_within_0.2rad_axis"][name] for s in r["per_seed"]
-                    if name in s["regime_within_0.2rad_axis"]]
+        for name in regime_names:
+            vals = [sd["regime_within_0.2rad_axis"][name] for sd in r["per_seed"]
+                    if name in sd["regime_within_0.2rad_axis"]]
             if not vals:
+                # reported, not silently dropped: a regime below MIN_REGIME_TICKS on every
+                # seed of this corner is a fact about the corner, not an absent row
+                reg[name] = {"seeds_present": 0, "absent_reason":
+                             f"under {MIN_REGIME_TICKS} ticks on every seed"}
                 continue
             reg[name] = {"seeds_present": len(vals),
-                         "n_starts_mean": float(np.mean([v["n_starts"] for v in vals])),
-                         **{a: float(np.mean([v["within_0.2rad_axis"][a] for v in vals])) for a in AXES}}
+                         "n_starts": seed_stat([v["n_starts"] for v in vals]),
+                         **{a: seed_stat([v["within_0.2rad_axis"][a] for v in vals]) for a in AXES}}
         out[r["corner"]] = {
-            "fall_rate": mean_over_seeds(r, lambda s: s["fall_rate"]),
-            "regime_mix": {k: mean_over_seeds(r, lambda s, k=k: s["regime_mix"][k])
+            "fall_rate": seed_stat([sd["fall_rate"] for sd in r["per_seed"]]),
+            "regime_mix": {k: seed_stat([sd["regime_mix"][k] for sd in r["per_seed"]])
                            for k in r["per_seed"][0]["regime_mix"]},
             "regime_within_0.2rad_axis": reg,
-            "held_out_frozen": froz, "held_out_oracle": orac,
+            "held_out_frozen": {a: seed_stat(held(r, "frozen_within_0.2rad_axis", a)) for a in AXES},
+            "held_out_oracle": {a: seed_stat(held(r, "oracle_within_0.2rad_axis", a)) for a in AXES},
         }
+
     nomp = out[nom["corner"]]
-    for name, p in out.items():
-        p["split_vs_nominal_pts"] = {}
+    # every bar comes from the nominal spread of the quantity it decides
+    bar = {kind: {a: max(floor, 2.0 * nomp[kind][a]["spread"]) * 100 for a in AXES}
+           for kind in ("held_out_frozen", "held_out_oracle")}
+    bar_fall = max(floor, 2.0 * nomp["fall_rate"]["spread"]) * 100
+    # the oracle's own deficit on the NOMINAL body, per axis: the yardstick's error, which
+    # every intrinsic figure below has to be read against
+    oracle_deficit = {a: float((nomp["held_out_frozen"][a]["mean"]
+                                - nomp["held_out_oracle"][a]["mean"]) * 100) for a in AXES}
+
+    for name, part in out.items():
+        fsep = seed_separation(part["fall_rate"]["per_seed"], nomp["fall_rate"]["per_seed"])
+        part["fall_rate_vs_nominal"] = {
+            "delta_pts": float((part["fall_rate"]["mean"] - nomp["fall_rate"]["mean"]) * 100),
+            "threshold_pts": bar_fall, "seed_separation_pts": fsep,
+            "resolved": bool(abs(fsep) > bar_fall)}
+        part["oracle_deficit_on_nominal_body_pts"] = oracle_deficit
+        part["split_vs_nominal_pts"] = {}
         for a in AXES:
-            drop = (p["held_out_frozen"][a] - nomp["held_out_frozen"][a]) * 100
-            intrinsic = (p["held_out_oracle"][a] - nomp["held_out_oracle"][a]) * 100
-            mismatch = drop - intrinsic
-            p["split_vs_nominal_pts"][a] = {
-                "frozen_drop": drop, "intrinsic": intrinsic, "model_mismatch": mismatch,
-                "intrinsic_share": (float(intrinsic / drop) if abs(drop) > 1e-9 else None)}
+            fz = part["held_out_frozen"][a]["per_seed"]; nfz = nomp["held_out_frozen"][a]["per_seed"]
+            oc = part["held_out_oracle"][a]["per_seed"]; noc = nomp["held_out_oracle"][a]["per_seed"]
+            drop = [(c - n) * 100 for c, n in zip(fz, nfz)]
+            intr = [(c - n) * 100 for c, n in zip(oc, noc)]
+            mism = [d - i for d, i in zip(drop, intr)]
+            share = [(float(i / d) if abs(d) >= 1.0 else None) for d, i in zip(drop, intr)]
+            known = [x for x in share if x is not None]
+            dsep = seed_separation(fz, nfz); isep = seed_separation(oc, noc)
+            mean_drop = float(np.mean(drop)); mean_intr = float(np.mean(intr))
+            part["split_vs_nominal_pts"][a] = {
+                "frozen_drop": seed_stat(drop), "intrinsic": seed_stat(intr),
+                "model_mismatch": seed_stat(mism),
+                "intrinsic_share_per_seed": share,
+                "intrinsic_share_range": ([min(known), max(known)] if known else None),
+                "intrinsic_share_of_the_means": (float(mean_intr / mean_drop)
+                                                 if abs(mean_drop) >= 1.0 else None),
+                "frozen_drop_threshold_pts": bar["held_out_frozen"][a],
+                "frozen_drop_seed_separation_pts": dsep,
+                "frozen_drop_resolved": bool(abs(dsep) > bar["held_out_frozen"][a]),
+                "intrinsic_threshold_pts": bar["held_out_oracle"][a],
+                "intrinsic_seed_separation_pts": isep,
+                "intrinsic_resolved": bool(abs(isep) > bar["held_out_oracle"][a]),
+                "intrinsic_vs_oracle_deficit_ratio": (abs(mean_intr) / oracle_deficit[a]
+                                                      if oracle_deficit[a] > 1e-9 else None),
+            }
     return out
 
 
@@ -230,7 +353,7 @@ def metric_keys(horizons):
     return ["legacy@5"] + [f"{a}@{h}" for h in horizons for a in AXES]
 
 
-def nominal_spread(nom, key, horizons):
+def nominal_spread(nom, key):
     if key == "legacy@5":
         return nom["legacy_100ms"]["spread"]
     ax, h = key.split("@")
@@ -247,9 +370,11 @@ def corner_value(r, key):
 def seed_separation(corner_seeds, nominal_seeds):
     """Signed gap between the two closest seeds of the corner and of nominal, in points.
 
-    The seeds are NOT paired -- `collect()` consumes the RNG only when the body has
-    fallen, so the streams desynchronise -- so the honest question a 3-seed run can
-    answer is whether the two sets of seeds separate at all. 0.0 means they overlap.
+    The seeds are NOT paired: `collect()` draws `sim.rng.random()` every tick for the push
+    test, mode-dependently inside `Excitation` and once per episode in `fresh()`, so two
+    corners diverge at the first tick their dynamics differ and never realign. The honest
+    question a 3-seed run can answer is whether the two sets of seeds separate at all.
+    0.0 means they overlap.
     """
     c, n = np.asarray(corner_seeds, float), np.asarray(nominal_seeds, float)
     if c.max() < n.min():
@@ -279,7 +404,7 @@ def decide_per_metric(rows, horizons, floor=0.03):
     """
     nom = rows[0]
     keys = metric_keys(horizons)
-    thresh = {k: max(floor, 2.0 * nominal_spread(nom, k, horizons)) for k in keys}
+    thresh = {k: max(floor, 2.0 * nominal_spread(nom, k)) for k in keys}
     verdicts = {}
     for r in rows[1:]:
         axis, legacy = {}, None
@@ -314,7 +439,7 @@ def print_threshold_block(thresh, rows, horizons, legacy_thresh):
     print(f"  against the single worst-case bar this section used before, {legacy_thresh * 100:.2f} pts:")
     print(f"    {'metric':<12}{'nominal spread':>16}{'threshold':>12}{'was':>8}")
     for k in metric_keys(horizons):
-        print(f"    {k:<12}{nominal_spread(nom, k, horizons) * 100:>15.2f}p{thresh[k] * 100:>11.2f}p"
+        print(f"    {k:<12}{nominal_spread(nom, k) * 100:>15.2f}p{thresh[k] * 100:>11.2f}p"
               f"{legacy_thresh * 100:>7.2f}p")
 
 
@@ -375,37 +500,87 @@ def print_rmse_table(rows, h, groups=("body", "mass_fixed_com")):
         print(line)
 
 
-def print_partition(part, rows, h):
-    print("\n" + "=" * 100)
-    print(f"PARTITION at {h * 20} ms -- is the drop the body, or the model?")
-    print("=" * 100)
-    print(f"  {'corner':<42}{'fall %':>8}{'walk %':>8}{'fast %':>8}"
-          + "".join(f"{'pitch ' + s:>13}" for s in ("frozen", "oracle", "intrins.")))
-    print("  " + "-" * 96)
+def print_partition(part, rows, h, axis="pitch"):
+    nomp = part[rows[0]["corner"]]
+    print("\n" + "=" * 118)
+    print(f"PARTITION at {h * 20} ms -- is the drop the body, or the model?   ({axis}, mean +- 3-seed spread)")
+    print("=" * 118)
+    print(f"  {'corner':<42}{'fall %':>13}{'fast %':>13}{'frozen':>14}{'oracle':>14}"
+          f"{'drop':>10}{'intrinsic':>12}{'share (3 seeds)':>18}{'res':>4}")
+    print("  " + "-" * 124)
     for r in rows:
-        p = part[r["corner"]]
-        sp = p["split_vs_nominal_pts"]["pitch"]
-        share = sp["intrinsic_share"]
-        print(f"  {r['corner']:<42}{p['fall_rate'] * 100:>7.1f}%"
-              f"{p['regime_mix']['policy walking'] * 100:>7.1f}%{p['regime_mix']['fast (|gyro|>3)'] * 100:>7.1f}%"
-              f"{p['held_out_frozen']['pitch'] * 100:>12.1f}%{p['held_out_oracle']['pitch'] * 100:>12.1f}%"
-              + (f"{share * 100:>12.0f}%" if share is not None and abs(sp["frozen_drop"]) >= 1.0 else f"{'--':>13}"))
-    print("  frozen/oracle are scored on each corner's held-out second half; intrins. = the share")
-    print("  of that corner's frozen drop that a model trained on the corner's own data also pays.")
+        pt = part[r["corner"]]
+        sp = pt["split_vs_nominal_pts"][axis]
+        rng = sp["intrinsic_share_range"]
+        share = ("--" if rng is None else
+                 (f"{rng[0] * 100:.0f}%" if rng[0] == rng[1]
+                  else f"{rng[0] * 100:.0f} to {rng[1] * 100:.0f}%"))
+        mark = ("" if r is rows[0] else
+                ("R" if sp["frozen_drop_resolved"] else "?") + ("R" if sp["intrinsic_resolved"] else "?"))
+        print(f"  {r['corner']:<42}"
+              f"{pt['fall_rate']['mean'] * 100:>8.1f}+-{pt['fall_rate']['spread'] * 100:<4.1f}"
+              f"{pt['regime_mix']['fast (|gyro|>3)']['mean'] * 100:>8.1f}+-{pt['regime_mix']['fast (|gyro|>3)']['spread'] * 100:<4.1f}"
+              f"{pt['held_out_frozen'][axis]['mean'] * 100:>9.1f}+-{pt['held_out_frozen'][axis]['spread'] * 100:<4.1f}"
+              f"{pt['held_out_oracle'][axis]['mean'] * 100:>9.1f}+-{pt['held_out_oracle'][axis]['spread'] * 100:<4.1f}"
+              f"{sp['frozen_drop']['mean']:>+10.1f}{sp['intrinsic']['mean']:>+12.1f}"
+              f"{share:>18}{mark:>4}")
+    print("  frozen/oracle are scored on each corner's held-out second half; intrinsic = the part of")
+    print("  the drop a model trained on the corner's own data also pays; share = the RANGE of the")
+    print("  three per-seed shares, never a point estimate. The two marks are drop-resolved and")
+    bars_f = "/".join(f"{a} {nomp['split_vs_nominal_pts'][a]['frozen_drop_threshold_pts']:.1f}" for a in AXES)
+    bars_o = "/".join(f"{a} {nomp['split_vs_nominal_pts'][a]['intrinsic_threshold_pts']:.1f}" for a in AXES)
+    print(f"  intrinsic-resolved against their own bars ({bars_f} pts frozen,")
+    print(f"  {bars_o} pts oracle) -- R = separated at 3 seeds, ? = not.")
+    print("  The oracle's own deficit on the NOMINAL body, the yardstick's error: "
+          + ", ".join(f"{a} {nomp['oracle_deficit_on_nominal_body_pts'][a]:+.1f}" for a in AXES)
+          + " pts;")
+    print("  any intrinsic figure of that order is inside the yardstick, not a measurement of the body.")
+
+
+def print_split_detail(part, corner):
+    """Every partition number of one corner on all three axes, per seed. No bare means."""
+    pt = part.get(corner)
+    if pt is None:
+        return
+    print(f"\n  the split at {corner}, per seed (corner seed i vs nominal seed i -- seed-index")
+    print("  readings of unpaired streams, not paired differences):")
+    print(f"    {'axis':<7}{'drop (3 seeds)':>34}{'intrinsic (3 seeds)':>34}{'share':>24}{'resolved':>26}")
+    for a in AXES:
+        sp = pt["split_vs_nominal_pts"][a]
+        d = sp["frozen_drop"]; i = sp["intrinsic"]
+        sh = ", ".join("--" if x is None else f"{x * 100:.0f}%" for x in sp["intrinsic_share_per_seed"])
+        res = ("drop " + ("yes" if sp["frozen_drop_resolved"] else "NO")
+               + ", intrinsic " + ("yes" if sp["intrinsic_resolved"] else "NO"))
+        print(f"    {a:<7}{d['mean']:>+8.1f} [{', '.join(f'{v:+.1f}' for v in d['per_seed'])}]"
+              f"{i['mean']:>+12.1f} [{', '.join(f'{v:+.1f}' for v in i['per_seed'])}]"
+              f"{sh:>24}{res:>26}")
+    for a in AXES:
+        sp = pt["split_vs_nominal_pts"][a]
+        ratio = sp["intrinsic_vs_oracle_deficit_ratio"]
+        if ratio is not None:
+            print(f"    {a}: |intrinsic| {abs(sp['intrinsic']['mean']):.1f} pts is "
+                  f"{ratio:.1f}x the oracle's own {pt['oracle_deficit_on_nominal_body_pts'][a]:+.1f}-pt "
+                  f"deficit on the nominal body")
 
 
 def print_regime_split(part, corner, ref="nominal (published)"):
     a = part.get(corner); b = part.get(ref)
     if not a or not b:
         return
-    print(f"\n  per-regime pitch within-0.2rad, {corner} vs {ref}:")
-    print(f"    {'regime':<20}{'nominal':>10}{'corner':>10}{'delta':>10}{'n starts':>10}")
+    print(f"\n  per-regime pitch within-0.2rad, {corner} vs {ref} (mean +- 3-seed spread):")
+    print(f"    {'regime':<20}{'nominal':>16}{'corner':>16}{'delta':>10}{'n starts':>10}")
     for name, v in a["regime_within_0.2rad_axis"].items():
-        if name not in b["regime_within_0.2rad_axis"]:
+        n = b["regime_within_0.2rad_axis"].get(name)
+        if n is None or not v.get("seeds_present") or not n.get("seeds_present"):
+            miss = v.get("absent_reason") or (n or {}).get("absent_reason") or "absent"
+            print(f"    {name:<20}{miss:>52}")
             continue
-        n = b["regime_within_0.2rad_axis"][name]
-        print(f"    {name:<20}{n['pitch'] * 100:>9.1f}%{v['pitch'] * 100:>9.1f}%"
-              f"{(v['pitch'] - n['pitch']) * 100:>+9.1f}p{v['n_starts_mean']:>10.0f}")
+        print(f"    {name:<20}{n['pitch']['mean'] * 100:>11.1f}+-{n['pitch']['spread'] * 100:<4.1f}"
+              f"{v['pitch']['mean'] * 100:>11.1f}+-{v['pitch']['spread'] * 100:<4.1f}"
+              f"{(v['pitch']['mean'] - n['pitch']['mean']) * 100:>+9.1f}p{v['n_starts']['mean']:>10.0f}")
+    print("    A quiet bucket that collapses harder than the fast one is not by itself evidence of")
+    print("    intrinsic difficulty: a frozen model carrying a static offset at the corner's new")
+    print("    resting pitch would look the same here. This frozen-only table cannot separate them.")
 
 
 def main():
@@ -438,12 +613,23 @@ def main():
     print(f"  for scale only: with mass fixed, {DR['dcom_x'][1] * 1000:.0f} mm of base-CoM shift is what moving a "
           f"{PHONE_KG * 1000:.0f} g phone {phone_shift_m * 1000:.0f} mm would do -- beyond the "
           f"{geo['torso_half_length_m'] * 1000:.0f} mm torso half-length")
-    print("\n  balance geometry (measured from the model, not asserted):")
+    print("\n  balance geometry, base body frame, every joint at zero -- the frame the support")
+    print("  box is defined in (CORRECTED: the first published version of these millimetres read")
+    print("  the CoM in WORLD x at the pose reset()'s 0.5 s of stepping leaves, and compared it")
+    print("  against a body-frame box):")
     print(f"    foot support box: x +-{geo['support_box_half_x_m'] * 1000:.1f} mm (both leg geoms sit at x = 0)")
     for label, c in geo["corners"].items():
-        where = "INSIDE the support box" if c["inside_support_box"] else \
-                f"outside it by {c['margin_outside_box_mm']:.1f} mm"
+        where = (f"INSIDE the support box by {-c['margin_outside_box_mm']:.1f} mm"
+                 if c["inside_support_box"] else f"outside it by {c['margin_outside_box_mm']:.1f} mm")
         print(f"    {label:<14} whole-body CoM x {c['whole_body_com_x_m'] * 1000:>+7.2f} mm -> {where}")
+        print(f"    {'':<14}   settles at pitch {np.rad2deg(c['settled_pitch_rad']):>+6.1f} deg; same measurement at that "
+              f"settled pose {c['whole_body_com_x_at_settled_pose_m'] * 1000:+.2f} mm "
+              f"({c['settled_pose_shift_mm']:+.2f} mm), superseded world-x reading "
+              f"{c['superseded_world_x_at_settled_pose_m'] * 1000:+.2f} mm "
+              f"({c['superseded_world_reading_error_mm']:+.2f} mm)")
+    print(f"    pose dependence is bounded: the legs are {geo['leg_mass_fraction'] * 100:.1f} % of the mass, so a full")
+    print(f"    +-90 deg swing moves the body-frame CoM by at most {geo['max_leg_swing_com_shift_mm']:.1f} mm; the rows above move")
+    print("    it by less than 0.1 mm. The whole world-vs-body gap is base rotation, not leg swing.")
     print("    so +3 cm is not only a parameter change: it moves the body into a different")
     print("    balance regime, which the partition below is there to separate from model error.")
 
@@ -453,9 +639,10 @@ def main():
     print("  Protocol is contact_friction's, i.e. sim2real_proxy's: the frozen nominal forward")
     print("  model trained once on data/olie_train.npz, evaluated open-loop on each corner's own")
     print("  stream. Corners share SEEDS, i.e. the same initial condition -- not common random")
-    print("  numbers: collect() draws sim.rng.random() only when the body has fallen, so streams")
-    print("  desynchronise as soon as fall behaviour differs. Differences are unpaired, and the")
-    print("  per-corner seed spread is published beside every verdict.")
+    print("  numbers: collect() draws sim.rng every tick for the push test, mode-dependently in")
+    print("  Excitation and once per episode in fresh(), so two corners diverge at the first tick")
+    print("  their dynamics differ and never realign. Differences are unpaired, and the per-corner")
+    print("  seed spread is published beside every verdict.")
     print("  Metrics per corner:")
     print("    within_0.2rad @100ms (roll/pitch only) -- the exact metric of the published negative;")
     print("    within_0.2rad per axis @100/500ms -- adds 500 ms and YAW, which it never scored;")
@@ -498,8 +685,9 @@ def main():
     print_result_tables(rows, verdicts, args.horizons)
     print_rmse_table(rows, h_part)
 
-    part = partition_table(rows, h_part)
+    part = partition_table(rows)
     print_partition(part, rows, h_part)
+    print_split_detail(part, "com x +0.03 only (DR endpoint, forward)")
     print_regime_split(part, "com x +0.03 only (DR endpoint, forward)")
 
     print("\n" + "=" * 100)
@@ -528,17 +716,36 @@ def main():
 
     com_fwd = "com x +0.03 only (DR endpoint, forward)"
     sp = part[com_fwd]["split_vs_nominal_pts"]["pitch"]
+    nomp = part[rows[0]["corner"]]
     per_seed_pitch = np.array(rows[[r["corner"] for r in rows].index(com_fwd)]["axis"][str(h_part)]["pitch"]["per_seed"])
     nom_pitch = rows[0]["axis"][str(h_part)]["pitch"]["mean"]
     d_seeds = (per_seed_pitch - nom_pitch) * 100
+    fr = part[com_fwd]["fall_rate"]; nfr = nomp["fall_rate"]; frv = part[com_fwd]["fall_rate_vs_nominal"]
+    rng = sp["intrinsic_share_range"]
     print(f"\n  the headline corner, {com_fwd}:")
     print(f"    pitch @{h_part * 20} ms {(np.mean(per_seed_pitch) - nom_pitch) * 100:+.1f} pts "
-          f"(per seed {', '.join(f'{d:+.1f}' for d in sorted(d_seeds))}), fall rate "
-          f"{part[com_fwd]['fall_rate'] * 100:.1f}% vs {part[rows[0]['corner']]['fall_rate'] * 100:.1f}% nominal")
-    print(f"    of the held-out frozen drop ({sp['frozen_drop']:+.1f} pts), a model trained on this corner's own"
-          f" data still pays {sp['intrinsic']:+.1f} pts"
-          + (f" = {sp['intrinsic_share'] * 100:.0f}% intrinsic stream difficulty, "
-             f"{100 - sp['intrinsic_share'] * 100:.0f}% model mismatch" if sp["intrinsic_share"] is not None else ""))
+          f"(per seed {', '.join(f'{d:+.1f}' for d in sorted(d_seeds))})")
+    print(f"    of the held-out frozen drop ({sp['frozen_drop']['mean']:+.1f} pts, per seed "
+          f"{', '.join(f'{v:+.1f}' for v in sp['frozen_drop']['per_seed'])}), a model trained on this")
+    print(f"    corner's own data still pays {sp['intrinsic']['mean']:+.1f} pts (per seed "
+          f"{', '.join(f'{v:+.1f}' for v in sp['intrinsic']['per_seed'])}) --")
+    print(f"    intrinsic share {rng[0] * 100:.0f}-{rng[1] * 100:.0f} % across the three seeds "
+          f"({', '.join(f'{x * 100:.0f}%' for x in sp['intrinsic_share_per_seed'])}); the pairing is "
+          f"{abs(sp['intrinsic']['mean']):.1f} of the")
+    print(f"    {abs(sp['frozen_drop']['mean']):.1f} HELD-OUT points, which is a different quantity from the "
+          f"full-stream {abs((np.mean(per_seed_pitch) - nom_pitch) * 100):.1f}-pt table figure.")
+    print(f"    resolved at 3 seeds: drop {'YES' if sp['frozen_drop_resolved'] else 'NO'} "
+          f"(separation {sp['frozen_drop_seed_separation_pts']:+.1f} vs bar {sp['frozen_drop_threshold_pts']:.1f}), "
+          f"intrinsic {'YES' if sp['intrinsic_resolved'] else 'NO'} "
+          f"(separation {sp['intrinsic_seed_separation_pts']:+.1f} vs bar {sp['intrinsic_threshold_pts']:.1f})")
+    print(f"    time in the fallen state {fr['mean'] * 100:.1f}+-{fr['spread'] * 100:.1f}% vs "
+          f"{nfr['mean'] * 100:.1f}+-{nfr['spread'] * 100:.1f}% nominal, unresolved at 3 seeds "
+          f"(separation {frv['seed_separation_pts']:+.1f} vs bar {frv['threshold_pts']:.1f}) -- and note this is")
+    print("    the FRACTION OF TICKS spent fallen, not how often the body falls; it does not say the")
+    print("    body tips over no more often.")
+    print(f"    the oracle is a small-data model, so it is a LOWER BOUND on what a better-matched model")
+    print(f"    recovers, not a ceiling: on the nominal body it trails the frozen model by "
+          + ", ".join(f"{a} {nomp['oracle_deficit_on_nominal_body_pts'][a]:.1f}" for a in AXES) + " pts.")
 
     out = {"config": vars(args),
            "anchors": {"base_mass_kg": bm, "whole_body_mass_kg": tm,
@@ -552,7 +759,7 @@ def main():
                        "balance_geometry": geo,
                        "published_DR": {k: list(v) for k, v in DR.items()}},
            "decision_rule": {"per_metric_threshold": {k: float(v) for k, v in thresh.items()},
-                             "nominal_seed_spread_per_metric": {k: float(nominal_spread(rows[0], k, args.horizons))
+                             "nominal_seed_spread_per_metric": {k: float(nominal_spread(rows[0], k))
                                                                 for k in metric_keys(args.horizons)},
                              "text": "material = |mean delta vs nominal| > max(3.0 pts, 2x the nominal seed "
                                      "spread of that metric and horizon); resolved = the corner's seeds separate "
@@ -566,14 +773,28 @@ def main():
                                                            "was_material": w, "now_material": n}
                                                           for c, k, d, w, n in flips],
                              "pairing": "seeds shared = same initial condition, NOT common random numbers; "
-                                        "collect() consumes sim.rng only when fallen, so streams desynchronise",
+                                        "collect() draws sim.rng every tick for the push test, mode-dependently "
+                                        "in Excitation and once per episode in fresh(), so two corners diverge at "
+                                        "the first tick their dynamics differ and never realign",
                              "limits": ["forward-model prediction accuracy, not policy transfer",
                                         "twin prediction across units; every real-log number is one unit, one phone"]},
            "rows": rows, "verdicts": verdicts, "verdicts_superseded_rule": legacy_verdicts,
            "partition": {"horizon_ticks": h_part, "horizon_ms": h_part * 20,
-                         "oracle": "MLP(128) trained on the corner's own first half; frozen and oracle both "
-                                   "scored on the held-out second half",
-                         "fallen_definition": "GrowBotSim.fallen(): |roll| > 1.2 or |pitch| > 1.2 rad",
+                         "oracle": "MLP(128) trained on the corner's own first half (14741 windows, 20 epochs); "
+                                   "frozen and oracle both scored on the held-out second half. It is a "
+                                   "small-data model, so it is a LOWER BOUND on recoverable mismatch, NOT a "
+                                   "ceiling: on the nominal body it scores BELOW the frozen model on every "
+                                   "axis, and the size of that deficit is published per axis as "
+                                   "oracle_deficit_on_nominal_body_pts",
+                         "fallen_definition": "GrowBotSim.fallen(): |roll| > 1.2 or |pitch| > 1.2 rad; "
+                                              "fall_rate is the FRACTION OF TICKS in that state, not the "
+                                              "frequency of fall events",
+                         "seeds": "every quantity carries its three seeds and their spread; thresholds are "
+                                  "max(3.0 pts, 2x the nominal spread of that same quantity) and 'resolved' "
+                                  "is the same unpaired seed-separation criterion the axis verdicts use",
+                         "denominators": "frozen_drop/intrinsic/model_mismatch are HELD-OUT-half quantities; "
+                                         "the axis table's delta_pts is the full-stream figure. They are "
+                                         "different quantities and must not share a denominator",
                          "by_corner": part},
            "runtime_s": float(time.time() - t_start)}
     (HERE / "results").mkdir(exist_ok=True)
