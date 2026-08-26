@@ -402,7 +402,7 @@ by seeds on neither its drop nor its split. No split is claimed for any of the t
 `fallen()` is true, not how often the body tips over. At +3 cm it reads 10.1 ± 2.6 % against
 9.7 ± 2.9 % nominal — overlapping seed ranges, unresolved — so this run says the body does not
 spend materially more time down, and it says nothing at all about how often it goes down. What
-does move is time in fast motion, 14.0 ± 1.1 % against 11.0 ± 1.0 %. Two corners read higher
+does shift on the means is time in fast motion, 14.0 ± 1.1 % against 11.0 ± 1.0 % — material by 0.07 pt against its 3.0-pt bar and, like fall rate, unresolved at three seeds (seed separation 1.9 pts), so it is reported here and not claimed. Two corners read higher
 (CoM fwd/high 16.0 ± 2.4 %, CoM z 16.2 ± 2.0 %) and CoM back/low reads lower (4.4 ± 0.1 %)
 while its oracle is 3.4 pts **better** than nominal's — that corner's drop is mismatch, not
 difficulty — but none of those three separates from nominal by seeds either.
