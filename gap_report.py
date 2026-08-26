@@ -11,7 +11,12 @@ floor as gap. This report therefore prints three numbers per cell:
 
 --servo-id adds a fourth column: the real-log error after replaying the commands
 through the servo identified from the log itself (servo_id.py), i.e. how much of the
-gap the actuator explains.
+gap the actuator explains. It is REFUSED, with the reason written into the artifact,
+in the two cases where that column would be a number about nothing: an identification
+half with no body motion, and an argmin at the grid boundary whose determined sets are
+the entire grid. In both the identification is not a measurement -- of the body in the
+first case, of the score surface in the second -- and a gap* computed from it still
+reads like a closable actuator gap.
 
 Regimes come from the log's event rows. Real session names map to the twin's
 excitation regimes conservatively (REGIME_MAP); unmapped names fall back to the
@@ -27,7 +32,8 @@ from sim2real_proxy import K
 from imulog import CTRL_HZ
 from imulog import (parse, run_preflight, rest_attitude, attitude_excursion,
                     SEG_FALL_EXCURSION_RAD, STILL_GYRO_RMS_MAX)
-from servo_id import identify, realized_from_commands, default_grid, argmin_interior
+from servo_id import (identify, realized_from_commands, default_grid, argmin_interior,
+                      confidence_band, determined_sets)
 
 AXES = ("roll", "pitch", "yaw")
 REGIME_MAP = {"walk": "policy", "spin": "policy", "gesture": "keyframe",
@@ -208,11 +214,44 @@ def main():
             args.servo_id = False
     if args.servo_id:
         grid = default_grid()          # one definition, shared with servo_id and the real-log report
-        _, best = identify(model, O[:half], A[:half], O2[:half], D[:half], grid)
+        scores, best = identify(model, O[:half], A[:half], O2[:half], D[:half], grid)
         interior, interior_why = argmin_interior(best, grid)
+        # A boundary argmin whose determined sets span the whole grid is the search
+        # running out, not an identification: every hypothesis on the grid fits within
+        # the band, and the winner is the edge the enumeration stops at. Replaying THAT
+        # through the commands produces a gap* column that reads like a closable actuator
+        # gap and is a number about nothing -- the same failure the stillness refusal
+        # above exists to prevent, arriving through the score surface instead of through
+        # the body. The two conditions are required together: a boundary argmin that the
+        # log still separates from its neighbours is a reported condition, not a refusal.
+        q = half // 2
+        sA, _ = identify(model, O[0:q], A[0:q], O2[0:q], D[0:q], grid)
+        sB, _ = identify(model, O[q:half], A[q:half], O2[q:half], D[q:half], grid)
+        band = confidence_band(sA, sB)
+        dset, sset = determined_sets(scores, best, grid, band)
+        all_delays = sorted({d for d, _, _ in grid})
+        all_slews = sorted({s for _, s, _ in grid}, key=lambda v: (v is None, v))
+        undetermined = (list(dset) == list(all_delays)) and (list(sset) == list(all_slews))
         print(f"identified servo: delay {best['delay_ticks']} ticks, slew {best['slew_rad_s']} rad/s "
               f"(grid points; run servo_id.py for determined-set diagnostics)")
         print(f"  {interior_why}")
+        print(f"  determined at band {band:.5f}: delay {dset}, slew {sset}")
+        if (not interior) and undetermined:
+            servo_block = {"identified": None, "refused": True,
+                           "reason": ("the argmin is at the grid boundary AND both determined sets "
+                                      "are the entire grid: the log separates no hypothesis from "
+                                      "any other, so the identified servo is the edge of the search, "
+                                      "not a measurement"),
+                           "argmin": {k: (None if v is None else float(v)) for k, v in best.items()},
+                           "argmin_interior": False, "interior_why": interior_why,
+                           "band": float(band),
+                           "delay_determined": [int(d) for d in dset],
+                           "slew_determined": [None if s is None else float(s) for s in sset],
+                           "fit_gyro_rms_rad_s": fit_rms, "fit_ticks": half}
+            print(f"servo identification REFUSED: {servo_block['reason']} -- no gap* column is "
+                  f"reported for this file")
+            args.servo_id = False
+    if args.servo_id:
         R = realized_from_commands(A, D, best)          # replayed over the full log: servo state is continuous
         held = slice(half, None)
         print(f"evaluation restricted to the held-out half ({len(O) - half:,} ticks); "
@@ -237,6 +276,13 @@ def main():
     for reg in real:
         tref_name = REGIME_MAP.get(reg, "all") if reg != "all" else "all"
         tref = twin.get(tref_name, twin["all"])
+        # Every published regime row carries its own denominator, and the twin row it is
+        # differenced against carries its. n was computed and printed but never written,
+        # so a reader of the artifact could not tell a 3,454-start regime from a 187-start
+        # one -- and 'gap' is a difference of two rates whose noise is set by both.
+        report.setdefault(reg, {})["n"] = int(real[reg]["n"])
+        report[reg]["twin_regime"] = tref_name
+        report[reg]["twin_n"] = int(tref["n"])
         for ax in AXES:
             line = f"{reg if ax == 'roll' else '':<10}{real[reg]['n'] if ax == 'roll' else '':>6}{ax:>7}"
             for h in hs:

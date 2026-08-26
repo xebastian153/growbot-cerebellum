@@ -1,18 +1,46 @@
+  [  ok] effective rates: IMU 59.9 Hz, commands 1.7 Hz
+  [WARN] command rate 1.7 Hz far from the expected ~30
+  [WARN] IMU dt: median 16.7 ms, p95 18.5, p99 35.2, max 1973; 5.1% of ticks >20% off the median -- p99 above 1.5x median: timing jitter degrades the fixed-dt forward model (reported, never gated)
+  [WARN] IMU stream has 32 dt above the 100 ms gap threshold (max 1973 ms) -- these cut episodes in parse() and are excluded from sensor_id's interpolation, they are not interpolated across
+  [WARN] command dt: median 600.0 ms, p95 15061.2, p99 23026.0, max 28981; 71.2% of ticks >20% off the median -- p99 above 1.5x median: timing jitter degrades the fixed-dt forward model (reported, never gated)
+  [WARN] command stream has 52 dt above the 100 ms gap threshold (max 28981 ms) -- the last command is zero-order held across them, which is what the body did; they do not cut episodes, but a held command is an assumption about a stretch the log does not observe
+  [  ok] growbot-imulog walk 1, end_why='tap', gait='act', agent gain=None, cal gain=0.99, send_ok dropped 0 of 53 pose rows, app-side drops imu=0 pose=0
+  [WARN] 1 of 17 'still' segments are not still: worst gyro RMS 0.329 rad/s (max 0.15), max per-axis roll/pitch std 0.0036 rad (max 0.05) -- mislabelled segments or a unit/axis problem
+  [WARN] still segment 2.1 s at t=5870 ms runs under ACTIVE commands (peak 40 deg off neutral): the body is not responding to what it is sent -- phone not on the robot, robot not on the ground, or the servos are not moving. Nothing downstream can tell this from a quiet moment, so it is said here
+  [WARN] still segment 12.2 s at t=19370 ms runs under ACTIVE commands (peak 40 deg off neutral): the body is not responding to what it is sent -- phone not on the robot, robot not on the ground, or the servos are not moving. Nothing downstream can tell this from a quiet moment, so it is said here
+  [WARN] still segment 13.4 s at t=37088 ms runs under ACTIVE commands (peak 40 deg off neutral): the body is not responding to what it is sent -- phone not on the robot, robot not on the ground, or the servos are not moving. Nothing downstream can tell this from a quiet moment, so it is said here
+  [WARN] still segment 12.5 s at t=57551 ms runs under ACTIVE commands (peak 40 deg off neutral): the body is not responding to what it is sent -- phone not on the robot, robot not on the ground, or the servos are not moving. Nothing downstream can tell this from a quiet moment, so it is said here
+  [WARN] still segment 7.8 s at t=74166 ms runs under ACTIVE commands (peak 40 deg off neutral): the body is not responding to what it is sent -- phone not on the robot, robot not on the ground, or the servos are not moving. Nothing downstream can tell this from a quiet moment, so it is said here
+  [WARN] still segment 14.7 s at t=83016 ms runs under ACTIVE commands (peak 86 deg off neutral): the body is not responding to what it is sent -- phone not on the robot, robot not on the ground, or the servos are not moving. Nothing downstream can tell this from a quiet moment, so it is said here
+  [WARN] still segment 1.0 s at t=99782 ms runs under ACTIVE commands (peak 45 deg off neutral): the body is not responding to what it is sent -- phone not on the robot, robot not on the ground, or the servos are not moving. Nothing downstream can tell this from a quiet moment, so it is said here
+  [WARN] still segment 3.0 s at t=101432 ms runs under ACTIVE commands (peak 40 deg off neutral): the body is not responding to what it is sent -- phone not on the robot, robot not on the ground, or the servos are not moving. Nothing downstream can tell this from a quiet moment, so it is said here
+  [WARN] still segment 2.9 s at t=106133 ms runs under ACTIVE commands (peak 40 deg off neutral): the body is not responding to what it is sent -- phone not on the robot, robot not on the ground, or the servos are not moving. Nothing downstream can tell this from a quiet moment, so it is said here
+  [WARN] still segment 13.4 s at t=110999 ms runs under ACTIVE commands (peak 71 deg off neutral): the body is not responding to what it is sent -- phone not on the robot, robot not on the ground, or the servos are not moving. Nothing downstream can tell this from a quiet moment, so it is said here
+  [WARN] still segment 8.2 s at t=134697 ms runs under ACTIVE commands (peak 40 deg off neutral): the body is not responding to what it is sent -- phone not on the robot, robot not on the ground, or the servos are not moving. Nothing downstream can tell this from a quiet moment, so it is said here
+  [WARN] still segment 13.6 s at t=175664 ms runs under ACTIVE commands (peak 40 deg off neutral): the body is not responding to what it is sent -- phone not on the robot, robot not on the ground, or the servos are not moving. Nothing downstream can tell this from a quiet moment, so it is said here
+  [WARN] still segment 9.2 s at t=190062 ms runs under ACTIVE commands (peak 40 deg off neutral): the body is not responding to what it is sent -- phone not on the robot, robot not on the ground, or the servos are not moving. Nothing downstream can tell this from a quiet moment, so it is said here
+  [WARN] still segment 14.4 s at t=201128 ms runs under ACTIVE commands (peak 40 deg off neutral): the body is not responding to what it is sent -- phone not on the robot, robot not on the ground, or the servos are not moving. Nothing downstream can tell this from a quiet moment, so it is said here
+  [WARN] still segment 1.8 s at t=217853 ms runs under ACTIVE commands (peak 40 deg off neutral): the body is not responding to what it is sent -- phone not on the robot, robot not on the ground, or the servos are not moving. Nothing downstream can tell this from a quiet moment, so it is said here
 preflight: PASS
+  [  ok] effective rates: IMU 59.9 Hz, commands 24.8 Hz
+  [  ok] IMU dt: median 16.7 ms, p95 18.5, p99 20.5, max 71; 3.2% of ticks >20% off the median
+  [WARN] command dt: median 40.3 ms, p95 44.4, p99 101.5, max 134; 4.0% of ticks >20% off the median -- p99 above 1.5x median: timing jitter degrades the fixed-dt forward model (reported, never gated)
+  [WARN] command stream has 12 dt above the 100 ms gap threshold (max 134 ms) -- the last command is zero-order held across them, which is what the body did; they do not cut episodes, but a held command is an assumption about a stretch the log does not observe
+  [  ok] growbot-imulog walk 1, end_why='done', gait='official', agent gain=None, cal gain=0.99, send_ok dropped 0 of 379 pose rows, app-side drops imu=0 pose=0
+  [  ok] 1 'still' segment(s), longest 1.1 s, all check out (worst gyro RMS 0.013 rad/s (max 0.15), max per-axis roll/pitch std 0.0067 rad (max 0.05))
 preflight: PASS
 
-== the glide, from the header's own documented act
-  40 deg in 700 ms = 1.00 rad/s commanded ramp
-  53 keyframes over 216 s; steps median 40 deg, max 110 deg
-  at that rate a median step needs 700 ms, the largest 1925 ms
-  inter-keyframe gap median 0.60 s, min 0.15 s
-  54% of keyframes arrive while the previous glide is still playing
+== the keyframes, through the parser's own adapter
+  53 keyframes over 216 s (53 pose rows, 0 dropped on send_ok)
+  horn command -86 to 86 deg off neutral; steps median 40.4 deg, max 111.1 deg (7 of 52 repeat the previous pose)
+  inter-keyframe gap median 0.60 s, min 0.15 s, max 28.98 s
 
 == identification, same grid and protocol on both files
 
   gesture (act): 10872 ticks, identify on the first 5436
     argmin delay 0 ticks, slew 1.0, deadband 4 deg   [AT THE GRID BOUNDARY]
     determined: delay [0, 1, 2, 3, 4, 5, 6]  slew [1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0, None]  (band 0.12030)
+    the slew argmin is min(grid) = 1.0 rad/s and the determined set is the whole grid: that value is where a file which separates no hypothesis lands, not a measurement of the horn
     split-half: A=0/1.0  B=6/1.0  DISAGREE
 
   walk-1 (official): 809 ticks, identify on the first 404
@@ -20,8 +48,23 @@ preflight: PASS
     determined: delay [2, 3, 4, 5, 6]  slew [2.0, 3.0]  (band 0.00632)
     split-half: A=6/5.0  B=6/2.0  DISAGREE
 
+== the act duration the log does not record
+  the header's one documented act is {'l': 130.0, 'r': 50.0, 'ms': 700.0} -- header.post_walk: the sit fold that happens AFTER recording ends, on walks that end 'done'. It is the only act in the log with an ms, it is not a member of this session, and it states a target pose pair, not a displacement
+  read through the adapter, that pose is 40.40 deg of horn travel FROM NEUTRAL (an assumption: the example states no start pose)
+  reading 'constant rate': 1.0074 rad/s; a median step would take 700 ms (the median is 700 ms BY CONSTRUCTION -- the median step is the same move the rate is defined from), the largest 1925 ms
+    assumption: every act plays at one fixed angular rate, and the documented example starts from neutral so that rate is its travel over its ms
+    uncertainty: unverifiable from this log: no act in the session carries an ms, the example's start pose is not stated, and the example is the post-recording fold rather than one of these keyframes
+    47% of acts are interrupted by the next keyframe under this reading
+  reading 'constant duration': commanded rate median 1.01 rad/s, max 2.77 rad/s; 15 of 52 steps at or above the walk lane's [2.0, 3.0] rad/s
+    assumption: every act takes the documented 700 ms whatever the step, so the commanded rate scales with the move
+    uncertainty: equally unverifiable, and equally consistent with every field the log carries
+    59% of acts are interrupted by the next keyframe under this reading
+  UNRESOLVED: the two readings disagree about whether the horn is ever commanded at its own limit -- under the first it never reaches 2.0 rad/s, under the second 15 of 52 steps are at or above the 2.0-3.0 rad/s the walk lane determines. This file separates neither, so neither is published as a property of the robot
+
 == reading
-  slew from this file is NOT the servo's: the identified slew 1.0 rad/s is the glide engine's commanded ramp (1.00 rad/s from the header's own act), not the horn's limit: the ramp is slower than the [2.0, 3.0] rad/s the walk lane determines, so the horn is never asked to move at its limit
-  delay set: gesture [0, 1, 2, 3, 4, 5, 6] vs walk-1 [2, 3, 4, 5, 6] -- not tighter
+  slew: the argmin slew 1.0 rad/s is min(grid) and the determined set is every slew on the grid including 'no limit at all', at a band of 0.1203: this file separates no slew hypothesis from any other, so its argmin is where the search stops, not what the horn does
+  delay: the delay determined set is [0, 1, 2, 3, 4, 5, 6] -- the whole grid -- and the split halves disagree
+  vs walk-1: the capture asked for determines strictly less than the walking file it was meant to improve on: band 0.1203 vs 0.0063 (19x wider), both parameters the entire grid vs delay [2, 3, 4, 5, 6] and slew [2.0, 3.0]
+  cause: the log records target poses and send times but no act duration, so the command every hypothesis is scored against is not the command the body received. That is enough to explain an undetermined result and is NOT established as its cause by this file: what would settle it is the ms per act, or the realized 30 Hz command stream
 
 wrote results/gesture_id_SEND-gesture-3_6min.json

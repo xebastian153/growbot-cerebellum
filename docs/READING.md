@@ -205,12 +205,21 @@ actuator rather than its value.
 
 Allan deviation needed its own capture, and got one: a 76 s still session (empty pose
 array — a still lane sends nothing) gives angle random walk **6.42e-04 / 3.05e-04 /
-1.26e-04 rad/s/√Hz** on wx/wy/wz, from its longest gap-free run (66 s, 3,956 samples at
-59.88 Hz, gyro RMS 0.003 rad/s). Splitting the still window at its one 1051 ms dropout is
-what made that readable on all three axes rather than one: the estimator integrates rate
-into angle at a single assumed sample period, so missing samples are a step, not a blur.
-Bias instability remains undetermined — 76 s reaches a tau of only ~17 s, below any
-flicker floor this sensor might have. The filter lag cannot be replicated from a still
+1.26e-04 rad/s/√Hz** on wx/wy/wz, at fitted log-log slopes of **−0.624 / −0.554 /
+−0.625** against the −1/2 law the values are read with (accepted in [−0.65, −0.35]),
+from its longest gap-free run (66 s, 3,956 samples at 59.88 Hz, gyro RMS 0.0034 rad/s).
+The slope travels with the value because the estimator assumes the law and reports the
+intercept; on wx it is 83 % of the way to rejection, and trimming the last half second
+of the segment — the tap that ends the recording, whose 7.1 deg/s is the segment's last
+sample — pushes it past the gate, so that axis is the least robust of the three.
+Splitting the still window at its one 1051 ms dropout is what makes the run gap-free:
+the estimator integrates rate into angle at a single assumed sample period, so missing
+samples are a step, not a blur.
+Bias instability remains undetermined on all three axes, for two different reasons: on
+wx and wy the minimum sits at the edge of the tau range (~17 s), so 76 s cannot show a
+flicker floor if this sensor has one; on wz the minimum is *interior*, at tau 6.8 s, and
+is refused as a 1.4×-wide notch rather than a plateau — an ARW / rate-random-walk
+crossover. The filter lag cannot be replicated from a still
 capture at all (peak correlations 0.13–0.29 against a 0.50 gate): a motionless body gives
 the cross-correlation nothing to lock onto, so the walk lane's number stands unreplicated
 rather than confirmed.

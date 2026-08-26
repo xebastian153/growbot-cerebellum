@@ -109,8 +109,8 @@
  "filter_lag_per_regime": {},
  "still_segment": {
   "t0_ms": 0.0,
-  "t1_ms": 2599.796875,
-  "span_s": 2.599796875,
+  "t1_ms": 2583.1015625,
+  "span_s": 2.5831015625,
   "samples": 153,
   "fs_hz": 59.89705194197473,
   "rate_ok": true,
@@ -130,12 +130,26 @@
    "ang_std_max": 0.05,
    "n": 153
   },
+  "gyro_abs_max_rad_s": 0.04363323003053665,
+  "gyro_abs_max_t_ms": 2566.5,
+  "session_gyro_abs_max_rad_s": 4.314454078674316,
+  "session_gyro_abs_max_t_ms": 4149.796875,
+  "session_gyro_abs_max_in_segment": false,
   "undetermined_reasons": []
  },
  "allan": [
   {
    "axis": "wx",
    "arw": 0.0002148476557300755,
+   "arw_slope": -0.448462184491235,
+   "arw_slope_window_s": [
+    0.33,
+    3.0
+   ],
+   "arw_slope_accept": [
+    -0.65,
+    -0.35
+   ],
    "bias_instability": null,
    "bias_reason": "minimum at the edge of the tau range (0.58 s): not a minimum",
    "tau_s": [
@@ -194,6 +208,15 @@
   {
    "axis": "wy",
    "arw": null,
+   "arw_slope": -0.9366226095280362,
+   "arw_slope_window_s": [
+    0.33,
+    3.0
+   ],
+   "arw_slope_accept": [
+    -0.65,
+    -0.35
+   ],
    "bias_instability": null,
    "bias_reason": "minimum at the edge of the tau range (0.63 s): not a minimum",
    "tau_s": [
@@ -252,6 +275,15 @@
   {
    "axis": "wz",
    "arw": null,
+   "arw_slope": -0.7619399236591062,
+   "arw_slope_window_s": [
+    0.33,
+    3.0
+   ],
+   "arw_slope_accept": [
+    -0.65,
+    -0.35
+   ],
    "bias_instability": null,
    "bias_reason": "minimum at the edge of the tau range (0.63 s): not a minimum",
    "tau_s": [
@@ -305,6 +337,56 @@
     0.00014255556660776352,
     0.00013722174020785785,
     0.0001292216455335994
+   ]
+  }
+ ],
+ "allan_tail_trim": [
+  {
+   "trim_ms": 500.0,
+   "samples": 123,
+   "fs_hz": 59.88304093567251,
+   "rate_ok": true,
+   "peak_gyro_rad_s": 0.0052359881810843945,
+   "axes": [
+    {
+     "axis": "wx",
+     "arw": null,
+     "arw_slope": -0.3098760520284727
+    },
+    {
+     "axis": "wy",
+     "arw": null,
+     "arw_slope": -0.7662680949231898
+    },
+    {
+     "axis": "wz",
+     "arw": null,
+     "arw_slope": -0.817627049497672
+    }
+   ]
+  },
+  {
+   "trim_ms": 1000.0,
+   "samples": 95,
+   "fs_hz": 59.88304093567251,
+   "rate_ok": true,
+   "peak_gyro_rad_s": 0.0052359881810843945,
+   "axes": [
+    {
+     "axis": "wx",
+     "arw": null,
+     "arw_slope": null
+    },
+    {
+     "axis": "wy",
+     "arw": null,
+     "arw_slope": null
+    },
+    {
+     "axis": "wz",
+     "arw": null,
+     "arw_slope": null
+    }
    ]
   }
  ]

@@ -34,6 +34,9 @@
  },
  "report": {
   "all": {
+   "n": 374,
+   "twin_regime": "all",
+   "twin_n": 4000,
    "5": {
     "roll": {
      "real": 0.9438502673796791,
@@ -76,6 +79,9 @@
    }
   },
   "walking": {
+   "n": 374,
+   "twin_regime": "policy",
+   "twin_n": 781,
    "5": {
     "roll": {
      "real": 0.9438502673796791,

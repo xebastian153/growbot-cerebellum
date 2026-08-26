@@ -182,6 +182,11 @@ def segment_rate(ts, tol=ALLAN_RATE_TOL):
     return 1000.0 / med, True, ""
 
 
+ARW_SLOPE_WINDOW_S = (0.33, 3.0)      # tau window the -1/2 law is read over
+ARW_SLOPE_ACCEPT = (-0.65, -0.35)     # slopes accepted as "-1/2 within tolerance"
+ARW_TAIL_TRIM_MS = (500.0, 1000.0)    # stated tail trims the published ARW is tested against
+
+
 def allan_deviation(gyro, fs, n_taus=40):
     """Overlapping Allan deviation per axis on still gyro data at rate fs (Hz).
 
@@ -190,6 +195,12 @@ def allan_deviation(gyro, fs, n_taus=40):
       arw               angle random walk N (rad/s/sqrt(Hz)); the -1/2-slope
                         law read at tau = 1 s, only if the local log-log slope
                         around 1 s is -1/2 within [-0.65, -0.35], else None.
+      arw_slope         the log-log slope actually fitted over that window, always
+                        reported. The ARW value assumes exactly -1/2 and discards
+                        the measured slope, so a value quoted without its slope
+                        hides how far the curve was from the law it was read with:
+                        the acceptance window is wide (+-0.15 around -1/2) and a
+                        slope at its edge is a different curve, not white noise.
       bias_instability  B (rad/s) = adev_min / 0.664, only if the minimum sits on
                         a flicker PLATEAU (see _bias) -- the 1/0.664 conversion is
                         a flicker-noise identity and means nothing at the bottom of
@@ -202,7 +213,8 @@ def allan_deviation(gyro, fs, n_taus=40):
     N = len(g)
     out = []
     if N < 32:
-        return [{"tau": np.array([]), "adev": np.array([]), "arw": None,
+        return [{"tau": np.array([]), "adev": np.array([]), "arw": None, "arw_slope": None,
+                 "arw_slope_window_s": ARW_SLOPE_WINDOW_S, "arw_slope_accept": ARW_SLOPE_ACCEPT,
                  "bias_instability": None, "bias_reason": "fewer than 32 samples"}
                 for _ in range(g.shape[1])]
     theta = np.cumsum(g, 0) / fs
@@ -216,20 +228,26 @@ def allan_deviation(gyro, fs, n_taus=40):
             d = th[2 * m:] - 2 * th[m:-m] + th[:-2 * m]
             adev[j] = np.sqrt((d ** 2).mean() / (2 * tau[j] ** 2))
         b, why = _bias(tau, adev)
-        out.append({"tau": tau, "adev": adev, "arw": _arw(tau, adev),
+        arw, slope = _arw(tau, adev)
+        out.append({"tau": tau, "adev": adev, "arw": arw, "arw_slope": slope,
+                    "arw_slope_window_s": ARW_SLOPE_WINDOW_S,
+                    "arw_slope_accept": ARW_SLOPE_ACCEPT,
                     "bias_instability": b, "bias_reason": why})
     return out
 
 
 def _arw(tau, adev):
-    sel = (tau >= 0.33) & (tau <= 3.0)
+    """(ARW at tau = 1 s, fitted log-log slope). The slope is returned whether or not
+    it passes: the value is read with an ASSUMED -1/2 law, so the measured slope is the
+    condition that value carries, not a discarded intermediate."""
+    sel = (tau >= ARW_SLOPE_WINDOW_S[0]) & (tau <= ARW_SLOPE_WINDOW_S[1])
     if sel.sum() < 4:
-        return None
+        return None, None
     lt, ls = np.log10(tau[sel]), np.log10(adev[sel])
     slope = float(np.polyfit(lt, ls, 1)[0])
-    if not (-0.65 <= slope <= -0.35):
-        return None
-    return float(10 ** np.mean(ls + 0.5 * lt))     # the -1/2 law through the window, at tau=1
+    if not (ARW_SLOPE_ACCEPT[0] <= slope <= ARW_SLOPE_ACCEPT[1]):
+        return None, slope
+    return float(10 ** np.mean(ls + 0.5 * lt)), slope   # the -1/2 law through the window, at tau=1
 
 
 def _bias(tau, adev, flat_frac=0.10, min_decade=5.0):
@@ -655,6 +673,7 @@ def main():
     # --- Allan deviation on a verified-still segment ---------------------------
     allan = None
     still_meta = None
+    tail = []
     if stills:
         # Allan integrates the rate into an angle assuming a single uniform sample
         # period, so a dropout inside the segment is not a small blemish: the missing
@@ -701,9 +720,26 @@ def main():
         if not vs["still"]:
             reasons.append(f"the segment labelled still is not still: gyro RMS {vs['gyro_rms']:.3f} "
                            f"rad/s, max per-axis roll/pitch std {vs['ang_std']:.4f} rad")
+        # The peak body rate inside the analysed segment, and the session's own peak with
+        # its timestamp. A statement about "the peak is a tap, not a disturbance" is a
+        # claim about WHICH samples entered the fit, so both numbers are recorded rather
+        # than eyeballed off a plot.
+        seg_w = np.abs(imu_v[sel, 3:])
+        all_w = np.abs(imu_v[:, 3:]).max(1)
+        i_peak = int(np.argmax(all_w))
         still_meta = {"t0_ms": float(t0), "t1_ms": float(t1), "span_s": float(span),
                       "samples": int(sel.sum()), "fs_hz": float(fs), "rate_ok": bool(rate_ok),
-                      "dt": seg_dt, "stillness": vs, "undetermined_reasons": reasons}
+                      "dt": seg_dt, "stillness": vs,
+                      "gyro_abs_max_rad_s": float(seg_w.max()),
+                      "gyro_abs_max_t_ms": float(imu_t[sel][int(np.argmax(seg_w.max(1)))]),
+                      "session_gyro_abs_max_rad_s": float(all_w[i_peak]),
+                      "session_gyro_abs_max_t_ms": float(imu_t[i_peak]),
+                      "session_gyro_abs_max_in_segment": bool(t0 <= imu_t[i_peak] <= t1),
+                      "undetermined_reasons": reasons}
+        print(f"  peak |body rate| inside the segment {np.rad2deg(still_meta['gyro_abs_max_rad_s']):.2f} deg/s; "
+              f"session peak {np.rad2deg(still_meta['session_gyro_abs_max_rad_s']):.2f} deg/s at "
+              f"t = {still_meta['session_gyro_abs_max_t_ms'] / 1000:.2f} s, "
+              f"{'inside' if still_meta['session_gyro_abs_max_in_segment'] else 'outside'} the analysed segment")
         if np.isfinite(fs):
             allan = allan_deviation(imu_v[sel, 3:], fs)
             print(f"  fs {fs:.2f} Hz from the segment's median dt")
@@ -711,12 +747,43 @@ def main():
                 if reasons:
                     print(f"  {BODY_AXES[a]:>5}  ARW and bias instability undetermined -- {reasons[0]}")
                     continue
-                arw = (f"ARW {r['arw']:.2e} rad/s/sqrt(Hz)" if r["arw"] is not None
-                       else "ARW undetermined (no -1/2 slope around tau = 1 s)")
+                sl = ("slope --" if r["arw_slope"] is None
+                      else f"fitted log-log slope {r['arw_slope']:+.3f} over tau "
+                           f"{r['arw_slope_window_s'][0]}-{r['arw_slope_window_s'][1]} s, "
+                           f"accepted in [{r['arw_slope_accept'][0]}, {r['arw_slope_accept'][1]}]")
+                arw = (f"ARW {r['arw']:.2e} rad/s/sqrt(Hz) ({sl})" if r["arw"] is not None
+                       else f"ARW undetermined (no -1/2 slope around tau = 1 s: {sl})")
                 bi = (f"bias instability {r['bias_instability']:.2e} rad/s"
                       if r["bias_instability"] is not None
                       else f"bias instability undetermined ({r['bias_reason']})")
                 print(f"  {BODY_AXES[a]:>5}  {arw};  {bi}")
+            # Tail sensitivity. The segment ends where the record does, and a session
+            # that ends on a tap puts its largest body rate in the last samples of the
+            # fit. Trimming is not free -- a hand-chosen cut is a free parameter, so the
+            # published value stays the one the segment rule produces -- but an ARW that
+            # only survives with those samples in it is a different claim from one that
+            # does not move. The trims are stated, not searched.
+            for trim in ([] if reasons else ARW_TAIL_TRIM_MS):
+                s2 = (imu_t >= t0) & (imu_t <= t1 - trim)
+                if int(s2.sum()) < 64:
+                    continue
+                fs2, ok2, _ = segment_rate(imu_t[s2])
+                if not np.isfinite(fs2):
+                    continue
+                r2 = allan_deviation(imu_v[s2, 3:], fs2)
+                tail.append({"trim_ms": float(trim), "samples": int(s2.sum()),
+                             "fs_hz": float(fs2), "rate_ok": bool(ok2),
+                             "peak_gyro_rad_s": float(np.abs(imu_v[s2, 3:]).max()),
+                             "axes": [{"axis": BODY_AXES[a], "arw": x["arw"],
+                                       "arw_slope": x["arw_slope"]} for a, x in enumerate(r2)]})
+            for tr in tail:
+                cells = "  ".join(
+                    f"{c['axis']} "
+                    + ("undetermined" if c["arw"] is None else f"{c['arw']:.2e}")
+                    + (" (slope --)" if c["arw_slope"] is None
+                       else f" (slope {c['arw_slope']:+.3f})") for c in tr["axes"])
+                print(f"  last {tr['trim_ms'] / 1000:.1f} s trimmed ({tr['samples']:,} samples, peak "
+                      f"{np.rad2deg(tr['peak_gyro_rad_s']):.2f} deg/s):  {cells}")
         else:
             print(f"  Allan skipped -- {reasons[0]}")
     else:
@@ -741,10 +808,14 @@ def main():
            "allan": None if allan is None else [
                {"axis": BODY_AXES[a],
                 "arw": None if nulled else r["arw"],
+                "arw_slope": r["arw_slope"],
+                "arw_slope_window_s": list(r["arw_slope_window_s"]),
+                "arw_slope_accept": list(r["arw_slope_accept"]),
                 "bias_instability": None if nulled else r["bias_instability"],
                 "bias_reason": still_meta["undetermined_reasons"][0] if nulled else r["bias_reason"],
                 "tau_s": r["tau"].tolist(), "adev": r["adev"].tolist()}
-               for a, r in enumerate(allan)]}
+               for a, r in enumerate(allan)],
+           "allan_tail_trim": tail}
     with open(out_path, "w") as fh:
         json.dump(out, fh, indent=1)
     print(f"\nwrote {out_path}")

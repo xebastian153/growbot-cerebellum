@@ -173,12 +173,26 @@
    "ang_std_max": 0.05,
    "n": 69
   },
+  "gyro_abs_max_rad_s": 0.041887905448675156,
+  "gyro_abs_max_t_ms": 13.900390625,
+  "session_gyro_abs_max_rad_s": 7.106980800628662,
+  "session_gyro_abs_max_t_ms": 14129.998046875,
+  "session_gyro_abs_max_in_segment": false,
   "undetermined_reasons": []
  },
  "allan": [
   {
    "axis": "wx",
    "arw": null,
+   "arw_slope": null,
+   "arw_slope_window_s": [
+    0.33,
+    3.0
+   ],
+   "arw_slope_accept": [
+    -0.65,
+    -0.35
+   ],
    "bias_instability": null,
    "bias_reason": "minimum at the edge of the tau range (0.28 s): not a minimum",
    "tau_s": [
@@ -223,6 +237,15 @@
   {
    "axis": "wy",
    "arw": null,
+   "arw_slope": null,
+   "arw_slope_window_s": [
+    0.33,
+    3.0
+   ],
+   "arw_slope_accept": [
+    -0.65,
+    -0.35
+   ],
    "bias_instability": null,
    "bias_reason": "minimum at tau 0.23 s is a 1.4x-wide notch, not a flicker plateau (needs 5x within 10%): looks like an ARW / rate-random-walk crossover",
    "tau_s": [
@@ -267,6 +290,15 @@
   {
    "axis": "wz",
    "arw": null,
+   "arw_slope": null,
+   "arw_slope_window_s": [
+    0.33,
+    3.0
+   ],
+   "arw_slope_accept": [
+    -0.65,
+    -0.35
+   ],
    "bias_instability": null,
    "bias_reason": "minimum at tau 0.15 s is a 1.2x-wide notch, not a flicker plateau (needs 5x within 10%): looks like an ARW / rate-random-walk crossover",
    "tau_s": [
@@ -308,5 +340,6 @@
     0.0035415346817268016
    ]
   }
- ]
+ ],
+ "allan_tail_trim": []
 }

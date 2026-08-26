@@ -1,23 +1,69 @@
 {
- "glide": {
+ "keyframes": {
+  "source": "imulog._read_rows (declared field order checked, send_ok filtered, cal inverted) -- horn degrees, not raw servo degrees",
   "n_keyframes": 53,
+  "n_pose_rows_in_file": 53,
+  "send_ok_dropped": 0,
   "span_s": 215.67530615234375,
   "step_deg": {
-   "median": 40.0,
-   "max": 110.0
+   "median": 40.404042091818376,
+   "max": 111.11110977608502,
+   "min": 0.0,
+   "n": 52,
+   "n_zero": 7
+  },
+  "horn_cmd_deg": {
+   "min": -85.85858560313264,
+   "max": 85.85858560313264
   },
   "inter_keyframe_s": {
    "min": 0.15,
    "p25": 0.35,
    "median": 0.6,
    "max": 28.9811875
+  }
+ },
+ "act_duration": {
+  "recorded_in_log": false,
+  "documented_example": {
+   "l": 130.0,
+   "r": 50.0,
+   "ms": 700.0,
+   "where": "header.post_walk: the sit fold that happens AFTER recording ends, on walks that end 'done'. It is the only act in the log with an ms, it is not a member of this session, and it states a target pose pair, not a displacement",
+   "horn_travel_from_neutral_deg": 40.404042091818376
   },
-  "glide_rate_rad_s": 0.9973310011396169,
-  "glide_ms_needed": {
-   "median": 700.0,
-   "max": 1925.0
-  },
-  "frac_keyframes_arriving_mid_glide": 0.5384615384615384
+  "resolved": false,
+  "readings": [
+   {
+    "name": "constant rate",
+    "assumption": "every act plays at one fixed angular rate, and the documented example starts from neutral so that rate is its travel over its ms",
+    "rate_rad_s": 1.007405093738011,
+    "uncertainty": "unverifiable from this log: no act in the session carries an ms, the example's start pose is not stated, and the example is the post-recording fold rather than one of these keyframes",
+    "implied_act_ms": {
+     "median": 700.0,
+     "max": 1924.9998964586055
+    },
+    "implied_act_ms_note": "the median is 700 ms BY CONSTRUCTION -- the median step is the same move the rate is defined from",
+    "frac_acts_interrupted": 0.47058823529411764
+   },
+   {
+    "name": "constant duration",
+    "assumption": "every act takes the documented 700 ms whatever the step, so the commanded rate scales with the move",
+    "uncertainty": "equally unverifiable, and equally consistent with every field the log carries",
+    "implied_rate_rad_s": {
+     "median": 1.007405093738011,
+     "max": 2.7703638587679187
+    },
+    "n_steps_at_or_above_walk_slew": 15,
+    "n_steps": 52,
+    "walk_slew_determined_rad_s": [
+     2.0,
+     3.0
+    ],
+    "frac_acts_interrupted": 0.5882352941176471
+   }
+  ],
+  "consequence": "the two readings disagree about whether the horn is ever commanded at its own limit -- under the first it never reaches 2.0 rad/s, under the second 15 of 52 steps are at or above the 2.0-3.0 rad/s the walk lane determines. This file separates neither, so neither is published as a property of the robot"
  },
  "runs": [
   {
@@ -53,6 +99,10 @@
    ],
    "argmin_interior": false,
    "interior_why": "argmin is AT THE BOUNDARY of the grid (delay 0-6 ticks, slew 1.0-8.0 rad/s or none, deadband 0-4 deg; 'none' = no slew limit counts as the boundary, not as an interior point)",
+   "grid_slew_min_rad_s": 1.0,
+   "argmin_slew_is_grid_min": true,
+   "delay_undetermined_whole_grid": true,
+   "slew_undetermined_whole_grid": true,
    "split_half": {
     "A": {
      "delay_ticks": 0.0,
@@ -91,6 +141,10 @@
    ],
    "argmin_interior": true,
    "interior_why": "argmin is INTERIOR to the grid (delay 0-6 ticks, slew 1.0-8.0 rad/s or none, deadband 0-4 deg; 'none' = no slew limit counts as the boundary, not as an interior point)",
+   "grid_slew_min_rad_s": 1.0,
+   "argmin_slew_is_grid_min": false,
+   "delay_undetermined_whole_grid": false,
+   "slew_undetermined_whole_grid": false,
    "split_half": {
     "A": {
      "delay_ticks": 6.0,
@@ -108,7 +162,11 @@
  ],
  "reading": {
   "slew_interpretable": false,
-  "slew_reason": "the identified slew 1.0 rad/s is the glide engine's commanded ramp (1.00 rad/s from the header's own act), not the horn's limit: the ramp is slower than the [2.0, 3.0] rad/s the walk lane determines, so the horn is never asked to move at its limit",
+  "slew_reason": "the argmin slew 1.0 rad/s is min(grid) and the determined set is every slew on the grid including 'no limit at all', at a band of 0.1203: this file separates no slew hypothesis from any other, so its argmin is where the search stops, not what the horn does",
+  "delay_interpretable": false,
+  "delay_reason": "the delay determined set is [0, 1, 2, 3, 4, 5, 6] -- the whole grid -- and the split halves disagree",
+  "vs_walk": "the capture asked for determines strictly less than the walking file it was meant to improve on: band 0.1203 vs 0.0063 (19x wider), both parameters the entire grid vs delay [2, 3, 4, 5, 6] and slew [2.0, 3.0]",
+  "cause_not_established": "the log records target poses and send times but no act duration, so the command every hypothesis is scored against is not the command the body received. That is enough to explain an undetermined result and is NOT established as its cause by this file: what would settle it is the ms per act, or the realized 30 Hz command stream",
   "delay_tightened_vs_walk": false
  }
 }

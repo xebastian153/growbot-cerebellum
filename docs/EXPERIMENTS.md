@@ -563,35 +563,63 @@ statistic that looked stable only because nothing had stressed it:
 Two captures were requested to break the identification deadlock: `~15 s` of periodic
 walking had left the servo delay undetermined over the whole grid, and no still segment
 long enough for an Allan read existed in the walk lane. The maintainer sent a 3.6 min
-gesture session (`gait: "act"`, 12,014 IMU rows, 53 pose rows) and a 76 s still capture
-(`gait: "still"`, 4,471 IMU rows, **an empty pose array**), with the warning that in act
+gesture session (`gait: "act"`, 53 pose rows over 216 s, 10,872 ticks at 50 Hz) and a
+75.7 s still capture (`gait: "still"`, 4,471 IMU rows, **an empty pose array**), with
+the warning that in act
 files "the pose rows are the commanded keyframe schedule (send time plus cumulative ms
 offsets), not the 30Hz stream".
 
 ### The still lane: the phone's gyro noise, measured
 
-`sensor_id.py SEND-still-76s.json`. The record is genuinely still — one 75.7 s segment,
-gyro RMS **0.004 rad/s** against the 0.15 threshold, orientation drift 1.3° over the
-record. The `7.1 deg/s` peak is the taps that start and stop the recording, at 0–2.2 s
-and 71.7–73 s, not a disturbance in the body of the capture.
+`sensor_id.py SEND-still-76s.json`. The record is genuinely still: one 75.7 s still
+segment, and over the 66 s window the Allan read uses, gyro RMS **0.0034 rad/s**
+against the 0.15 threshold and a largest per-axis roll/pitch standard deviation of
+**0.0014 rad** (0.08°) against 0.05.
 
-One dropout of **1051 ms at t = 8.6 s** sits inside that segment, and it mattered more
+One dropout — the session's largest IMU gap, **1051 ms**, which is why the analysed run
+starts at t = 9.7 s rather than at 0 — sits inside that segment, and it mattered more
 than its size suggests. Allan integrates the rate into an angle assuming a single
 uniform sample period, so ~61 missing samples do not blur the curve, they insert a step
-the sensor never produced and bias every tau above the gap. Splitting the still windows
-at dropouts and using the longest gap-free run changed the outcome from one axis
-reporting to three:
+the sensor never produced and bias every tau above the gap. The estimator therefore
+splits the still windows at dropouts and reads the longest gap-free run:
 
-| | ARW (rad/s/√Hz) | before the gap split |
-|---|---|---|
-| wx | **6.42e-04** | undetermined |
-| wy | **3.05e-04** | 3.27e-04 |
-| wz | **1.26e-04** | undetermined |
+| | ARW (rad/s/√Hz) | fitted log-log slope | last 0.5 s trimmed | last 1.0 s trimmed |
+|---|---|---|---|---|
+| wx | **6.42e-04** | −0.624 | **undetermined** (−0.650) | **undetermined** (−0.678) |
+| wy | **3.05e-04** | −0.554 | 2.88e-04 (−0.494) | 2.86e-04 (−0.505) |
+| wz | **1.26e-04** | −0.625 | 1.26e-04 (−0.635) | 1.25e-04 (−0.645) |
 
-Conditions: 66 s gap-free run, 3,956 samples, fs 59.88 Hz, gyro RMS 0.003 rad/s.
-**Bias instability stays undetermined on all three axes**: the tau range reaches only
-~17 s, so a flicker floor, if this sensor has one, is beyond what 76 s can show. `wz`
-shows an ARW/rate-random-walk crossover notch at 6.8 s rather than a plateau.
+Conditions: 66 s gap-free run, 3,956 samples, fs 59.88 Hz, gyro RMS 0.0034 rad/s; the
+law is read over tau 0.33–3.0 s and a slope is accepted in [−0.65, −0.35].
+
+**The slope is part of the number, so it is published with it.** The estimator reads the
+ARW off an *assumed* −1/2 law and then reports the intercept, discarding the slope it
+measured — so a value quoted alone hides how far the curve was from the law it was read
+with. `wx` fits −0.624 — 83 % of the way from the assumed −1/2 to the edge of the
+acceptance window — and its curve *rises* from
+adev 2.53e-03 at tau 0.0167 s to 2.76e-03 at 0.0501 s, which is not what white noise
+does. `wy` is the only axis near the middle of the window at −0.554.
+
+**Correction — where the peak actually is.** This section previously said the 7.1 deg/s
+peak was the taps at 0–2.2 s and 71.7–73 s, "not a disturbance in the body of the
+capture". That was wrong about which samples entered the fit: 7.1 deg/s is the **last
+sample of the Allan segment** (t = 75.70 s), the tap that ends the recording, and the
+segment's own peak is therefore the session's. Whether to exclude it is now measured
+rather than argued, at two stated trims: dropping the last 0.5 s (30 samples) moves
+`wy` by −6 % and `wz` by −0.3 %, and takes `wx`'s slope to −0.650, where the gate
+rejects it. So **wx's ARW does not survive a half-second trim** and is quoted as
+conditional on those samples. The published values are the untrimmed ones because the
+segment rule is mechanical — longest gap-free still run — and a hand-chosen cut is a
+free parameter; the trims are recorded beside them in
+`results/sensor_id_SEND-still-76s.json` (`allan_tail_trim`) so the reader is not asked
+to take the choice on trust.
+
+**Bias instability stays undetermined on all three axes**, for two different reasons the
+artifact records separately: on `wx` and `wy` the minimum sits at the edge of the tau
+range (~17 s), i.e. 76 s cannot show a flicker floor if this sensor has one; on `wz` the
+minimum is interior, at tau 6.8 s, and is refused as a 1.4×-wide notch rather than a
+plateau (the gate needs 5× within 10 %) — an ARW / rate-random-walk crossover, not a
+floor.
 
 The fusion-filter lag could **not** be replicated from this file, and could not have
 been: peak correlations of 0.17 / 0.29 / 0.13 are far below the 0.50 gate, because a
@@ -599,44 +627,98 @@ motionless body gives the cross-correlation nothing to lock onto. The walk lane'
 +13.0 / +13.8 / +12.8 ms stands unreplicated rather than contradicted — measuring it
 needs motion, which is exactly what a still capture excludes.
 
-### The gesture lane: the glide engine, not the servo
+### The gesture lane: the file determines nothing, and the reason is not established
 
-The `act` verb carries a duration and the log does not record it. The header documents
-its own example — `{l:130, r:50, ms:700}` — which is a 40° move in 700 ms, a commanded
-ramp of **1.00 rad/s**. `realized_from_commands` replays a *step* and lets the candidate
-servo's slew shape the trajectory; the body received a *ramp* the log never stored.
+> **Retraction.** This section previously explained the gesture lane's failure: the
+> `act` verb glides at **1.00 rad/s**, derived from the header's documented example
+> `{l:130, r:50, ms:700}`; that ramp is slower than the horn's own slew, so "the horn is
+> never asked to move at its own limit" and the identified slew "is a measurement of the
+> glide engine", which "the identification confirms exactly". Every step of that is
+> withdrawn. The derivation, the confirmation and the conclusion each fail on their own,
+> and they fail in a way this repository has already documented once: the header field
+> they rest on is `post_walk`, the same field the coverage retraction below is about.
+> The measured numbers are preserved and regenerated in
+> `results/gesture_id_SEND-gesture-3_6min.json`; what is deleted is what was inferred
+> from them.
+>
+> **The example is a target pose, not a move.** `{l:130, r:50}` is an absolute pose pair
+> — 90+40 and 90−40 — so it is "a 40° move" only from neutral, and the header states no
+> start pose. Read through the parser's own calibration inversion it is 40.40° of horn
+> travel from neutral, not 40°, because the derivation dropped `cal.gain` (0.99) that
+> every other conversion in this repository applies. The rate that follows from it is
+> **1.0074 rad/s**, not the 0.9973 published in the artifact.
+>
+> **The example is not from this session.** `post_walk` documents the sit fold that
+> happens **after recording ends**, on walks that end `done`. This is the second
+> conclusion in this repository built on that field, and the second to be withdrawn for
+> the same reason: the act it documents is not in the record it was read into.
+>
+> **The confirmation was a grid artifact.** 1.0 rad/s is `min(slews)` in
+> `servo_id.default_grid()`. The gesture argmin sits on the grid boundary on all three
+> axes (`argmin_interior: false`) and its slew determined set is the *entire* grid,
+> "no slew limit" included. Any file that separates no slew hypothesis lands its argmin
+> at 1.0 whatever the engine does, so the agreement between the derived 1.0 and the
+> identified 1.0 carried no information — and, taken at face value, the two numbers were
+> not equal anyway.
 
-That is not a noise problem, it is a wrong-quantity problem, and the arithmetic says so
-before any identification runs: at 1.00 rad/s the commanded ramp is **slower** than the
-2.0–3.0 rad/s the walk lane determines, so the horn is never asked to move at its own
-limit. Whatever slew best explains this file is the glide engine's rate.
-
-The identification confirms it exactly. `gesture_id.py`, same grid and protocol on both
-files, identify on the first half:
+`gesture_id.py`, same grid and protocol on both files, identify on the first half:
 
 | | argmin | delay determined | slew determined | band | split-half |
 |---|---|---|---|---|---|
-| gesture (act) | delay 0, slew **1.0** ⚠ | [0…6] — the whole grid | [1.0 … none] — the whole grid | 0.1203 | DISAGREE |
+| gesture (act) | delay 0, slew 1.0 ⚠ | [0…6] — the whole grid | [1.0 … none] — the whole grid | 0.1203 | DISAGREE |
 | walk-1 (official) | delay 5, slew 2.0 | [2, 3, 4, 5, 6] | [2.0, 3.0] | 0.0063 | DISAGREE |
 
-⚠ at the grid boundary. The slew argmin lands on 1.0 rad/s, the glide rate, to two
-decimal places.
+⚠ at the grid boundary, on delay, slew and deadband alike.
 
 **The capture we asked for determines strictly less than the walking file it was meant
-to improve on.** Its confidence band is 19× wider, and both parameters come back as the
-entire grid. The excitation is genuinely better — steps of 40–110° across 5–175°, against
-a gait's one narrow band — and it does not help, because no candidate servo can explain a
-ramp it was never shown, so every hypothesis scores similarly badly and the band swallows
-the grid. Three further properties of the file compound it: 54 % of keyframes arrive while
-the previous glide is still playing (median gap 0.60 s against a 700 ms median glide), and
-six stretches totalling ~60 s run under commands up to 71° off neutral with the body not
-responding at all — the preflight says so, in the same words it used for the tipped walk.
+to improve on.** Its confidence band is 19× wider (0.1203 against 0.0063) and both
+parameters come back as the entire grid. That is the result. The excitation really is
+wider — 53 keyframes over 216 s, horn commands spanning ±85.9° off neutral, steps of
+median 40.4° and up to 111.1° (7 of 52 repeat the previous pose), against a gait's one
+narrow band.
 
-The reading is not "the gesture capture is noisy". It is: **this file determines neither
-delay nor slew, and its slew argmin is a measurement of the glide engine.** The request
-was for the wrong thing. Varied excitation cannot help while the log records endpoints
-instead of what was sent; what would resolve it is the `ms` value per act, or the realized
-30 Hz command stream — either one turns the same 3.6 minutes into an identifiable record.
+**What the log does not record, and what follows from that.** Each pose row carries a
+target and a send time. The `act` verb has a duration; no field holds it. So any
+statement about what the body was *commanded* between two keyframes is an assumption
+about the engine, and the log admits two that it cannot separate:
+
+| reading | assumption | commanded rate | acts interrupted by the next keyframe |
+|---|---|---|---|
+| constant rate | every act plays at one fixed rate, the documented example starting from neutral | 1.0074 rad/s throughout | 47 % |
+| constant duration | every act takes the documented 700 ms whatever the step | median 1.01, max **2.77 rad/s**; 15 of 52 steps at or above the walk lane's 2.0–3.0 | 59 % |
+
+Under the first, the horn is never asked to move at its limit. Under the second, 15 of
+52 commanded ramps are at or above the whole slew band the walk lane determines. The
+published claim that the horn is never driven at its own limit assumed the first without
+saying so, and the second is as consistent with every field this file carries. Neither is
+resolved here, so neither is published as a property of the robot; both are recorded, with
+their assumptions, in the artifact's `act_duration` block. (Under the first reading the
+median act takes 700 ms *by construction* — the median step is the same move the rate is
+defined from, so that number tests nothing.)
+
+Two further properties of the file are measured rather than inferred. The preflight
+reports **15 stretches, 1.0–14.7 s each and about 130 s in total**, in which the body does
+not respond while commands sit up to **86°** off neutral — the same words it used for the
+tipped walk (`results/logs/gesture_id.txt`). And of the 4,000 starts `gap_report.py`
+samples, **3,158 (79 %) fall in `still` against 422 (11 %) in `acting`**
+(`results/gap_report_SEND-gesture-3_6min.json`, per-regime `n`).
+
+**The competing explanation, which is not excluded.** `gap_report` says of a motionless
+identification half that "every hypothesis replays to the same absent response, the argmin
+is noise" — and refuses the after-servo column when it happens. That is exactly this
+file's shape: a mostly-motionless record. The undetermined result may be the missing act
+duration, and it may be that four fifths of the record is a body that is not moving; the
+two are not separated here, and the earlier text named only the first. Since this
+revision, `gap_report --servo-id` also refuses the gap* column on a boundary argmin whose
+determined sets span the whole grid, which is why this file's artifact now carries a
+refusal where it used to carry a full `gap_after_servo` column computed from delay 0 and
+slew 1.0.
+
+The reading is: **this file determines neither delay nor slew**, at a band 19× the walk
+lane's, and what it would take to say why is data the log does not carry — the `ms` per
+act, or the realized 30 Hz command stream. Either one turns the same 3.6 minutes into a
+record that could answer the question, and neither is an argument that the answer would
+then be the glide engine.
 
 ## Coverage — **RETRACTED**: the experiment was invalid twice over
 

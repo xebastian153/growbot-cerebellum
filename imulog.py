@@ -33,10 +33,12 @@ invisible: the forward model fits either way, no error metric moves, and only th
 per-side servo identification comes out naming the wrong horn.
 
 The upstream growbot-imulog-1 dialect carries NO event rows, so this module
-synthesizes them from the data (segment_growbot_v1: still / walking / impact /
-fall). Without that, every tick of every real file inherits header.gait and is
-scored against the twin's walking floor whatever the body was doing -- which is
-how a motionless phone and a fall once came to be compared with a walk.
+synthesizes them from the data (segment_growbot_v1: still / walking / acting /
+impact / fall / unknown -- the driven class is named after the header's verb, so a
+walk lane reads 'walking' and an `act` lane 'acting', and motion the log records no
+command for is 'unknown'). Without that, every tick of every real file inherits
+header.gait and is scored against the twin's walking floor whatever the body was
+doing -- which is how a motionless phone and a fall once came to be compared with a walk.
 CSV fallback (auto-detected): columns t,s,roll,pitch,yaw,gr,gp,gy,l,r with the
 same meanings; an optional first line `# {json}` carries the header.
 
@@ -395,7 +397,10 @@ def _convert_growbot_v1(obj):
                      thing) and counted in the header.
       IMU_SIGN/SWAP  refused unless default -- see GROWBOT_V1_CAL_DEFAULTS.
       events         the format carries none, so they are SYNTHESIZED from the
-                     data by segment_growbot_v1 (still / walking / impact / fall).
+                     data by segment_growbot_v1 (still / walking / acting /
+                     impact / fall / unknown; the driven label is named after the
+                     header's verb, so an `act` lane reads 'acting' and a walk
+                     lane 'walking', and motion under no command is 'unknown').
                      Without them every tick inherits header.gait and is scored
                      against the twin's walking floor whatever the body was doing.
     """
@@ -934,15 +939,26 @@ def preflight(path):
         if order.get(k, 0):
             warn(f"{name} timestamps not sorted in the file ({order[k]} inversions) -- sorted on read, "
                  f"values moved with their timestamps")
-    dt_i = float(np.median(np.diff(imu_t))); dt_c = float(np.median(np.diff(cmd_t)))
+    # A command-free capture has no cadence to report. Taking the median of an empty
+    # diff gives nan, and every downstream comparison against nan is False, so the
+    # "far from the expected ~30 Hz" warning fired on every legitimate still session
+    # -- a contract violation announced about a stream the session correctly never
+    # produced. The guard is the same one the row-count check already applies.
+    dt_i = float(np.median(np.diff(imu_t)))
+    dt_c = float(np.median(np.diff(cmd_t))) if len(cmd_t) > 1 else float("nan")
     if dt_i < 1.0:
         F = fail(f"IMU median dt = {dt_i:.4f}: timestamps look like SECONDS, expected milliseconds")
     else:
-        info(f"effective rates: IMU {1000 / dt_i:.1f} Hz, commands {1000 / dt_c:.1f} Hz")
+        info(f"effective rates: IMU {1000 / dt_i:.1f} Hz, commands "
+             + (f"{1000 / dt_c:.1f} Hz" if np.isfinite(dt_c) else "-- (none sent)"))
         if not (10 <= 1000 / dt_i <= 250): warn(f"IMU rate {1000 / dt_i:.1f} Hz far from the expected ~60")
-        if not (5 <= 1000 / dt_c <= 100): warn(f"command rate {1000 / dt_c:.1f} Hz far from the expected ~30")
+        if np.isfinite(dt_c) and not (5 <= 1000 / dt_c <= 100):
+            warn(f"command rate {1000 / dt_c:.1f} Hz far from the expected ~30")
     from sensor_id import dt_stats, verify_still
     for name, ts in (("IMU", imu_t), ("command", cmd_t)):
+        if len(ts) < 2:
+            info(f"{name} dt: no rows to time")
+            continue
         st = dt_stats(ts)
         line = (f"{name} dt: median {st['median_ms']:.1f} ms, p95 {st['p95_ms']:.1f}, "
                 f"p99 {st['p99_ms']:.1f}, max {st['max_ms']:.0f}; "
@@ -1119,11 +1135,11 @@ if __name__ == "__main__":
     assert same_g, "growbot-imulog-1 dialect does not round-trip"
 
     # --- a capture with no commands at all ------------------------------------------
-    # The still lane sends nothing, so its pose array is empty. The hidden secret is
-    # the orientation itself: strip every command from a file we already know the
-    # answer for, and the IMU must survive byte-for-byte while the commands become
-    # neutral and the whole record reads as one still segment. A parser that rejected
-    # the empty array, or invented a command to fill it, fails both halves.
+    # The still lane sends nothing, so its pose array is empty. Strip every command from
+    # a file we already know the answer for: BOTH IMU halves must survive -- the fused
+    # orientation as well as the body rates, since the pose array is the only thing
+    # removed -- while the commands become neutral and the record keeps a still segment.
+    # A parser that rejected the empty array, or invented a command to fill it, fails.
     with open("/tmp/imulog_fixture_v1.json") as fh:
         _nc = json.load(fh)
     _nc["pose"] = []
@@ -1131,16 +1147,29 @@ if __name__ == "__main__":
     with open("/tmp/imulog_nocmd_v1.json", "w") as fh:
         json.dump(_nc, fh)
     On, An, O2n, Dn, hn, mn = parse("/tmp/imulog_nocmd_v1.json")
-    # No DRIVEN label may appear: 'walking'/'acting' mean the agent was commanding the
-    # servos, and this file records none. Motion with no command is honestly 'unknown',
-    # which is what the source fixture's driven stretches must become.
+    ori_err_n = float(np.abs(np.arctan2(np.sin(On[:, :3] - Og[:, :3]),
+                                        np.cos(On[:, :3] - Og[:, :3]))).max())
+    gyro_err_n = float(np.abs(On[:, 3:] - Og[:, 3:]).max())
+    # 'walking'/'acting' mean the agent was commanding the servos, and this file records
+    # none. With an empty pose array the driven branch is unreachable by construction --
+    # cmd_active is identically False -- so its absence here proves nothing on its own.
+    # What binds is the CONTRAST with the same IMU under its commands: the source file
+    # must carry driven ticks, this one must carry none, and the ticks that lost their
+    # label must become 'unknown' rather than 'still', i.e. the label tracks the command
+    # stream and never the motion.
     _driven = set(GAIT_DRIVEN_LABEL.values()) | {"walking"}
-    nocmd_ok = (len(On) == len(Og) and float(np.abs(On[:, 3:] - Og[:, 3:]).max()) < 1e-9
-                and float(np.abs(An).max()) == 0.0 and not (set(np.unique(mn)) & _driven)
-                and "still" in set(np.unique(mn)) and hn.get("n_pose_rows") == 0)
+    mg_arr, mn_arr = np.asarray(mg), np.asarray(mn)
+    was_driven = np.isin(mg_arr, list(_driven))
+    lost = set(np.unique(mn_arr[was_driven])) if was_driven.any() else set()
+    nocmd_ok = (len(On) == len(Og) and gyro_err_n < 1e-9 and ori_err_n < 1e-9
+                and float(np.abs(An).max()) == 0.0
+                and was_driven.any() and not (set(np.unique(mn_arr)) & _driven)
+                and lost == {"unknown"}
+                and "still" in set(np.unique(mn_arr)) and hn.get("n_pose_rows") == 0)
     print(f"empty-command capture: {'PASS' if nocmd_ok else 'FAIL'} — {len(On)} ticks, IMU identical "
-          f"to the same file with commands, actions all neutral, no driven regime claimed "
-          f"(labels {sorted(set(np.unique(mn)))})")
+          f"on both halves (max orientation err {ori_err_n:.1e} rad, gyro {gyro_err_n:.1e} rad/s), "
+          f"actions all neutral; the {int(was_driven.sum())} driven ticks of the same file WITH "
+          f"commands all become {sorted(lost)} here (labels {sorted(set(np.unique(mn_arr)))})")
     assert nocmd_ok, "a capture with no commands must parse, hold neutral and read as still"
 
     # --- growbot-imulog-1 segmentation: the regimes the format does not carry -------
@@ -1470,7 +1499,8 @@ if __name__ == "__main__":
     for a, r in enumerate(allan_deviation(iv[sel, 3:], fs)):
         n_est = r["arw"]; b_est = r["bias_instability"]
         print(f"  ARW {BODY_AXES[a]}: {'undetermined' if n_est is None else f'{n_est:.2e}'} "
-              f"rad/s/sqrt(Hz) (injected {SENSOR['gyro_arw']:.0e}); bias instability "
+              f"rad/s/sqrt(Hz) (injected {SENSOR['gyro_arw']:.0e}, fitted log-log slope "
+              f"{r['arw_slope']:+.3f} vs the -1/2 law it is read with); bias instability "
               + ("undetermined" if b_est is None else f"{b_est:.2e} rad/s"))
         assert n_est is not None and abs(n_est / SENSOR["gyro_arw"] - 1) <= 0.20, \
             f"axis {a} ARW {n_est} vs injected {SENSOR['gyro_arw']}"
@@ -1493,7 +1523,7 @@ if __name__ == "__main__":
     for a, r in enumerate(allan_deviation(iv2[sel2, 3:], fs2)):
         n_est = r["arw"]; b_est = r["bias_instability"]
         print(f"  {BODY_AXES[a]}: ARW {'undetermined' if n_est is None else f'{n_est:.2e}'} "
-              f"(injected {RRW['gyro_arw']:.0e});  bias instability "
+              f"(injected {RRW['gyro_arw']:.0e}, fitted slope {r['arw_slope']:+.3f});  bias instability "
               + (f"undetermined -- {r['bias_reason']}" if b_est is None else f"{b_est:.2e} rad/s"))
         assert r["bias_instability"] is None, \
             f"axis {a}: an ARW/RRW crossover was converted into a bias instability"

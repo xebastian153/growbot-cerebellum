@@ -31,6 +31,9 @@
  },
  "report": {
   "all": {
+   "n": 230,
+   "twin_regime": "all",
+   "twin_n": 4000,
    "5": {
     "roll": {
      "real": 1.0,
@@ -67,6 +70,9 @@
    }
   },
   "fall": {
+   "n": 84,
+   "twin_regime": "fallen",
+   "twin_n": 463,
    "5": {
     "roll": {
      "real": 1.0,
@@ -103,6 +109,9 @@
    }
   },
   "still": {
+   "n": 125,
+   "twin_regime": "still",
+   "twin_n": 392,
    "5": {
     "roll": {
      "real": 1.0,

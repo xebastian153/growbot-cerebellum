@@ -50,6 +50,7 @@ log: 1 file(s), 809 ticks, 1 cuts, surface=?, regimes={np.str_('still'): 58, np.
 twin floor regimes (rest attitude roll +0.00, pitch -0.57 rad; 'fallen' = excursion > 0.7 rad): {np.str_('fallen'): 8967, np.str_('keyframe'): 14633, np.str_('ou'): 10458, np.str_('policy'): 11334, np.str_('sine'): 9481, np.str_('still'): 5127}
 identified servo: delay 5 ticks, slew 2.0 rad/s (grid points; run servo_id.py for determined-set diagnostics)
   argmin is INTERIOR to the grid (delay 0-6 ticks, slew 1.0-8.0 rad/s or none, deadband 0-4 deg; 'none' = no slew limit counts as the boundary, not as an interior point)
+  determined at band 0.00632: delay [2, 3, 4, 5, 6], slew [2.0, 3.0]
 evaluation restricted to the held-out half (405 ticks); identification used the first half
 
 within 0.2 rad; gap = real - twin floor (matched regime); gap* = after identified servo; negative gap = worse than floor
@@ -95,10 +96,11 @@ fused-orientation lag behind the raw gyro (cross-correlation, whole session)
 Allan deviation on the longest still/idle segment (1 s, 69 samples, t = 0.0..1.1 s)
   segment dt ms: median 16.6  p95 16.9  p99 18.7  max 22; stillness check: gyro RMS 0.013 rad/s (max 0.15), max per-axis roll/pitch std 0.0067 rad (max 0.05)
   segment shorter than 60 s -- expect undetermined parameters; reporting only what the curve supports
+  peak |body rate| inside the segment 2.40 deg/s; session peak 407.20 deg/s at t = 14.13 s, outside the analysed segment
   fs 60.24 Hz from the segment's median dt
-     wx  ARW undetermined (no -1/2 slope around tau = 1 s);  bias instability undetermined (minimum at the edge of the tau range (0.28 s): not a minimum)
-     wy  ARW undetermined (no -1/2 slope around tau = 1 s);  bias instability undetermined (minimum at tau 0.23 s is a 1.4x-wide notch, not a flicker plateau (needs 5x within 10%): looks like an ARW / rate-random-walk crossover)
-     wz  ARW undetermined (no -1/2 slope around tau = 1 s);  bias instability undetermined (minimum at tau 0.15 s is a 1.2x-wide notch, not a flicker plateau (needs 5x within 10%): looks like an ARW / rate-random-walk crossover)
+     wx  ARW undetermined (no -1/2 slope around tau = 1 s: slope --);  bias instability undetermined (minimum at the edge of the tau range (0.28 s): not a minimum)
+     wy  ARW undetermined (no -1/2 slope around tau = 1 s: slope --);  bias instability undetermined (minimum at tau 0.23 s is a 1.4x-wide notch, not a flicker plateau (needs 5x within 10%): looks like an ARW / rate-random-walk crossover)
+     wz  ARW undetermined (no -1/2 slope around tau = 1 s: slope --);  bias instability undetermined (minimum at tau 0.15 s is a 1.2x-wide notch, not a flicker plateau (needs 5x within 10%): looks like an ARW / rate-random-walk crossover)
 
 wrote results/sensor_id_imu-walk-1-2026-08-20T17-50-14-713Z.json
 
@@ -159,10 +161,13 @@ fused-orientation lag behind the raw gyro (cross-correlation, whole session)
 Allan deviation on the longest still/idle segment (3 s, 153 samples, t = 0.0..2.6 s)
   segment dt ms: median 16.7  p95 18.3  p99 21.8  max 71; stillness check: gyro RMS 0.003 rad/s (max 0.15), max per-axis roll/pitch std 0.0000 rad (max 0.05)
   segment shorter than 60 s -- expect undetermined parameters; reporting only what the curve supports
+  peak |body rate| inside the segment 2.50 deg/s; session peak 247.20 deg/s at t = 4.15 s, outside the analysed segment
   fs 59.90 Hz from the segment's median dt
-     wx  ARW 2.15e-04 rad/s/sqrt(Hz);  bias instability undetermined (minimum at the edge of the tau range (0.58 s): not a minimum)
-     wy  ARW undetermined (no -1/2 slope around tau = 1 s);  bias instability undetermined (minimum at the edge of the tau range (0.63 s): not a minimum)
-     wz  ARW undetermined (no -1/2 slope around tau = 1 s);  bias instability undetermined (minimum at the edge of the tau range (0.63 s): not a minimum)
+     wx  ARW 2.15e-04 rad/s/sqrt(Hz) (fitted log-log slope -0.448 over tau 0.33-3.0 s, accepted in [-0.65, -0.35]);  bias instability undetermined (minimum at the edge of the tau range (0.58 s): not a minimum)
+     wy  ARW undetermined (no -1/2 slope around tau = 1 s: fitted log-log slope -0.937 over tau 0.33-3.0 s, accepted in [-0.65, -0.35]);  bias instability undetermined (minimum at the edge of the tau range (0.63 s): not a minimum)
+     wz  ARW undetermined (no -1/2 slope around tau = 1 s: fitted log-log slope -0.762 over tau 0.33-3.0 s, accepted in [-0.65, -0.35]);  bias instability undetermined (minimum at the edge of the tau range (0.63 s): not a minimum)
+  last 0.5 s trimmed (123 samples, peak 0.30 deg/s):  wx undetermined (slope -0.310)  wy undetermined (slope -0.766)  wz undetermined (slope -0.818)
+  last 1.0 s trimmed (95 samples, peak 0.30 deg/s):  wx undetermined (slope --)  wy undetermined (slope --)  wz undetermined (slope --)
 
 wrote results/sensor_id_imu-walk-3-2026-08-20T17-38-19-478Z.json
 
