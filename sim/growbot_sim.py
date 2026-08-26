@@ -42,8 +42,19 @@ def quat_to_rpy(q):
     return np.array([roll, pitch, yaw])
 
 
-def perturb(m, mass_scale=1.0, dcom=(0.0, 0.0, 0.0), leg_scale=1.0, gain_mult=1.0, friction=None):
-    """Apply one DR corner to a loaded model. Same edits as dr_sweep_spin.build_model."""
+def perturb(m, mass_scale=1.0, dcom=(0.0, 0.0, 0.0), leg_scale=1.0, gain_mult=1.0, friction=None,
+            friction_torsional=None, friction_rolling=None, condim=None):
+    """Apply one DR corner to a loaded model. Same edits as dr_sweep_spin.build_model.
+
+    `friction` is MuJoCo's SLIDING coefficient, geom_friction column 0 -- the only one
+    the upstream sweep ever varied. The torsional (column 1) and rolling (column 2)
+    coefficients are separate arguments because they are separate physics, and because
+    the bodies ship with `condim="3"`, under which MuJoCo applies column 0 alone and
+    ignores the other two entirely: setting them at condim 3 changes nothing at all
+    (measured, see contact_friction.py). `condim=4` activates torsional, `condim=6`
+    activates rolling as well. All three new arguments default to None = leave the
+    model as loaded, so every existing caller reproduces bit-identically.
+    """
     base = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, "base_body")
     legs = [(mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_GEOM, g), mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, b))
             for g, b in (("lower_leg_1", "right_leg"), ("lower_leg_2", "left_leg"))]
@@ -63,8 +74,14 @@ def perturb(m, mass_scale=1.0, dcom=(0.0, 0.0, 0.0), leg_scale=1.0, gain_mult=1.
         m.body_ipos[bid, 2] = -half
     m.actuator_gainprm[:] *= gain_mult
     m.actuator_biasprm[:] *= gain_mult
+    if condim is not None:
+        m.geom_condim[:] = int(condim)
     if friction is not None:
         m.geom_friction[:, 0] = friction
+    if friction_torsional is not None:
+        m.geom_friction[:, 1] = friction_torsional
+    if friction_rolling is not None:
+        m.geom_friction[:, 2] = friction_rolling
     mujoco.mj_setConst(m, mujoco.MjData(m))
     return m
 

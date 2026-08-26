@@ -57,6 +57,109 @@ So the project's DR does not show up in the IMU at 100 ms — consistent with it
 transfer — and the spin gap is unlikely to be mass/CoM/leg/gain. Contact is the untested
 factor, and contact drives yaw, which drives spin.
 
+Two limits of this section, both established later and both on that axis: the corner
+labelled "friction 0.6–1.4" varies **sliding** friction alone (`geom_friction[:, 0]`),
+and the metric here scores roll and pitch only — yaw is not in it. Both are addressed
+under *Contact friction* below, which tests the contact factor this paragraph calls
+untested and leaves the negative standing.
+
+## Contact friction — the twin has no torsional friction, and the DR negative could not have seen one
+
+The sim-to-real proxy above concludes with "contact is the untested factor, and contact
+drives yaw, which drives spin". This tests it, and starts by finding two holes in the
+negative itself, both on the spin axis:
+
+1. `perturb()` set `geom_friction[:, 0]` — **sliding** friction. Torsional (column 1) and
+   rolling (column 2) were never varied. The published corner labelled "friction 0.6–1.4"
+   is a sliding-friction corner.
+2. `sim2real_proxy.horizon_within` scores `decode_obs(...)[:, :2]` — roll and pitch. **Yaw
+   was not in the metric at all**, on the axis the same section names as the one that
+   matters.
+
+### Part A — the coefficients were inert, so the missing sweep could not have mattered
+
+Both bodies ship with `condim="3"`. Under condim 3 MuJoCo solves a three-dimensional
+contact — one normal, two tangential — and the torsional and rolling coefficients are not
+in the solve. Measured rather than asserted, 6000 ticks against the unperturbed stream:
+
+| probe | effect on the trajectory |
+|---|---|
+| sliding 0.6 (positive control) | acts, max abs delta obs **26.7** |
+| torsional ×10 at condim 3 | **bit-identical** |
+| torsional ×100 at condim 3 | **bit-identical** |
+| rolling ×100 at condim 3 | **bit-identical** |
+| MuJoCo default contact at condim 3 | **bit-identical** |
+| torsional ×100 at condim 4 | acts, 19.0 |
+| torsional at MuJoCo's default, condim 4 | acts, 28.8 |
+| rolling ×100 at condim 6 | acts, 22.7 |
+
+So the `0.1 0.1` the XML declares for torsional and rolling has never been applied. The
+body has no torsional friction — not a badly tuned one, none — and sweeping those two
+columns would have changed nothing. The honest question is therefore not "did we forget
+two columns" but "does the mechanism the twin cannot represent matter".
+
+### Part B — decision rule, stated before the numbers
+
+Protocol is the proxy's: the frozen nominal forward model trained once on
+`data/olie_train.npz`, evaluated open-loop on each corner's own stream, seeds shared across
+every corner. Two metrics — the proxy's own `within_0.2rad` at 100 ms over roll/pitch, kept
+so old and new corners are comparable, and `within_0.2rad` **per axis** at 100 and 500 ms,
+which adds yaw. Ranges are anchored on the XML's `friction="1.2 0.1 0.1"` and MuJoCo's
+defaults `1 0.005 0.0001`, plus one decade above the XML value; nothing invented.
+Material = a shift from nominal larger than `max(3.0 pts, 2× nominal seed spread)`, the
+rule `yaw_floor.py` and `real2sim.py` use. Measured nominal spread over 3 seeds: **2.30 pts**
+→ threshold **4.60 pts**.
+
+### Results (within 0.2 rad, % of starts, 30 000 ticks per corner-seed, 3 seeds)
+
+| corner | legacy 100 ms | yaw @100 ms | yaw @500 ms | Δ yaw @500 ms |
+|---|---|---|---|---|
+| nominal (as shipped, condim 3) | 94.6 % | 96.2 % | 75.6 % | — |
+| sliding 0.6 (published corner) | 94.3 % | 95.8 % | 74.2 % | −1.4 |
+| sliding 1.4 (published corner) | 94.4 % | 95.2 % | 74.4 % | −1.2 |
+| torsional 1.0 at condim 3 | 94.6 % | 96.2 % | 75.6 % | **+0.0** |
+| rolling 1.0 at condim 3 | 94.6 % | 96.2 % | 75.6 % | **+0.0** |
+| condim 4, torsional 0.005 (MuJoCo default) | 94.2 % | 96.4 % | 76.0 % | +0.4 |
+| condim 4, torsional 0.1 (XML value) | 93.8 % | 96.2 % | 74.9 % | −0.7 |
+| condim 4, torsional 1.0 (decade above XML) | 94.3 % | 96.6 % | 72.2 % | −3.5 |
+| condim 6, torsional 0.1 rolling 0.1 (XML values) | 89.6 % | 94.2 % | 53.0 % | **−22.6** |
+| condim 6, MuJoCo default contact | 94.5 % | 95.8 % | 75.0 % | −0.7 |
+
+The two condim-3 rows are exactly `+0.0` on every axis and every horizon — the same
+bit-identity Part A measured, now visible in the metric.
+
+### What this settles
+
+- **The published negative survives, and is stronger for having been tested properly.**
+  With torsional friction actually switched on (condim 4) and swept from MuJoCo's default
+  through a decade above the XML value, nothing is material on any axis — yaw included.
+  The largest yaw excursion is −3.5 pts against a 4.60-pt threshold.
+- **The hole was real but benign.** The two unswept columns could not have moved anything
+  at the shipped contact dimension.
+- **One thing does move the body, and it is the coefficient nobody applied.** At condim 6
+  the XML's own rolling value of 0.1 — 1000× MuJoCo's default — costs 22.6 pts of yaw and
+  41.7 of pitch at 500 ms. The isolation is in the table: condim 6 at MuJoCo's defaults is
+  flat, and condim 4 at the XML's torsional value is flat, so the mover is the rolling
+  coefficient, not the contact dimension. Anyone who raises `condim` to model torsional
+  friction will silently switch on that rolling resistance as well and get a different
+  robot.
+- **What it does not settle.** This metric is forward-model *prediction* accuracy, not
+  policy *transfer*. A contact term can decide whether a spin policy survives the trip to
+  hardware while barely changing how predictable the body is; those are different
+  questions and this experiment answers only the second.
+- **For `yaw_floor.py`**: its aleatoric yaw ceiling was measured at condim 3, i.e. with
+  both coefficients inert. Switching torsional on does not move predictability materially,
+  so that conclusion is robust to *this* parameter. It remains conditional on the contact
+  model in general — the condim-6 row shows the contact model can move yaw by 22 pts — and
+  a re-test under a contact model chosen for physical realism rather than inherited default
+  would be worth having.
+- One honesty note the table carries: the `condim 4, torsional 0.005` row has a 5.40-pt
+  seed spread of its own, wider than the 4.60-pt threshold, so its +0.4 is not evidence in
+  either direction.
+
+Reproduce: `.venv/bin/python contact_friction.py` → `results/contact_friction.json`,
+`results/logs/contact_friction.txt`. Total 140 s.
+
 ## Yaw floor — mostly noise, not model: scaling is flat and privileged state adds little (negative)
 
 The forward model's weakest axis is yaw in the twin itself (58–60 % within 0.2 rad @1 s

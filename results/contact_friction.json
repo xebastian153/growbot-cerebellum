@@ -1,0 +1,1792 @@
+{
+ "config": {
+  "epochs": 60,
+  "corner_steps": 30000,
+  "seeds": [
+   0,
+   1,
+   2
+  ],
+  "audit_steps": 6000,
+  "horizons": [
+   5,
+   25
+  ]
+ },
+ "xml_friction": {
+  "sliding": 1.2,
+  "torsional": 0.1,
+  "rolling": 0.1
+ },
+ "mujoco_default_friction": {
+  "sliding": 1.0,
+  "torsional": 0.005,
+  "rolling": 0.0001
+ },
+ "shipped_condim": 3,
+ "decision_rule": {
+  "nominal_seed_spread": 0.02300000000000002,
+  "threshold": 0.04600000000000004,
+  "text": "material = |delta vs nominal| > max(3.0 pts, 2x nominal seed spread)"
+ },
+ "part_a_condim_audit": [
+  {
+   "probe": "sliding 0.6 (positive control)",
+   "max_abs_obs_delta": 26.68358612060547,
+   "identical": false,
+   "kw": {
+    "friction": 0.6
+   }
+  },
+  {
+   "probe": "torsional x10 at condim 3",
+   "max_abs_obs_delta": 0.0,
+   "identical": true,
+   "kw": {
+    "friction_torsional": 1.0
+   }
+  },
+  {
+   "probe": "torsional x100 at condim 3",
+   "max_abs_obs_delta": 0.0,
+   "identical": true,
+   "kw": {
+    "friction_torsional": 10.0
+   }
+  },
+  {
+   "probe": "rolling x100 at condim 3",
+   "max_abs_obs_delta": 0.0,
+   "identical": true,
+   "kw": {
+    "friction_rolling": 10.0
+   }
+  },
+  {
+   "probe": "MuJoCo default contact at condim 3",
+   "max_abs_obs_delta": 0.0,
+   "identical": true,
+   "kw": {
+    "friction_torsional": 0.005,
+    "friction_rolling": 0.0001
+   }
+  },
+  {
+   "probe": "torsional x100 at condim 4",
+   "max_abs_obs_delta": 19.014493942260742,
+   "identical": false,
+   "kw": {
+    "condim": 4,
+    "friction_torsional": 10.0
+   }
+  },
+  {
+   "probe": "torsional MuJoCo default at condim 4",
+   "max_abs_obs_delta": 28.82131004333496,
+   "identical": false,
+   "kw": {
+    "condim": 4,
+    "friction_torsional": 0.005
+   }
+  },
+  {
+   "probe": "rolling x100 at condim 6",
+   "max_abs_obs_delta": 22.739749908447266,
+   "identical": false,
+   "kw": {
+    "condim": 6,
+    "friction_rolling": 10.0
+   }
+  }
+ ],
+ "rows": [
+  {
+   "corner": "nominal (as shipped, condim 3)",
+   "group": "reference",
+   "dr": {},
+   "seeds": [
+    0,
+    1,
+    2
+   ],
+   "per_seed": [
+    {
+     "seed": 0,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.9486666666666667,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.973,
+        "pitch": 0.975,
+        "yaw": 0.9745
+       },
+       "rmse_axis_rad": {
+        "roll": 0.1288766860961914,
+        "pitch": 0.07722211629152298,
+        "yaw": 0.13836133480072021
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.8555,
+        "pitch": 0.862,
+        "yaw": 0.7605
+       },
+       "rmse_axis_rad": {
+        "roll": 0.4535263478755951,
+        "pitch": 0.2334008812904358,
+        "yaw": 0.4945819079875946
+       }
+      }
+     }
+    },
+    {
+     "seed": 1,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.9406666666666667,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.958,
+        "pitch": 0.977,
+        "yaw": 0.9515
+       },
+       "rmse_axis_rad": {
+        "roll": 0.16199053823947906,
+        "pitch": 0.07643967121839523,
+        "yaw": 0.18707020580768585
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.843,
+        "pitch": 0.8715,
+        "yaw": 0.748
+       },
+       "rmse_axis_rad": {
+        "roll": 0.4956834614276886,
+        "pitch": 0.23670704662799835,
+        "yaw": 0.5480716228485107
+       }
+      }
+     }
+    },
+    {
+     "seed": 2,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.9493333333333334,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.968,
+        "pitch": 0.9745,
+        "yaw": 0.9585
+       },
+       "rmse_axis_rad": {
+        "roll": 0.14393483102321625,
+        "pitch": 0.08931220322847366,
+        "yaw": 0.16225534677505493
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.858,
+        "pitch": 0.8735,
+        "yaw": 0.7605
+       },
+       "rmse_axis_rad": {
+        "roll": 0.4374430179595947,
+        "pitch": 0.24370479583740234,
+        "yaw": 0.5144180655479431
+       }
+      }
+     }
+    }
+   ],
+   "legacy_100ms": {
+    "mean": 0.9462222222222222,
+    "spread": 0.008666666666666711
+   },
+   "axis": {
+    "5": {
+     "roll": {
+      "mean": 0.9663333333333334,
+      "spread": 0.015000000000000013
+     },
+     "pitch": {
+      "mean": 0.9754999999999999,
+      "spread": 0.0024999999999999467
+     },
+     "yaw": {
+      "mean": 0.9615,
+      "spread": 0.02300000000000002
+     }
+    },
+    "25": {
+     "roll": {
+      "mean": 0.8521666666666667,
+      "spread": 0.015000000000000013
+     },
+     "pitch": {
+      "mean": 0.8690000000000001,
+      "spread": 0.011500000000000066
+     },
+     "yaw": {
+      "mean": 0.7563333333333334,
+      "spread": 0.012499999999999956
+     }
+    }
+   }
+  },
+  {
+   "corner": "sliding 0.6 (published corner)",
+   "group": "sliding",
+   "dr": {
+    "friction": 0.6
+   },
+   "seeds": [
+    0,
+    1,
+    2
+   ],
+   "per_seed": [
+    {
+     "seed": 0,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.9446666666666667,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.962,
+        "pitch": 0.9655,
+        "yaw": 0.955
+       },
+       "rmse_axis_rad": {
+        "roll": 0.119891457259655,
+        "pitch": 0.0976128876209259,
+        "yaw": 0.16015124320983887
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.8455,
+        "pitch": 0.8565,
+        "yaw": 0.725
+       },
+       "rmse_axis_rad": {
+        "roll": 0.43971624970436096,
+        "pitch": 0.26692935824394226,
+        "yaw": 0.6020140051841736
+       }
+      }
+     }
+    },
+    {
+     "seed": 1,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.94,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.9615,
+        "pitch": 0.9735,
+        "yaw": 0.961
+       },
+       "rmse_axis_rad": {
+        "roll": 0.09533665329217911,
+        "pitch": 0.07604710757732391,
+        "yaw": 0.1365700662136078
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.879,
+        "pitch": 0.8775,
+        "yaw": 0.7515
+       },
+       "rmse_axis_rad": {
+        "roll": 0.39847099781036377,
+        "pitch": 0.22814904153347015,
+        "yaw": 0.5541371703147888
+       }
+      }
+     }
+    },
+    {
+     "seed": 2,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.944,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.9655,
+        "pitch": 0.9745,
+        "yaw": 0.958
+       },
+       "rmse_axis_rad": {
+        "roll": 0.1377153843641281,
+        "pitch": 0.07977835834026337,
+        "yaw": 0.1599053293466568
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.872,
+        "pitch": 0.8855,
+        "yaw": 0.7505
+       },
+       "rmse_axis_rad": {
+        "roll": 0.41202688217163086,
+        "pitch": 0.21612976491451263,
+        "yaw": 0.5403335690498352
+       }
+      }
+     }
+    }
+   ],
+   "legacy_100ms": {
+    "mean": 0.9428888888888888,
+    "spread": 0.004666666666666708
+   },
+   "axis": {
+    "5": {
+     "roll": {
+      "mean": 0.9630000000000001,
+      "spread": 0.0040000000000000036
+     },
+     "pitch": {
+      "mean": 0.9711666666666666,
+      "spread": 0.009000000000000008
+     },
+     "yaw": {
+      "mean": 0.9579999999999999,
+      "spread": 0.006000000000000005
+     }
+    },
+    "25": {
+     "roll": {
+      "mean": 0.8654999999999999,
+      "spread": 0.033499999999999974
+     },
+     "pitch": {
+      "mean": 0.8731666666666666,
+      "spread": 0.028999999999999915
+     },
+     "yaw": {
+      "mean": 0.7423333333333333,
+      "spread": 0.026499999999999968
+     }
+    }
+   }
+  },
+  {
+   "corner": "sliding 1.4 (published corner)",
+   "group": "sliding",
+   "dr": {
+    "friction": 1.4
+   },
+   "seeds": [
+    0,
+    1,
+    2
+   ],
+   "per_seed": [
+    {
+     "seed": 0,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.9453333333333334,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.961,
+        "pitch": 0.972,
+        "yaw": 0.9585
+       },
+       "rmse_axis_rad": {
+        "roll": 0.11892352998256683,
+        "pitch": 0.07388726621866226,
+        "yaw": 0.13935819268226624
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.8475,
+        "pitch": 0.873,
+        "yaw": 0.7555
+       },
+       "rmse_axis_rad": {
+        "roll": 0.41852471232414246,
+        "pitch": 0.23251837491989136,
+        "yaw": 0.47324833273887634
+       }
+      }
+     }
+    },
+    {
+     "seed": 1,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.9453333333333334,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.956,
+        "pitch": 0.962,
+        "yaw": 0.945
+       },
+       "rmse_axis_rad": {
+        "roll": 0.16164512932300568,
+        "pitch": 0.09931126236915588,
+        "yaw": 0.1761063188314438
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.8595,
+        "pitch": 0.857,
+        "yaw": 0.7295
+       },
+       "rmse_axis_rad": {
+        "roll": 0.39932262897491455,
+        "pitch": 0.23417620360851288,
+        "yaw": 0.5516292452812195
+       }
+      }
+     }
+    },
+    {
+     "seed": 2,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.94,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.952,
+        "pitch": 0.9705,
+        "yaw": 0.9535
+       },
+       "rmse_axis_rad": {
+        "roll": 0.14541295170783997,
+        "pitch": 0.08872886747121811,
+        "yaw": 0.1573287844657898
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.8475,
+        "pitch": 0.8665,
+        "yaw": 0.747
+       },
+       "rmse_axis_rad": {
+        "roll": 0.47942981123924255,
+        "pitch": 0.23540660738945007,
+        "yaw": 0.5453746318817139
+       }
+      }
+     }
+    }
+   ],
+   "legacy_100ms": {
+    "mean": 0.9435555555555556,
+    "spread": 0.005333333333333412
+   },
+   "axis": {
+    "5": {
+     "roll": {
+      "mean": 0.9563333333333333,
+      "spread": 0.009000000000000008
+     },
+     "pitch": {
+      "mean": 0.9681666666666667,
+      "spread": 0.010000000000000009
+     },
+     "yaw": {
+      "mean": 0.9523333333333334,
+      "spread": 0.013500000000000068
+     }
+    },
+    "25": {
+     "roll": {
+      "mean": 0.8515,
+      "spread": 0.01200000000000001
+     },
+     "pitch": {
+      "mean": 0.8654999999999999,
+      "spread": 0.016000000000000014
+     },
+     "yaw": {
+      "mean": 0.7439999999999999,
+      "spread": 0.025999999999999912
+     }
+    }
+   }
+  },
+  {
+   "corner": "torsional 1.0 at condim 3 (inert)",
+   "group": "inert",
+   "dr": {
+    "friction_torsional": 1.0
+   },
+   "seeds": [
+    0,
+    1,
+    2
+   ],
+   "per_seed": [
+    {
+     "seed": 0,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.9486666666666667,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.973,
+        "pitch": 0.975,
+        "yaw": 0.9745
+       },
+       "rmse_axis_rad": {
+        "roll": 0.1288766860961914,
+        "pitch": 0.07722211629152298,
+        "yaw": 0.13836133480072021
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.8555,
+        "pitch": 0.862,
+        "yaw": 0.7605
+       },
+       "rmse_axis_rad": {
+        "roll": 0.4535263478755951,
+        "pitch": 0.2334008812904358,
+        "yaw": 0.4945819079875946
+       }
+      }
+     }
+    },
+    {
+     "seed": 1,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.9406666666666667,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.958,
+        "pitch": 0.977,
+        "yaw": 0.9515
+       },
+       "rmse_axis_rad": {
+        "roll": 0.16199053823947906,
+        "pitch": 0.07643967121839523,
+        "yaw": 0.18707020580768585
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.843,
+        "pitch": 0.8715,
+        "yaw": 0.748
+       },
+       "rmse_axis_rad": {
+        "roll": 0.4956834614276886,
+        "pitch": 0.23670704662799835,
+        "yaw": 0.5480716228485107
+       }
+      }
+     }
+    },
+    {
+     "seed": 2,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.9493333333333334,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.968,
+        "pitch": 0.9745,
+        "yaw": 0.9585
+       },
+       "rmse_axis_rad": {
+        "roll": 0.14393483102321625,
+        "pitch": 0.08931220322847366,
+        "yaw": 0.16225534677505493
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.858,
+        "pitch": 0.8735,
+        "yaw": 0.7605
+       },
+       "rmse_axis_rad": {
+        "roll": 0.4374430179595947,
+        "pitch": 0.24370479583740234,
+        "yaw": 0.5144180655479431
+       }
+      }
+     }
+    }
+   ],
+   "legacy_100ms": {
+    "mean": 0.9462222222222222,
+    "spread": 0.008666666666666711
+   },
+   "axis": {
+    "5": {
+     "roll": {
+      "mean": 0.9663333333333334,
+      "spread": 0.015000000000000013
+     },
+     "pitch": {
+      "mean": 0.9754999999999999,
+      "spread": 0.0024999999999999467
+     },
+     "yaw": {
+      "mean": 0.9615,
+      "spread": 0.02300000000000002
+     }
+    },
+    "25": {
+     "roll": {
+      "mean": 0.8521666666666667,
+      "spread": 0.015000000000000013
+     },
+     "pitch": {
+      "mean": 0.8690000000000001,
+      "spread": 0.011500000000000066
+     },
+     "yaw": {
+      "mean": 0.7563333333333334,
+      "spread": 0.012499999999999956
+     }
+    }
+   }
+  },
+  {
+   "corner": "rolling 1.0 at condim 3 (inert)",
+   "group": "inert",
+   "dr": {
+    "friction_rolling": 1.0
+   },
+   "seeds": [
+    0,
+    1,
+    2
+   ],
+   "per_seed": [
+    {
+     "seed": 0,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.9486666666666667,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.973,
+        "pitch": 0.975,
+        "yaw": 0.9745
+       },
+       "rmse_axis_rad": {
+        "roll": 0.1288766860961914,
+        "pitch": 0.07722211629152298,
+        "yaw": 0.13836133480072021
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.8555,
+        "pitch": 0.862,
+        "yaw": 0.7605
+       },
+       "rmse_axis_rad": {
+        "roll": 0.4535263478755951,
+        "pitch": 0.2334008812904358,
+        "yaw": 0.4945819079875946
+       }
+      }
+     }
+    },
+    {
+     "seed": 1,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.9406666666666667,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.958,
+        "pitch": 0.977,
+        "yaw": 0.9515
+       },
+       "rmse_axis_rad": {
+        "roll": 0.16199053823947906,
+        "pitch": 0.07643967121839523,
+        "yaw": 0.18707020580768585
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.843,
+        "pitch": 0.8715,
+        "yaw": 0.748
+       },
+       "rmse_axis_rad": {
+        "roll": 0.4956834614276886,
+        "pitch": 0.23670704662799835,
+        "yaw": 0.5480716228485107
+       }
+      }
+     }
+    },
+    {
+     "seed": 2,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.9493333333333334,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.968,
+        "pitch": 0.9745,
+        "yaw": 0.9585
+       },
+       "rmse_axis_rad": {
+        "roll": 0.14393483102321625,
+        "pitch": 0.08931220322847366,
+        "yaw": 0.16225534677505493
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.858,
+        "pitch": 0.8735,
+        "yaw": 0.7605
+       },
+       "rmse_axis_rad": {
+        "roll": 0.4374430179595947,
+        "pitch": 0.24370479583740234,
+        "yaw": 0.5144180655479431
+       }
+      }
+     }
+    }
+   ],
+   "legacy_100ms": {
+    "mean": 0.9462222222222222,
+    "spread": 0.008666666666666711
+   },
+   "axis": {
+    "5": {
+     "roll": {
+      "mean": 0.9663333333333334,
+      "spread": 0.015000000000000013
+     },
+     "pitch": {
+      "mean": 0.9754999999999999,
+      "spread": 0.0024999999999999467
+     },
+     "yaw": {
+      "mean": 0.9615,
+      "spread": 0.02300000000000002
+     }
+    },
+    "25": {
+     "roll": {
+      "mean": 0.8521666666666667,
+      "spread": 0.015000000000000013
+     },
+     "pitch": {
+      "mean": 0.8690000000000001,
+      "spread": 0.011500000000000066
+     },
+     "yaw": {
+      "mean": 0.7563333333333334,
+      "spread": 0.012499999999999956
+     }
+    }
+   }
+  },
+  {
+   "corner": "condim 4, torsional 0.005 (MuJoCo default)",
+   "group": "torsional",
+   "dr": {
+    "condim": 4,
+    "friction_torsional": 0.005
+   },
+   "seeds": [
+    0,
+    1,
+    2
+   ],
+   "per_seed": [
+    {
+     "seed": 0,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.936,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.9675,
+        "pitch": 0.979,
+        "yaw": 0.9695
+       },
+       "rmse_axis_rad": {
+        "roll": 0.15516571700572968,
+        "pitch": 0.07626353204250336,
+        "yaw": 0.16959300637245178
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.851,
+        "pitch": 0.863,
+        "yaw": 0.7665
+       },
+       "rmse_axis_rad": {
+        "roll": 0.4864862263202667,
+        "pitch": 0.2503150403499603,
+        "yaw": 0.5340356826782227
+       }
+      }
+     }
+    },
+    {
+     "seed": 1,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.9366666666666666,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.957,
+        "pitch": 0.972,
+        "yaw": 0.957
+       },
+       "rmse_axis_rad": {
+        "roll": 0.15154854953289032,
+        "pitch": 0.08481336385011673,
+        "yaw": 0.15755543112754822
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.869,
+        "pitch": 0.862,
+        "yaw": 0.73
+       },
+       "rmse_axis_rad": {
+        "roll": 0.43478724360466003,
+        "pitch": 0.2433321624994278,
+        "yaw": 0.5611052513122559
+       }
+      }
+     }
+    },
+    {
+     "seed": 2,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.954,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.976,
+        "pitch": 0.978,
+        "yaw": 0.9665
+       },
+       "rmse_axis_rad": {
+        "roll": 0.14282530546188354,
+        "pitch": 0.0764930322766304,
+        "yaw": 0.15722326934337616
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.879,
+        "pitch": 0.898,
+        "yaw": 0.784
+       },
+       "rmse_axis_rad": {
+        "roll": 0.3959239423274994,
+        "pitch": 0.19386941194534302,
+        "yaw": 0.49430444836616516
+       }
+      }
+     }
+    }
+   ],
+   "legacy_100ms": {
+    "mean": 0.9422222222222222,
+    "spread": 0.017999999999999905
+   },
+   "axis": {
+    "5": {
+     "roll": {
+      "mean": 0.9668333333333333,
+      "spread": 0.019000000000000017
+     },
+     "pitch": {
+      "mean": 0.9763333333333334,
+      "spread": 0.007000000000000006
+     },
+     "yaw": {
+      "mean": 0.9643333333333333,
+      "spread": 0.012500000000000067
+     }
+    },
+    "25": {
+     "roll": {
+      "mean": 0.8663333333333334,
+      "spread": 0.028000000000000025
+     },
+     "pitch": {
+      "mean": 0.8743333333333334,
+      "spread": 0.03600000000000003
+     },
+     "yaw": {
+      "mean": 0.7601666666666667,
+      "spread": 0.05400000000000005
+     }
+    }
+   }
+  },
+  {
+   "corner": "condim 4, torsional 0.1 (XML value)",
+   "group": "torsional",
+   "dr": {
+    "condim": 4,
+    "friction_torsional": 0.1
+   },
+   "seeds": [
+    0,
+    1,
+    2
+   ],
+   "per_seed": [
+    {
+     "seed": 0,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.9446666666666667,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.9715,
+        "pitch": 0.977,
+        "yaw": 0.9635
+       },
+       "rmse_axis_rad": {
+        "roll": 0.12169638276100159,
+        "pitch": 0.07635004073381424,
+        "yaw": 0.13760897517204285
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.8405,
+        "pitch": 0.8635,
+        "yaw": 0.7475
+       },
+       "rmse_axis_rad": {
+        "roll": 0.43303751945495605,
+        "pitch": 0.2430761456489563,
+        "yaw": 0.46524304151535034
+       }
+      }
+     }
+    },
+    {
+     "seed": 1,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.9393333333333334,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.9555,
+        "pitch": 0.965,
+        "yaw": 0.9565
+       },
+       "rmse_axis_rad": {
+        "roll": 0.17732369899749756,
+        "pitch": 0.08558773249387741,
+        "yaw": 0.18161140382289886
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.8575,
+        "pitch": 0.8735,
+        "yaw": 0.756
+       },
+       "rmse_axis_rad": {
+        "roll": 0.47700002789497375,
+        "pitch": 0.21086257696151733,
+        "yaw": 0.4455593526363373
+       }
+      }
+     }
+    },
+    {
+     "seed": 2,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.9286666666666666,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.9705,
+        "pitch": 0.9705,
+        "yaw": 0.965
+       },
+       "rmse_axis_rad": {
+        "roll": 0.12566646933555603,
+        "pitch": 0.08142556995153427,
+        "yaw": 0.11611156165599823
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.854,
+        "pitch": 0.8695,
+        "yaw": 0.744
+       },
+       "rmse_axis_rad": {
+        "roll": 0.47723841667175293,
+        "pitch": 0.23616181313991547,
+        "yaw": 0.4522908627986908
+       }
+      }
+     }
+    }
+   ],
+   "legacy_100ms": {
+    "mean": 0.9375555555555555,
+    "spread": 0.016000000000000014
+   },
+   "axis": {
+    "5": {
+     "roll": {
+      "mean": 0.9658333333333333,
+      "spread": 0.016000000000000014
+     },
+     "pitch": {
+      "mean": 0.9708333333333333,
+      "spread": 0.01200000000000001
+     },
+     "yaw": {
+      "mean": 0.9616666666666666,
+      "spread": 0.008499999999999952
+     }
+    },
+    "25": {
+     "roll": {
+      "mean": 0.8506666666666667,
+      "spread": 0.017000000000000015
+     },
+     "pitch": {
+      "mean": 0.8688333333333333,
+      "spread": 0.010000000000000009
+     },
+     "yaw": {
+      "mean": 0.7491666666666666,
+      "spread": 0.01200000000000001
+     }
+    }
+   }
+  },
+  {
+   "corner": "condim 4, torsional 1.0 (decade above XML)",
+   "group": "torsional",
+   "dr": {
+    "condim": 4,
+    "friction_torsional": 1.0
+   },
+   "seeds": [
+    0,
+    1,
+    2
+   ],
+   "per_seed": [
+    {
+     "seed": 0,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.944,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.954,
+        "pitch": 0.9715,
+        "yaw": 0.9675
+       },
+       "rmse_axis_rad": {
+        "roll": 0.13520842790603638,
+        "pitch": 0.09760601818561554,
+        "yaw": 0.12636466324329376
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.834,
+        "pitch": 0.8555,
+        "yaw": 0.704
+       },
+       "rmse_axis_rad": {
+        "roll": 0.5072061419487,
+        "pitch": 0.2518141567707062,
+        "yaw": 0.45734989643096924
+       }
+      }
+     }
+    },
+    {
+     "seed": 1,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.9433333333333334,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.959,
+        "pitch": 0.966,
+        "yaw": 0.9605
+       },
+       "rmse_axis_rad": {
+        "roll": 0.12668491899967194,
+        "pitch": 0.09159548580646515,
+        "yaw": 0.1404053270816803
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.863,
+        "pitch": 0.87,
+        "yaw": 0.724
+       },
+       "rmse_axis_rad": {
+        "roll": 0.44267207384109497,
+        "pitch": 0.24113018810749054,
+        "yaw": 0.4322162866592407
+       }
+      }
+     }
+    },
+    {
+     "seed": 2,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.9413333333333334,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.9695,
+        "pitch": 0.9755,
+        "yaw": 0.971
+       },
+       "rmse_axis_rad": {
+        "roll": 0.11884170025587082,
+        "pitch": 0.08295158296823502,
+        "yaw": 0.12360857427120209
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.8505,
+        "pitch": 0.879,
+        "yaw": 0.7375
+       },
+       "rmse_axis_rad": {
+        "roll": 0.4059557616710663,
+        "pitch": 0.2211606502532959,
+        "yaw": 0.35425421595573425
+       }
+      }
+     }
+    }
+   ],
+   "legacy_100ms": {
+    "mean": 0.942888888888889,
+    "spread": 0.002666666666666595
+   },
+   "axis": {
+    "5": {
+     "roll": {
+      "mean": 0.9608333333333333,
+      "spread": 0.01550000000000007
+     },
+     "pitch": {
+      "mean": 0.9710000000000001,
+      "spread": 0.009500000000000064
+     },
+     "yaw": {
+      "mean": 0.9663333333333334,
+      "spread": 0.010499999999999954
+     }
+    },
+    "25": {
+     "roll": {
+      "mean": 0.8491666666666667,
+      "spread": 0.029000000000000026
+     },
+     "pitch": {
+      "mean": 0.8681666666666666,
+      "spread": 0.023499999999999965
+     },
+     "yaw": {
+      "mean": 0.7218333333333332,
+      "spread": 0.033500000000000085
+     }
+    }
+   }
+  },
+  {
+   "corner": "condim 6, torsional 0.1 rolling 0.1 (XML values)",
+   "group": "rolling",
+   "dr": {
+    "condim": 6,
+    "friction_torsional": 0.1,
+    "friction_rolling": 0.1
+   },
+   "seeds": [
+    0,
+    1,
+    2
+   ],
+   "per_seed": [
+    {
+     "seed": 0,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.9,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.9415,
+        "pitch": 0.9445,
+        "yaw": 0.95
+       },
+       "rmse_axis_rad": {
+        "roll": 0.1684291660785675,
+        "pitch": 0.11590898036956787,
+        "yaw": 0.18622401356697083
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.6245,
+        "pitch": 0.501,
+        "yaw": 0.547
+       },
+       "rmse_axis_rad": {
+        "roll": 0.46309828758239746,
+        "pitch": 0.3932052552700043,
+        "yaw": 0.5246577858924866
+       }
+      }
+     }
+    },
+    {
+     "seed": 1,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.8926666666666667,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.9225,
+        "pitch": 0.955,
+        "yaw": 0.926
+       },
+       "rmse_axis_rad": {
+        "roll": 0.15456736087799072,
+        "pitch": 0.11366431415081024,
+        "yaw": 0.1437329798936844
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.544,
+        "pitch": 0.3965,
+        "yaw": 0.525
+       },
+       "rmse_axis_rad": {
+        "roll": 0.4911116063594818,
+        "pitch": 0.44851428270339966,
+        "yaw": 0.5438847541809082
+       }
+      }
+     }
+    },
+    {
+     "seed": 2,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.896,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.933,
+        "pitch": 0.9525,
+        "yaw": 0.949
+       },
+       "rmse_axis_rad": {
+        "roll": 0.18202827870845795,
+        "pitch": 0.10961061716079712,
+        "yaw": 0.17078422009944916
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.5455,
+        "pitch": 0.46,
+        "yaw": 0.5195
+       },
+       "rmse_axis_rad": {
+        "roll": 0.4888196885585785,
+        "pitch": 0.41135430335998535,
+        "yaw": 0.5147210955619812
+       }
+      }
+     }
+    }
+   ],
+   "legacy_100ms": {
+    "mean": 0.8962222222222223,
+    "spread": 0.007333333333333303
+   },
+   "axis": {
+    "5": {
+     "roll": {
+      "mean": 0.9323333333333332,
+      "spread": 0.019000000000000017
+     },
+     "pitch": {
+      "mean": 0.9506666666666667,
+      "spread": 0.010499999999999954
+     },
+     "yaw": {
+      "mean": 0.9416666666666665,
+      "spread": 0.02399999999999991
+     }
+    },
+    "25": {
+     "roll": {
+      "mean": 0.5713333333333334,
+      "spread": 0.08050000000000002
+     },
+     "pitch": {
+      "mean": 0.45249999999999996,
+      "spread": 0.10449999999999998
+     },
+     "yaw": {
+      "mean": 0.5305,
+      "spread": 0.02750000000000008
+     }
+    }
+   }
+  },
+  {
+   "corner": "condim 6, MuJoCo default contact (0.005/0.0001)",
+   "group": "rolling",
+   "dr": {
+    "condim": 6,
+    "friction_torsional": 0.005,
+    "friction_rolling": 0.0001
+   },
+   "seeds": [
+    0,
+    1,
+    2
+   ],
+   "per_seed": [
+    {
+     "seed": 0,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.9513333333333334,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.967,
+        "pitch": 0.976,
+        "yaw": 0.963
+       },
+       "rmse_axis_rad": {
+        "roll": 0.1286485344171524,
+        "pitch": 0.0756383165717125,
+        "yaw": 0.13928228616714478
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.845,
+        "pitch": 0.84,
+        "yaw": 0.7565
+       },
+       "rmse_axis_rad": {
+        "roll": 0.5213758945465088,
+        "pitch": 0.26743796467781067,
+        "yaw": 0.5482426285743713
+       }
+      }
+     }
+    },
+    {
+     "seed": 1,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.942,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.967,
+        "pitch": 0.976,
+        "yaw": 0.961
+       },
+       "rmse_axis_rad": {
+        "roll": 0.09157583117485046,
+        "pitch": 0.0804014801979065,
+        "yaw": 0.1136159896850586
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.8815,
+        "pitch": 0.8715,
+        "yaw": 0.7505
+       },
+       "rmse_axis_rad": {
+        "roll": 0.3970086872577667,
+        "pitch": 0.23593071103096008,
+        "yaw": 0.5041293501853943
+       }
+      }
+     }
+    },
+    {
+     "seed": 2,
+     "n_ticks": 30000,
+     "legacy_within_0.2rad_rollpitch_100ms": 0.9413333333333334,
+     "per_axis": {
+      "5": {
+       "within_0.2rad_axis": {
+        "roll": 0.9605,
+        "pitch": 0.9715,
+        "yaw": 0.9515
+       },
+       "rmse_axis_rad": {
+        "roll": 0.1419111043214798,
+        "pitch": 0.07561420649290085,
+        "yaw": 0.18619459867477417
+       }
+      },
+      "25": {
+       "within_0.2rad_axis": {
+        "roll": 0.8655,
+        "pitch": 0.882,
+        "yaw": 0.742
+       },
+       "rmse_axis_rad": {
+        "roll": 0.4247494041919708,
+        "pitch": 0.24090853333473206,
+        "yaw": 0.581412136554718
+       }
+      }
+     }
+    }
+   ],
+   "legacy_100ms": {
+    "mean": 0.9448888888888889,
+    "spread": 0.010000000000000009
+   },
+   "axis": {
+    "5": {
+     "roll": {
+      "mean": 0.9648333333333333,
+      "spread": 0.00649999999999995
+     },
+     "pitch": {
+      "mean": 0.9744999999999999,
+      "spread": 0.0044999999999999485
+     },
+     "yaw": {
+      "mean": 0.9584999999999999,
+      "spread": 0.011499999999999955
+     }
+    },
+    "25": {
+     "roll": {
+      "mean": 0.864,
+      "spread": 0.03649999999999998
+     },
+     "pitch": {
+      "mean": 0.8645,
+      "spread": 0.04200000000000004
+     },
+     "yaw": {
+      "mean": 0.7496666666666666,
+      "spread": 0.014499999999999957
+     }
+    }
+   }
+  }
+ ],
+ "verdicts": {
+  "sliding 0.6 (published corner)": {
+   "legacy_delta_pts": -0.33333333333334103,
+   "legacy_material": false,
+   "axis": {
+    "roll@5": {
+     "delta_pts": -0.33333333333332993,
+     "material": false
+    },
+    "pitch@5": {
+     "delta_pts": -0.43333333333333,
+     "material": false
+    },
+    "yaw@5": {
+     "delta_pts": -0.35000000000001696,
+     "material": false
+    },
+    "roll@25": {
+     "delta_pts": 1.3333333333333197,
+     "material": false
+    },
+    "pitch@25": {
+     "delta_pts": 0.4166666666666541,
+     "material": false
+    },
+    "yaw@25": {
+     "delta_pts": -1.4000000000000123,
+     "material": false
+    }
+   }
+  },
+  "sliding 1.4 (published corner)": {
+   "legacy_delta_pts": -0.2666666666666595,
+   "legacy_material": false,
+   "axis": {
+    "roll@5": {
+     "delta_pts": -1.000000000000012,
+     "material": false
+    },
+    "pitch@5": {
+     "delta_pts": -0.7333333333333192,
+     "material": false
+    },
+    "yaw@5": {
+     "delta_pts": -0.9166666666666656,
+     "material": false
+    },
+    "roll@25": {
+     "delta_pts": -0.06666666666667043,
+     "material": false
+    },
+    "pitch@25": {
+     "delta_pts": -0.35000000000001696,
+     "material": false
+    },
+    "yaw@25": {
+     "delta_pts": -1.233333333333353,
+     "material": false
+    }
+   }
+  },
+  "torsional 1.0 at condim 3 (inert)": {
+   "legacy_delta_pts": 0.0,
+   "legacy_material": false,
+   "axis": {
+    "roll@5": {
+     "delta_pts": 0.0,
+     "material": false
+    },
+    "pitch@5": {
+     "delta_pts": 0.0,
+     "material": false
+    },
+    "yaw@5": {
+     "delta_pts": 0.0,
+     "material": false
+    },
+    "roll@25": {
+     "delta_pts": 0.0,
+     "material": false
+    },
+    "pitch@25": {
+     "delta_pts": 0.0,
+     "material": false
+    },
+    "yaw@25": {
+     "delta_pts": 0.0,
+     "material": false
+    }
+   }
+  },
+  "rolling 1.0 at condim 3 (inert)": {
+   "legacy_delta_pts": 0.0,
+   "legacy_material": false,
+   "axis": {
+    "roll@5": {
+     "delta_pts": 0.0,
+     "material": false
+    },
+    "pitch@5": {
+     "delta_pts": 0.0,
+     "material": false
+    },
+    "yaw@5": {
+     "delta_pts": 0.0,
+     "material": false
+    },
+    "roll@25": {
+     "delta_pts": 0.0,
+     "material": false
+    },
+    "pitch@25": {
+     "delta_pts": 0.0,
+     "material": false
+    },
+    "yaw@25": {
+     "delta_pts": 0.0,
+     "material": false
+    }
+   }
+  },
+  "condim 4, torsional 0.005 (MuJoCo default)": {
+   "legacy_delta_pts": -0.40000000000000036,
+   "legacy_material": false,
+   "axis": {
+    "roll@5": {
+     "delta_pts": 0.04999999999999449,
+     "material": false
+    },
+    "pitch@5": {
+     "delta_pts": 0.08333333333334636,
+     "material": false
+    },
+    "yaw@5": {
+     "delta_pts": 0.28333333333332433,
+     "material": false
+    },
+    "roll@25": {
+     "delta_pts": 1.416666666666666,
+     "material": false
+    },
+    "pitch@25": {
+     "delta_pts": 0.5333333333333301,
+     "material": false
+    },
+    "yaw@25": {
+     "delta_pts": 0.3833333333333244,
+     "material": false
+    }
+   }
+  },
+  "condim 4, torsional 0.1 (XML value)": {
+   "legacy_delta_pts": -0.8666666666666711,
+   "legacy_material": false,
+   "axis": {
+    "roll@5": {
+     "delta_pts": -0.050000000000005596,
+     "material": false
+    },
+    "pitch@5": {
+     "delta_pts": -0.4666666666666597,
+     "material": false
+    },
+    "yaw@5": {
+     "delta_pts": 0.01666666666665373,
+     "material": false
+    },
+    "roll@25": {
+     "delta_pts": -0.15000000000000568,
+     "material": false
+    },
+    "pitch@25": {
+     "delta_pts": -0.016666666666675933,
+     "material": false
+    },
+    "yaw@25": {
+     "delta_pts": -0.7166666666666766,
+     "material": false
+    }
+   }
+  },
+  "condim 4, torsional 1.0 (decade above XML)": {
+   "legacy_delta_pts": -0.3333333333333188,
+   "legacy_material": false,
+   "axis": {
+    "roll@5": {
+     "delta_pts": -0.550000000000006,
+     "material": false
+    },
+    "pitch@5": {
+     "delta_pts": -0.44999999999998375,
+     "material": false
+    },
+    "yaw@5": {
+     "delta_pts": 0.4833333333333356,
+     "material": false
+    },
+    "roll@25": {
+     "delta_pts": -0.30000000000000027,
+     "material": false
+    },
+    "pitch@25": {
+     "delta_pts": -0.08333333333334636,
+     "material": false
+    },
+    "yaw@25": {
+     "delta_pts": -3.4500000000000197,
+     "material": false
+    }
+   }
+  },
+  "condim 6, torsional 0.1 rolling 0.1 (XML values)": {
+   "legacy_delta_pts": -4.999999999999993,
+   "legacy_material": true,
+   "axis": {
+    "roll@5": {
+     "delta_pts": -3.400000000000014,
+     "material": false
+    },
+    "pitch@5": {
+     "delta_pts": -2.4833333333333263,
+     "material": false
+    },
+    "yaw@5": {
+     "delta_pts": -1.983333333333348,
+     "material": false
+    },
+    "roll@25": {
+     "delta_pts": -28.08333333333334,
+     "material": true
+    },
+    "pitch@25": {
+     "delta_pts": -41.65000000000001,
+     "material": true
+    },
+    "yaw@25": {
+     "delta_pts": -22.583333333333343,
+     "material": true
+    }
+   }
+  },
+  "condim 6, MuJoCo default contact (0.005/0.0001)": {
+   "legacy_delta_pts": -0.13333333333332975,
+   "legacy_material": false,
+   "axis": {
+    "roll@5": {
+     "delta_pts": -0.15000000000000568,
+     "material": false
+    },
+    "pitch@5": {
+     "delta_pts": -0.10000000000000009,
+     "material": false
+    },
+    "yaw@5": {
+     "delta_pts": -0.30000000000001137,
+     "material": false
+    },
+    "roll@25": {
+     "delta_pts": 1.1833333333333251,
+     "material": false
+    },
+    "pitch@25": {
+     "delta_pts": -0.45000000000000595,
+     "material": false
+    },
+    "yaw@25": {
+     "delta_pts": -0.6666666666666821,
+     "material": false
+    }
+   }
+  }
+ },
+ "runtime_s": 139.59790444374084
+}

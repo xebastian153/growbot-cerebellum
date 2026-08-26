@@ -101,7 +101,8 @@ Full write-ups with conditions and per-regime splits: [docs/EXPERIMENTS.md](docs
 | Forward model | 96.0 % within 0.2 rad at 100 ms, 82.7 % at 500 ms; yaw is the hard axis (59 % vs 77 % at 1 s); the gain over baselines concentrates in fast motion (41 → 86 %) and falls (58 → 89 %) |
 | Mimic game | planning without a model is worse than doing nothing; with it, error halves (0.210 → 0.095 rad) and 39/40 traces beat hold-still |
 | JS runner | float32-equivalent to the trained net; the equivalence test caught a real convention bug |
-| Body-parameter DR proxy | **negative** — mass/CoM/leg/gain/friction never reach the IMU at 100 ms; contact chatter dominates the gyro |
+| Body-parameter DR proxy | **negative** — mass/CoM/leg/gain/*sliding* friction never reach the IMU at 100 ms; contact chatter dominates the gyro |
+| Contact friction | the twin has **no torsional friction**: at the shipped `condim=3` the XML's torsional and rolling coefficients are inert (bit-identical under a ×100 change). Switched on, torsional still moves nothing on any axis, yaw included — the DR negative survives a proper test. The XML's own unapplied rolling value costs 22.6 pts of yaw at 500 ms if enabled |
 | Actuator dynamics | the sim-to-real signature that *is* there: a slew-limited servo opens a 3–4 pt gap; the servo is identifiable from IMU + commands alone |
 | Multi-step training loss | +1.3 pts at 500 ms, consistent across seeds, saturates by H=5 |
 | Fall recovery | planner doubles hold-still (18 → 37 %) on recoverable falls; ceiling is the two-legged body |
