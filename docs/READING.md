@@ -70,6 +70,28 @@ did not move the IMU at 100 ms, so if the spin gap is in the actuator it is in i
   `servo_1` — and the guard is now bound to that XML rather than to the constants it
   checks.)
   https://arxiv.org/abs/2505.14266
+- Pollen Robotics, *Microduck* / *microduck_rl* (open source, 2026). The closest shipped
+  relative of this body: an 800 g, 25 cm biped on fourteen Dynamixel XL330 servos, 50 Hz
+  policies trained in MuJoCo Warp and deployed by a Rust runtime — and its authors write
+  the sentence this repo measured: "at this scale — tiny servos driving a ~800 g biped —
+  actuator fidelity is most of the sim2real gap". Their actuator is BAM M6 (Rhoban):
+  a voltage control law with back-EMF and Coulomb/Stribeck/load-dependent friction,
+  fitted on a pendulum bench from position, velocity and control signals under varying
+  loads (ICRA 2025, https://arxiv.org/abs/2410.08650). Around it, per-env randomization
+  of battery voltage (6.5–8.2 V), load-dependent voltage sag, friction scale (0.9–1.1),
+  **command delay of 3–6 control steps at 50 Hz (60–120 ms)**, ±1° gear backlash modelled
+  as a passive hinge whose encoder reads through the play, ±0.86° encoder bias, and an
+  IMU mounting misalignment of up to 6° applied to the actor's observations only. Two
+  numbers land on ours from an unrelated robot: their delay band brackets the 80–120 ms
+  this repo identified on the real log, and their IMU observation delay was audited
+  down from 60 ms to a ±20 ms envelope, next to the 13–14 ms fusion lag `sensor_id`
+  measured here. Their distilled playbook (`AGENTS.md`) records that an accumulating
+  CoM randomizer "degraded every long run for months" — checked here: `perturb()` edits
+  a model loaded fresh from XML per `GrowBotSim` instance, so this twin cannot
+  accumulate. What does not transfer: BAM's identification needs an encoder on the
+  bench, which this body lacks; the untested idea worth keeping is that a phone strapped
+  to the pendulum arm would supply the angle the encoder supplies, making a BAM-style
+  fit possible on a $30 body. https://github.com/pollen-robotics/microduck_rl
 
 **Tested:** `actuator_proxy.py` / `servo_id.py` / `real2sim.py`. A slew-limited servo opens
 a 3–4 pt gap at 500 ms that an output residual cannot close and the realized horn angle
@@ -186,6 +208,14 @@ what the model sees.
   RA-L 2022. Trains the estimator jointly with the policy, on the premise that the
   estimator is part of the plant rather than a clean preprocessing step.
   https://arxiv.org/abs/2202.05481
+- Microduck's training stack treats the sensor path as part of the plant the same way:
+  a per-env constant IMU misalignment (random axis, up to 6°) rotates the policy's
+  gravity and angular-velocity observations while the critic keeps the truth, observation
+  delays are randomized inside an envelope they audited on hardware (±20 ms), and the
+  Dynamixel velocity readback is lagged one control step because the firmware's moving
+  average makes the value the policy reads about one period old. The mounting error this
+  repo had to determine empirically per file is, in their pipeline, a training-time
+  randomization. https://github.com/pollen-robotics/microduck_rl
 - The Allan-variance characterization of a MEMS gyro — angle random walk, rate random
   walk, bias instability from a stationary segment — is the standard way to give a
   simulator the sensor's real noise instead of a guessed Gaussian. Reference model:
