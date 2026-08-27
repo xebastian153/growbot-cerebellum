@@ -190,8 +190,8 @@ def run(model, path, grid, label):
                            "agree": sA[0][1] == sB[0][1]}}
 
 
-def main():
-    for f in (LOG, WALK):
+def main(log=LOG, walk=WALK):
+    for f in (log, walk):
         if not run_preflight(f):
             raise SystemExit(f"preflight FAIL on {f}")
     tr = np.load("data/train.npz")
@@ -199,7 +199,7 @@ def main():
     model = MLP(hidden=128, epochs=80).fit(Xtr, Ytr)
     grid = default_grid()
 
-    ks = keyframe_stats(LOG)
+    ks = keyframe_stats(log)
     print("\n== the keyframes, through the parser's own adapter")
     print(f"  {ks['n_keyframes']} keyframes over {ks['span_s']:.0f} s "
           f"({ks['n_pose_rows_in_file']} pose rows, {ks['send_ok_dropped']} dropped on send_ok)")
@@ -212,7 +212,7 @@ def main():
 
     print("\n== identification, same grid and protocol on both files")
     runs = []
-    for path, label in ((LOG, "gesture (act)"), (WALK, "walk-1 (official)")):
+    for path, label in ((log, "gesture (act)"), (walk, "walk-1 (official)")):
         r = run(model, path, grid, label)
         runs.append(r)
         a = r["argmin"]
@@ -232,7 +232,7 @@ def main():
               f"{'AGREE' if r['split_half']['agree'] else 'DISAGREE'}")
 
     g, w = runs[0], runs[1]
-    doc_step = documented_act_horn_deg(LOG)
+    doc_step = documented_act_horn_deg(log)
     dur = act_duration_readings(ks, doc_step, w["slew_determined"])
     print("\n== the act duration the log does not record")
     print(f"  the header's one documented act is {DOC_ACT} -- {DOC_ACT_WHERE}")
@@ -283,11 +283,21 @@ def main():
     print(f"  delay: {out['reading']['delay_reason']}")
     print(f"  vs walk-1: {out['reading']['vs_walk']}")
     print(f"  cause: {out['reading']['cause_not_established']}")
-    path = default_out_path([LOG], "gesture_id")
+    path = default_out_path([log], "gesture_id")
     with open(path, "w") as fh:
         json.dump(out, fh, indent=1)
     print(f"\nwrote {path}")
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    ap = argparse.ArgumentParser(
+        description="What an `act` (gesture) capture can and cannot identify about the servo: "
+                    "keyframe statistics through the parser's adapter, the same identification "
+                    "grid on the gesture file and on walk-1, and the act-duration readings the "
+                    "log leaves open. Writes results/gesture_id_<stem>.json and prints the report "
+                    "(tee it to results/logs/gesture_id.txt). Needs the untracked maintainer logs.")
+    ap.add_argument("--log", default=LOG, help=f"gesture (act) capture (default {LOG})")
+    ap.add_argument("--walk", default=WALK, help=f"walking capture to compare against (default {WALK})")
+    a = ap.parse_args()
+    main(a.log, a.walk)

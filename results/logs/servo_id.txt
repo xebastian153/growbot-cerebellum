@@ -1,0 +1,20 @@
+252 hypotheses on 300 s of IMU+commands: 16s
+grid resolution: delay in 20 ms steps, slew from an enumerated set, deadband 0-4 deg;
+identified values are grid points, not continuous estimates
+best 5:
+  err 0.4870  delay 2  slew 5.0  deadband 2 deg
+  err 0.4873  delay 2  slew 5.0  deadband 1 deg
+  err 0.4874  delay 2  slew 5.0  deadband 4 deg
+  err 0.4874  delay 2  slew 5.0  deadband 0 deg
+  err 0.4896  delay 2  slew 6.0  deadband 2 deg
+ideal-servo hypothesis err 0.5706   true: delay 2, slew 5.0, deadband 2 deg
+  argmin is INTERIOR to the grid (delay 0-6 ticks, slew 1.0-8.0 rad/s or none, deadband 0-4 deg; 'none' = no slew limit counts as the boundary, not as an interior point)
+split-half stability: A=(delay 2, slew 5.0)  B=(delay 2, slew 5.0)  AGREE
+delay ∈ {1, 2, 3} ticks -- separation below the confidence band (±0.0085); report the set, not the argmin
+slew ∈ {4.0, 5.0, 6.0} rad/s -- separation below the confidence band (±0.0085); report the set, not the argmin
+held-out one-step err: best 0.4629  ideal 0.5320  (fit: best 0.4870  ideal 0.5706; divergence between fit and held-out = fitting noise)
+slew separability at the identified delay: 5.0:0.4870  6.0:0.4896  4.0:0.4900  8.0:0.5008  3.0:0.5028  2.0:0.5267  None:0.5289  1.5:0.5421  1.0:0.5597   (near-ties here mean the excitation never hit the slew limit)
+
+held-out half, within 0.2 rad:
+  100 ms   commanded  94.8%   identified servo  95.5%   true horn angle  95.5%
+  500 ms   commanded  80.4%   identified servo  84.0%   true horn angle  84.0%

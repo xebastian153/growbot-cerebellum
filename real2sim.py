@@ -46,7 +46,7 @@ that distribution shift is part of the loop, not a bug, and the realized-motion
 sanity of each collection is reported as context.
 """
 from __future__ import annotations
-import json, sys, time
+import argparse, json, sys, time
 import numpy as np
 sys.path.insert(0, "."); sys.path.insert(0, "sim")
 
@@ -177,6 +177,14 @@ def band_coverage(configs):
 
 
 def main():
+    ap = argparse.ArgumentParser(
+        description="Real2Sim loop closure: the servo identified on walk-1's first half goes "
+                    "into the twin's ServoModel, the twin retrains its forward model at three "
+                    "points of the determined band plus a zero-delay smoothing-only cell and a "
+                    "nominal control, and every cell is scored on walk-1's held-out half. "
+                    "Writes results/real2sim.json and results/logs/real2sim.txt. Needs the "
+                    "untracked walk log and results/real_log_report.json.")
+    ap.parse_args()
     sys.stdout = tee = Tee("results/logs/real2sim.txt")
     t0 = time.time()
     Oh, Ah, Dh, labelh, half, total, header = load_real_heldout()

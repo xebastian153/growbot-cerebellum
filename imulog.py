@@ -1089,9 +1089,23 @@ def run_preflight(path):
 
 
 if __name__ == "__main__":
-    import sys as _sys
-    if len(_sys.argv) > 1:                 # imulog.py <file> = standalone preflight
-        raise SystemExit(0 if run_preflight(_sys.argv[1]) else 1)
+    import argparse
+    _ap = argparse.ArgumentParser(
+        description="Parser for GrowBot ?imulog=1 sessions. With a FILE: run the preflight on it "
+                    "(units, rates, clock, jitter, per-segment still physics) and exit 0 on PASS, "
+                    "1 on FAIL; nothing is written. With no FILE (or --selftest): run the "
+                    "round-trip suite -- a 600 s twin fixture with a hidden servo through the "
+                    "JSONL, CSV and growbot-imulog-1 dialects, the segmenter, per-side "
+                    "identification and the sensor-side secrets; ~5 min, writes only under /tmp. "
+                    "The suite must be green before and after any change to this module.")
+    _ap.add_argument("log", nargs="?", metavar="FILE", help="session file to preflight")
+    _ap.add_argument("--selftest", action="store_true",
+                     help="run the round-trip suite (the default when no FILE is given)")
+    _args = _ap.parse_args()
+    if _args.log is not None and _args.selftest:
+        _ap.error("give a FILE to preflight or --selftest, not both")
+    if _args.log is not None:                 # imulog.py <file> = standalone preflight
+        raise SystemExit(0 if run_preflight(_args.log) else 1)
 
     import itertools, time
     from forward import MLP, make_windows

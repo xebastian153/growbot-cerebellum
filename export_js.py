@@ -7,6 +7,7 @@ so a reader of one file understands the other.
 
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 
@@ -20,12 +21,22 @@ K = 5
 
 
 def main():
+    ap = argparse.ArgumentParser(
+        description="Train the forward model (128x2, K=5, 80 epochs) on data/train.npz and export "
+                    "it in the GrowBot policy-JSON convention, plus reference vectors for the JS "
+                    "equivalence test. Writes <out>/forward_85mm.json and "
+                    "<out>/reference_vectors.json; the shipped copies live in forward-model/. "
+                    "Training is seeded (torch and numpy) so the export is reproducible.")
+    ap.add_argument("--seed", type=int, default=0, help="training seed (default 0)")
+    ap.add_argument("--out", default=str(OUT), help=f"output directory (default {OUT})")
+    args = ap.parse_args()
+    out = Path(args.out)
     tr = np.load(HERE / "data" / "train.npz")
     te = np.load(HERE / "data" / "test.npz")
     Xtr, Ytr, *_ = make_windows(tr["obs"], tr["act"], tr["next_obs"], tr["done"], K)
     Xte, Yte, *_ = make_windows(te["obs"], te["act"], te["next_obs"], te["done"], K)
 
-    m = MLP(hidden=128, layers=2, epochs=80).fit(Xtr, Ytr)
+    m = MLP(hidden=128, layers=2, epochs=80, seed=args.seed).fit(Xtr, Ytr)   # seeds torch inside
 
     layers = []
     lin = [mod for mod in m.net if hasattr(mod, "weight")]
@@ -53,11 +64,11 @@ def main():
         "out_std": m.ysd.round(7).tolist(),
         "layers": layers,
     }
-    OUT.mkdir(exist_ok=True)
-    (OUT / "forward_85mm.json").write_text(json.dumps(doc, separators=(",", ":")))
+    out.mkdir(exist_ok=True)
+    (out / "forward_85mm.json").write_text(json.dumps(doc, separators=(",", ":")))
 
     # reference vectors: raw windows in, predicted delta out, plus a 25-step rollout
-    rng = np.random.default_rng(0)
+    rng = np.random.default_rng(args.seed)
     idx = rng.choice(len(Xte), size=64, replace=False)
     single = {"x": Xte[idx].round(6).tolist(), "y": m.predict(Xte[idx]).round(6).tolist()}
 
@@ -88,10 +99,10 @@ def main():
         win = win.reshape(1, -1)
     rollout = {"hist_imu9": hist_f.round(6).tolist(), "hist_action": hist_a.round(6).tolist(),
                "plan": plan.round(6).tolist(), "imagined": traj}
-    (OUT / "reference_vectors.json").write_text(json.dumps({"single": single, "rollout": rollout}))
+    (out / "reference_vectors.json").write_text(json.dumps({"single": single, "rollout": rollout}))
 
-    kb = (OUT / "forward_85mm.json").stat().st_size / 1024
-    print(f"wrote forward_85mm.json ({kb:.0f} KB, {m.n_params:,} params) and reference_vectors.json")
+    kb = (out / "forward_85mm.json").stat().st_size / 1024
+    print(f"wrote {out}/forward_85mm.json ({kb:.0f} KB, {m.n_params:,} params) and reference_vectors.json")
 
 
 if __name__ == "__main__":

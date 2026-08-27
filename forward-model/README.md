@@ -51,8 +51,8 @@ whose imagined roll/pitch stays within 0.2 rad of the truth:
 
 | horizon | persistence ("nothing changes") | linear | **this model** |
 |---|---|---|---|
-| 100 ms | 85.9 % | 93.5 % | **95.9 %** |
-| 500 ms | 59.0 % | 75.0 % | **83.6 %** |
+| 100 ms | 85.9 % | 93.5 % | **96.0 %** |
+| 500 ms | 59.0 % | 75.0 % | **82.7 %** |
 
 Where the body is calm the three tie; the model earns its keep under fast motion
 (41 → 86 %) and while tipping or fallen (58 → 89 %) — the bounces and shakes the

@@ -23,8 +23,9 @@ BODIES = {"walk": HERE / "growbot_body.xml", "olie": HERE / "growbot_olie_body.x
 XML = BODIES["walk"]
 POLICY = HERE / "policy_85mm.json"
 
-# Domain-randomisation ranges, copied from the upstream dr_sweep_spin.py so "a different
-# body" means what the project already means by it.
+# Domain-randomisation ranges, copied from the upstream GrowBot file
+# policy/Harsh_policies/SPIN_IN_PLACE_OLIE_EXPORT/dr_sweep_spin.py (not vendored here) so
+# "a different body" means what the project already means by it.
 DR = {"mass_scale": (0.80, 1.25), "dcom_x": (-0.030, 0.030), "dcom_y": (-0.015, 0.015),
       "dcom_z": (-0.010, 0.015), "leg_scale": (0.85, 1.15), "gain_mult": (0.75, 1.25),
       "friction": (0.6, 1.4)}

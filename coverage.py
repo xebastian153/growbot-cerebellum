@@ -80,7 +80,7 @@ concatenation is itself withdrawn -- see real2sim.py, which now scores walk-1
 alone -- and is left here only so this file reproduces what it published.
 """
 from __future__ import annotations
-import json, sys, time
+import argparse, json, sys, time
 import numpy as np
 sys.path.insert(0, "."); sys.path.insert(0, "sim")
 
@@ -124,6 +124,32 @@ class Tee:
         sys.__stdout__.flush()
         if not self.f.closed:
             self.f.flush()
+
+
+# The retraction travels WITH the artifact. A rerun rewrites results/coverage.json, and
+# without this block it would silently drop the record that the experiment is withdrawn:
+# the design defects are stated in the module docstring and cannot be fixed by rerunning.
+RETRACTION = {
+    "retracted": True,
+    "retraction": (
+        "RETRACTED. This experiment is invalid twice over and its numbers support no "
+        "conclusion. (1) PREMISE FALSE: neither log contains a sit-to-stand. The header field "
+        "the experiment was built on says the fold-to-sit happens AFTER recording ends, and "
+        "only on walks that end 'done'; walk-3 ends 'tipped'. The -1.0 rad pitch tail read as "
+        "a sit is a FALL (5 g event at t=73044 ms, rate_alpha 124-200 deg/s, ori_beta 1.8 -> "
+        "56 deg in 0.6 s). The sit pose {l:130, r:50} appears in neither pose stream. "
+        "(2) MANIPULATION NULL: the sanity precondition compared the transitions with the "
+        "target and skipped the control. The standard data already spans pitch -1.570 to "
+        "+1.570 rad, the transitions -1.568 to +1.459, walk-3 -1.013 to +0.014 -- the "
+        "augmented cells added no pitch range the control lacked, so the 2x2 varied nothing "
+        "on the axis it existed to test. s_std was computed and printed in this very file and "
+        "never entered the test. Additionally the held-out slice is roughly half walk-3, which "
+        "is 2.6 s of a motionless body under active commands followed by a fall. The file is "
+        "kept for the record; see docs/EXPERIMENTS.md 'Coverage - RETRACTED' and coverage.py's "
+        "docstring."),
+    "conclusion": ("RETRACTED -- see the 'retraction' field. The original conclusion is "
+                   "preserved in 'conclusion_retracted'."),
+}
 
 
 def sit_pose_from_header(header):
@@ -276,6 +302,15 @@ def splice(std, trans):
 
 
 def main():
+    ap = argparse.ArgumentParser(
+        description="RETRACTED coverage experiment: does adding sit<->stand transition data to "
+                    "the twin close the real pitch gap? 2x2 factorial {nominal, identified servo} "
+                    "x {standard, +transitions}, scored on the real held-out half. Its premise is "
+                    "false and its manipulation was null (see the module docstring); a rerun "
+                    "writes results/coverage.json with the retraction fields in it and the log "
+                    "to results/logs/coverage.txt. Needs the untracked walk logs and "
+                    "results/real2sim.json.")
+    ap.parse_args()
     sys.stdout = tee = Tee("results/logs/coverage.txt")
     t0 = time.time()
     THRESH = thresholds()
@@ -454,7 +489,7 @@ def main():
                       "training-coverage hole of this kind")
     if covered and cor["roll"]["material"] and cor["yaw"]["material"]:
         conclusion += "; corrected-servo replication reproduces real2sim's roll/yaw closure"
-    report["conclusion"] = conclusion
+    report["conclusion_retracted"] = conclusion
     # Additivity is a difference of differences on a manipulation that changed nothing;
     # and the differences here (1.5 and 1.2 pts) sit inside one control seed spread.
     report["additivity_caveat"] = (
@@ -462,6 +497,8 @@ def main():
         "these held-out ticks, so this supports 'consistent with additivity within noise', "
         "never 'the two effects are additive'")
     print(f"\n  {conclusion}")
+    report.update(RETRACTION)          # the withdrawal is part of the artifact, not a hand edit
+    print(f"\n  {RETRACTION['conclusion']}")
 
     json.dump(report, open("results/coverage.json", "w"), indent=1)
     print(f"\nwrote results/coverage.json   total {(time.time()-t0)/60:.1f} min")

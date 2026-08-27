@@ -48,7 +48,8 @@ it could reach a phone.
 ## Sim-to-real proxy — negative
 
 Forward model trained on the nominal Olie body, measured on the 13 domain-randomisation
-corners from `dr_sweep_spin.py` (mass 0.8–1.25, CoM ±3 cm, leg 0.85–1.15, gain 0.75–1.25,
+corners from GrowBot's `policy/Harsh_policies/SPIN_IN_PLACE_OLIE_EXPORT/dr_sweep_spin.py` —
+not in this repository; its ranges are copied into `sim/growbot_sim.DR` — (mass 0.8–1.25, CoM ±3 cm, leg 0.85–1.15, gain 0.75–1.25,
 friction 0.6–1.4), with an online linear residual learning from prediction error.
 **Nothing to correct:** frozen 93.9 % across corners vs 93.7 % nominal, per-corner yaw
 bias ±0.02, residual only adds noise. Tick-to-tick gyro change is mostly unpredictable in
@@ -644,14 +645,25 @@ the forward model is right, its input is wrong. That is Hwangbo's actuator-net f
 GrowBot has no servo position feedback, so `servo_id.py` inverts it: propose a servo model,
 replay the commands through it, feed the estimate to the frozen forward model, keep the
 hypothesis with the lowest one-step error on 300 s of **IMU + commands only**. Two hidden
-servos, 96 hypotheses, 6 s of compute: both identified exactly (delay and slew; deadband is
-the one parameter the IMU cannot see), and the held-out gap closes to the true-horn-angle
-value (80.8 → 83.9 %, 75.9 → 80.8 %). The forward model doubles as the position sensor the
-robot does not have. Sim-only, same-model-class caveat applies; the point is that a real IMU
+servos, 252 hypotheses, 16 s of compute per identification: both argmins land exactly on
+the hidden values (delay and slew; deadband is the one parameter the IMU cannot see), split
+halves agree, and the held-out gap closes to the true-horn-angle value (80.4 → 84.0 % for
+the realistic servo, 77.9 → 83.1 % for delay 1 / slew 4). Under the confidence band the
+determined sets are wider than the argmin — delay [1 … 3] ticks and slew [4 … 6] rad/s for
+the first, [0 … 3] and [3 … 6] for the second — so 300 s of the twin's own walk pins each
+parameter to about one grid step either side, not to a point. The forward model doubles as
+the position sensor the robot does not have. Sim-only, same-model-class caveat applies; the point is that a real IMU
 log of a few minutes is enough data to run this.
 
 `sensor_id.py` asks the symmetric question about the observation side (fusion-filter lag,
 gyro noise character, clock jitter), validated by the same hidden-secret round-trip in `imulog.py`.
+
+Reproduce: `.venv/bin/python actuator_proxy.py` → `results/actuator_proxy.json`,
+`results/logs/actuator_proxy.txt`. `.venv/bin/python servo_id.py` (realistic servo: delay 2,
+slew 5, deadband 2°) → `results/servo_id.json`, `results/logs/servo_id.txt`;
+`.venv/bin/python servo_id.py --true-delay 1 --true-slew 4.0 --true-deadband-deg 1` →
+`results/logs/servo_id_slew4.txt` (the JSON holds whichever ran last; the shipped one is the
+realistic servo). About 1 min each.
 
 ## Model mismatch — wrong-family identification recovers ~90 % of the gap; split-half catches drift, not shape
 
@@ -696,6 +708,9 @@ Three findings:
 
 Sim-only, single seed, and both mismatch shapes are guesses at what a loaded MG90S does —
 a real log decides whether they were the right guesses.
+
+Reproduce: `.venv/bin/python model_mismatch.py` → `results/model_mismatch.json`,
+`results/logs/model_mismatch.txt`.
 
 ## The first real logs — read per file, per segment
 
@@ -923,6 +938,12 @@ walk policy against the corrected twin upstream. It is also a confound worth nam
 the corrected twins move 40–45 % less than the control, so part of any gain may be a
 gentler training distribution rather than a better actuator model.
 
+Reproduce: `.venv/bin/python real2sim.py` → `results/real2sim.json`, `results/logs/real2sim.txt`.
+Needs the untracked `imu-walk-1-*.json` and `results/real_log_report.json`, which
+`.venv/bin/python real_log_report.py imu-walk-1-*.json imu-walk-3-*.json` writes; the
+determined band is read from that file, so the order is `real_log_report` → `real2sim` →
+`coverage` (the retracted 2×2 reads `real2sim.json` for its thresholds).
+
 ## Identification ablation — per-side gains the most and proves the least, multi-horizon backfires, and the delay was over-charged by a tick
 
 `identification_ablation.py`, on `imu-walk-1` (809 ticks, 16.2 s, the only real file that
@@ -1097,6 +1118,11 @@ statistic that looked stable only because nothing had stressed it:
   had never survived into a set, which is to say the crash was waiting for exactly the
   under-determined case the function exists to report.
 
+Reproduce: `.venv/bin/python identification_ablation.py imu-walk-1-*.json` →
+`results/identification_ablation.json`, `results/logs/identification_ablation.txt`. The
+channel-alignment variant reads the measured fusion lag from `results/sensor_id_<stem>.json`,
+so `.venv/bin/python sensor_id.py imu-walk-1-*.json` runs first.
+
 ## The gesture and still captures — the still lane pays out, the gesture lane cannot
 
 Two captures were requested to break the identification deadlock: `~15 s` of periodic
@@ -1259,6 +1285,10 @@ act, or the realized 30 Hz command stream. Either one turns the same 3.6 minutes
 record that could answer the question, and neither is an argument that the answer would
 then be the glide engine.
 
+Reproduce: `.venv/bin/python gesture_id.py` → `results/gesture_id_SEND-gesture-3_6min.json`,
+`results/logs/gesture_id.txt`. Needs the untracked `SEND-gesture-3.6min.json` and
+`imu-walk-1-*.json`.
+
 ## Coverage — **RETRACTED**: the experiment was invalid twice over
 
 > **Retraction.** This section previously published a negative result — "synthesized
@@ -1321,6 +1351,10 @@ this — the treatment must add range the **control** lacks, the target must lie
 control's range, and the pose the synthesis is built around must actually occur in the logs
 — so that a rerun is honest if the experiment is ever justified again.
 
+Reproduce: `.venv/bin/python coverage.py` → `results/coverage.json`, `results/logs/coverage.txt`.
+The script writes the `retracted` / `retraction` / `conclusion_retracted` fields itself, so a
+rerun cannot drop the withdrawal. Needs both untracked walk logs and `results/real2sim.json`.
+
 ## Multi-step training loss — small, real gain
 
 Same 128×2 net, trained through an H-tick unroll with loss on every step (SPR-style),
@@ -1335,6 +1369,8 @@ evaluated with the usual open-loop rollout. 3 seeds, 40 epochs:
 +1.2–1.4 points at 500 ms, consistent across seeds (σ ≈ 0.2), nothing at 100 ms, at 5–8×
 the training cost. Real, modest, and it saturates by H=5. It backs the "multi-step
 consistency at training time" lever without making it a big one for this body.
+
+Reproduce: `.venv/bin/python multistep.py` → `results/multistep.json`, `results/logs/multistep.txt`.
 
 ## Fall recovery through imagination — a feature, with a low physical ceiling
 
@@ -1353,6 +1389,8 @@ Twice hold-still and +8 over the reflex a person would code; the same ordering h
 side and back falls at lower rates (90 mixed starts: 30.0 % vs 18.9 / 20.0 %). The
 ceiling is the body, not the model: two legs cannot right most falls. Worth having as a
 verb; not a headline.
+
+Reproduce: `.venv/bin/python fall_recovery.py` → `results/fall_recovery.json`.
 
 ## PETS — the model knows where it is unsure; planning through that knowledge does not help
 
@@ -1378,6 +1416,9 @@ not to be trusted); it is not worth planning through on this body.
 
 Fall-recovery rates move ±5 pts with the model's training seed (30.0 % here vs 36.7 %
 above, same starts); orderings hold, absolute numbers carry that margin.
+
+Reproduce: `.venv/bin/python pets.py` → `results/pets.json`, `results/logs/pets.txt`;
+`.venv/bin/python pets_fall.py` → `results/pets_fall.json`, `results/logs/pets_fall.txt`.
 
 ## Metadata conditioning — negative
 
