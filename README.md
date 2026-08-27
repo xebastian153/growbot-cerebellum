@@ -24,7 +24,7 @@ uv venv --python 3.11 .venv
 VIRTUAL_ENV=.venv uv pip install --index-url https://pypi.org/simple \
   --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match \
   -e ".[dev]"
-.venv/bin/pytest -m "not slow"                  # 17 tests, one second
+.venv/bin/pytest -m "not slow"                  # 22 tests, one second
 .venv/bin/pytest                                # + the round-trip suite, ~5 min (same as `python imulog.py`)
 ```
 

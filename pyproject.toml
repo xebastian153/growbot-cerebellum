@@ -28,6 +28,8 @@ packages = ["growbot_cerebellum"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# The experiment CLIs live at the repository root; tests import them directly.
+pythonpath = ["."]
 markers = [
     "slow: the round-trip suite (~5 min on CPU); `pytest -m 'not slow'` runs the rest in seconds",
 ]

@@ -8,7 +8,7 @@ touching a script, and before letting any number out of this repository.
 ## Commands
 
 ```bash
-.venv/bin/pytest -m "not slow"                   # 17 fast checks, one second
+.venv/bin/pytest -m "not slow"                   # 22 fast checks, one second
 .venv/bin/pytest                                 # + the round-trip suite: 13 tests (the 8 round-trips, split), hidden secrets, must PASS before and after every change; FAILS without data/train.npz (regenerate it with the README's sim/growbot_sim.py commands)
 .venv/bin/python imulog.py                       # the same suite, run through the day-of-log command
 .venv/bin/python imulog.py session.json          # preflight a real log: units, rates, clock, stillness — FAIL gates everything downstream
