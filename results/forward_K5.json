@@ -3,6 +3,7 @@
   "one_step_rmse_delta": 0.5439549684524536,
   "rollout": {
    "1": {
+    "n_starts": 2000,
     "rmse_rollpitch_rad": 0.032644860446453094,
     "rmse_gyro_rads": 0.8812944889068604,
     "within_0.2rad": 0.9935,
@@ -18,6 +19,7 @@
     }
    },
    "5": {
+    "n_starts": 2000,
     "rmse_rollpitch_rad": 0.14191846549510956,
     "rmse_gyro_rads": 1.825491189956665,
     "within_0.2rad": 0.859,
@@ -33,6 +35,7 @@
     }
    },
    "10": {
+    "n_starts": 2000,
     "rmse_rollpitch_rad": 0.22789371013641357,
     "rmse_gyro_rads": 2.0893445014953613,
     "within_0.2rad": 0.719,
@@ -48,6 +51,7 @@
     }
    },
    "25": {
+    "n_starts": 2000,
     "rmse_rollpitch_rad": 0.3734540343284607,
     "rmse_gyro_rads": 2.124267339706421,
     "within_0.2rad": 0.5895,
@@ -63,6 +67,7 @@
     }
    },
    "50": {
+    "n_starts": 2000,
     "rmse_rollpitch_rad": 0.5170240998268127,
     "rmse_gyro_rads": 2.10200834274292,
     "within_0.2rad": 0.4895,
@@ -85,6 +90,7 @@
   "one_step_rmse_delta": 0.5053196549415588,
   "rollout": {
    "1": {
+    "n_starts": 2000,
     "rmse_rollpitch_rad": 0.01977965049445629,
     "rmse_gyro_rads": 0.8006346225738525,
     "within_0.2rad": 0.996,
@@ -100,6 +106,7 @@
     }
    },
    "5": {
+    "n_starts": 2000,
     "rmse_rollpitch_rad": 0.11104349792003632,
     "rmse_gyro_rads": 1.3014391660690308,
     "within_0.2rad": 0.9345,
@@ -115,6 +122,7 @@
     }
    },
    "10": {
+    "n_starts": 2000,
     "rmse_rollpitch_rad": 0.18642741441726685,
     "rmse_gyro_rads": 1.4129481315612793,
     "within_0.2rad": 0.8275,
@@ -130,6 +138,7 @@
     }
    },
    "25": {
+    "n_starts": 2000,
     "rmse_rollpitch_rad": 0.33825746178627014,
     "rmse_gyro_rads": 1.5203202962875366,
     "within_0.2rad": 0.75,
@@ -145,6 +154,7 @@
     }
    },
    "50": {
+    "n_starts": 2000,
     "rmse_rollpitch_rad": 0.4923866391181946,
     "rmse_gyro_rads": 1.4832799434661865,
     "within_0.2rad": 0.727,
@@ -167,6 +177,7 @@
   "one_step_rmse_delta": 0.46894240379333496,
   "rollout": {
    "1": {
+    "n_starts": 2000,
     "rmse_rollpitch_rad": 0.01896798610687256,
     "rmse_gyro_rads": 0.7256309390068054,
     "within_0.2rad": 0.9955,
@@ -182,6 +193,7 @@
     }
    },
    "5": {
+    "n_starts": 2000,
     "rmse_rollpitch_rad": 0.09551066160202026,
     "rmse_gyro_rads": 1.1731359958648682,
     "within_0.2rad": 0.96,
@@ -197,6 +209,7 @@
     }
    },
    "10": {
+    "n_starts": 2000,
     "rmse_rollpitch_rad": 0.16937194764614105,
     "rmse_gyro_rads": 1.331443190574646,
     "within_0.2rad": 0.9065,
@@ -212,6 +225,7 @@
     }
    },
    "25": {
+    "n_starts": 2000,
     "rmse_rollpitch_rad": 0.3251856863498688,
     "rmse_gyro_rads": 1.469150185585022,
     "within_0.2rad": 0.827,
@@ -227,6 +241,7 @@
     }
    },
    "50": {
+    "n_starts": 2000,
     "rmse_rollpitch_rad": 0.48373979330062866,
     "rmse_gyro_rads": 1.4539120197296143,
     "within_0.2rad": 0.774,
@@ -242,7 +257,23 @@
     }
    }
   },
-  "fit_s": 59.5,
+  "fit_s": 32.1,
   "params": 24841
+ },
+ "provenance": {
+  "git_commit": "a700cab730a9134deaa064dd51aeab12d6885c30",
+  "git_dirty": true,
+  "python": "3.11.15",
+  "numpy": "2.4.6",
+  "torch": "2.5.1+cpu",
+  "mujoco": "3.11.0",
+  "argv": [
+   "forward.py"
+  ],
+  "seeds": {
+   "mlp": 0,
+   "rollout": 0
+  },
+  "timestamp": "2026-08-27T18:37:37+00:00"
  }
 }

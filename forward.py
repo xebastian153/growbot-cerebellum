@@ -21,7 +21,7 @@ HERE = Path(__file__).parent
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--K", type=int, default=5, help="history window (ticks)")
-    ap.add_argument("--epochs", type=int, default=30)
+    ap.add_argument("--epochs", type=int, default=80, help="the value behind every published number")
     ap.add_argument("--hidden", type=int, default=128)
     ap.add_argument("--horizons", type=int, nargs="+", default=[1, 5, 10, 25, 50])
     args = ap.parse_args()

@@ -84,6 +84,9 @@ consistent with contact dominating the yaw gyro. By regime at 100 ms the three t
 fast motion (persistence 41 → MLP 86 %) and while tipping or fallen (58 → 89 %) —
 exactly where the video locates the gap. Capacity sweep saturated (192×2, 128×3 add nothing).
 
+Reproduce: `.venv/bin/python forward.py` → `results/forward_K5.json` (80 epochs, the CLI default;
+`results/logs/forward_K5.txt` is that run's redirected stdout). Total 33 s wall, 6 cores.
+
 ## Mimic game
 
 Reproduce a held-out 2 s motion by planning through imagination and executing in the twin.
