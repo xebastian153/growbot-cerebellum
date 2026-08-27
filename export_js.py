@@ -33,6 +33,11 @@ def main():
     ap.add_argument("--out", default=str(OUT), help=f"output directory (default {OUT})")
     args = ap.parse_args()
     out = Path(args.out)
+    # One block for the three files this run writes, taken BEFORE the first write: the
+    # weights file landing on disk would otherwise make the score's block read "dirty".
+    # rollout 0 is rollout_error's default start seed, which the scores use.
+    prov = provenance(seeds={"torch": args.seed, "reference": args.seed, "rollout": 0},
+                      data={"train": "data/train.npz", "score": "data/test.npz"})
     tr = np.load(HERE / "data" / "train.npz")
     te = np.load(HERE / "data" / "test.npz")
     Xtr, Ytr, *_ = make_windows(tr["obs"], tr["act"], tr["next_obs"], tr["done"], K)
@@ -65,7 +70,7 @@ def main():
         "out_mean": m.ymu.round(7).tolist(),
         "out_std": m.ysd.round(7).tolist(),
         "layers": layers,
-        "provenance": provenance(seeds={"torch": args.seed, "reference": args.seed}, data="data/train.npz"),
+        "provenance": prov,
     }
     out.mkdir(exist_ok=True)
     (out / "forward_85mm.json").write_text(json.dumps(doc, separators=(",", ":")))
@@ -116,9 +121,7 @@ def main():
              "within_0.2rad": {f"{h * 20}ms": ro[h]["within_0.2rad"] for h in (5, 25, 50)},
              "within_0.2rad_axis": {f"{h * 20}ms": ro[h]["within_0.2rad_axis"] for h in (5, 25, 50)},
              "rmse_rollpitch_rad": {f"{h * 20}ms": ro[h]["rmse_rollpitch_rad"] for h in (5, 25, 50)},
-             # rollout 0: rollout_error's default start seed, which the scores above use
-             "provenance": provenance(seeds={"torch": args.seed, "reference": args.seed, "rollout": 0},
-                                      data={"train": "data/train.npz", "score": "data/test.npz"})}
+             "provenance": prov}
     (HERE / "results").mkdir(exist_ok=True)
     (HERE / "results" / "export_js.json").write_text(json.dumps(score, indent=1))
     print("shipped weights, within 0.2 rad: " + "  ".join(f"{k} {v * 100:.1f}%" for k, v in score["within_0.2rad"].items())
