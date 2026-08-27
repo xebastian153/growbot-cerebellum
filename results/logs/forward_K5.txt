@@ -24,7 +24,7 @@ linear       one-step delta RMSE 0.5053   fit 0.1s
     epoch  70  loss 0.3788
     epoch  80  loss 0.3777
 
-mlp          one-step delta RMSE 0.4689   fit 59.5s   params 24,841
+mlp          one-step delta RMSE 0.4689   fit 36.2s   params 24,841
    horizon    ms   roll/pitch RMSE   yaw RMSE   gyro RMSE  within 0.2  yaw w0.2
          1    20            0.0190     0.0206       0.726       99.6%     99.8%
          5   100            0.0955     0.1402       1.173       96.0%     96.2%

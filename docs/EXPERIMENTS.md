@@ -84,8 +84,10 @@ consistent with contact dominating the yaw gyro. By regime at 100 ms the three t
 fast motion (persistence 41 → MLP 86 %) and while tipping or fallen (58 → 89 %) —
 exactly where the video locates the gap. Capacity sweep saturated (192×2, 128×3 add nothing).
 
-Reproduce: `.venv/bin/python forward.py` → `results/forward_K5.json` (80 epochs, the CLI default;
-`results/logs/forward_K5.txt` is that run's redirected stdout). Total 33 s wall, 6 cores.
+Reproduce: `.venv/bin/python forward.py > /path/outside/the/repo.txt` → `results/forward_K5.json`
+(80 epochs, the CLI default); copy the redirected stdout into `results/logs/forward_K5.txt` afterwards —
+redirecting straight into that tracked path dirties the tree before the provenance block is taken. Both
+committed files come from one run (`fit_s` in the JSON equals the `fit` line in the log). ~36 s wall, 6 cores.
 
 ## Mimic game
 
