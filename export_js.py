@@ -116,7 +116,9 @@ def main():
              "within_0.2rad": {f"{h * 20}ms": ro[h]["within_0.2rad"] for h in (5, 25, 50)},
              "within_0.2rad_axis": {f"{h * 20}ms": ro[h]["within_0.2rad_axis"] for h in (5, 25, 50)},
              "rmse_rollpitch_rad": {f"{h * 20}ms": ro[h]["rmse_rollpitch_rad"] for h in (5, 25, 50)},
-             "provenance": provenance(seeds={"torch": args.seed, "reference": args.seed}, data="data/train.npz")}
+             # rollout 0: rollout_error's default start seed, which the scores above use
+             "provenance": provenance(seeds={"torch": args.seed, "reference": args.seed, "rollout": 0},
+                                      data={"train": "data/train.npz", "score": "data/test.npz"})}
     (HERE / "results").mkdir(exist_ok=True)
     (HERE / "results" / "export_js.json").write_text(json.dumps(score, indent=1))
     print("shipped weights, within 0.2 rad: " + "  ".join(f"{k} {v * 100:.1f}%" for k, v in score["within_0.2rad"].items())

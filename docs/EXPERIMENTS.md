@@ -112,6 +112,10 @@ the shipped weights score 96.0 / 82.7 / 77.4 % at 100 ms / 500 ms / 1 s on the h
 a real off-by-one in the Python evaluation (which action sits in history slot 0) before
 it could reach a phone.
 
+Reproduce: `.venv/bin/python export_js.py` → `forward-model/forward_85mm.json`,
+`forward-model/reference_vectors.json`, `results/export_js.json`; then
+`node forward-model/test_forward.mjs`. Total ~40 s.
+
 ## Sim-to-real proxy — negative
 
 Forward model trained on the nominal Olie body, measured on the 13 domain-randomisation
