@@ -13,6 +13,12 @@
    2
   ],
   "K": 5,
+  "train_npz": {
+   "ticks": 400000,
+   "seed": 0,
+   "body": "walk",
+   "asserted_equal": true
+  },
   "x_grid_m": [
    -0.045,
    -0.03,
@@ -69,7 +75,10 @@
   "resolved": "the per-seed boolean is the same on all three hidden seeds",
   "seeds": "NOT paired: collect() draws sim.rng every tick for the push test, mode-dependently inside Excitation and once per episode in fresh(); three seeds answer whether the verdict holds on every seed, not whether a mean is significant",
   "noise_floor": "|err(nominal candidate) - err(second nominal candidate, other collection seed)| on the same hidden log; a separation below it is not evidence",
-  "null_case": "nominal hidden body must identify to (0, 0) on every seed (asserted)"
+  "below_noise": "a seed whose noise floor / band >= 1 is marked below_noise and excluded from every identified / argmin / truth-in-set tally and from the null case; n_below_noise is published per body",
+  "interior": "an argmin counts only when interior on every searched axis (servo_id.argmin_interior); the joint grid's slew and deadband axes are two-point, so joint argmins are boundary on them by construction",
+  "fit_quarter": "fit_quarter_* compares the two QUARTERS of the fit half, not fit vs held-out; held-out errors are reported separately",
+  "null_case": "nominal hidden body must identify to (0, 0) on every counted seed (asserted)"
  },
  "null_case_pass": false,
  "identification_com": {
@@ -106,8 +115,8 @@
      "nearest_wrong_x_gap": 0.024440646171569824,
      "nearest_wrong_z_gap": 0.03540831804275513,
      "band": 0.05960320792794227,
-     "split_half_argmin_agree": false,
-     "split_half_argmins": [
+     "fit_quarter_argmin_agree": false,
+     "fit_quarter_argmins": [
       {
        "dcom_x": 0.0,
        "dcom_z": 0.03
@@ -119,6 +128,7 @@
      ],
      "noise_floor": 0.004581034183502197,
      "noise_floor_vs_band": 0.07685885278256284,
+     "below_noise": false,
      "held_out_one_step_err": {
       "argmin_candidate": 0.4966861307621002,
       "nominal_candidate": 0.47618022561073303,
@@ -185,8 +195,8 @@
      "nearest_wrong_x_gap": 0.013560295104980469,
      "nearest_wrong_z_gap": 0.017946839332580566,
      "band": 0.016181181639432905,
-     "split_half_argmin_agree": false,
-     "split_half_argmins": [
+     "fit_quarter_argmin_agree": false,
+     "fit_quarter_argmins": [
       {
        "dcom_x": 0.0,
        "dcom_z": 0.0
@@ -198,6 +208,7 @@
      ],
      "noise_floor": 0.0072745680809021,
      "noise_floor_vs_band": 0.4495696447269501,
+     "below_noise": false,
      "held_out_one_step_err": {
       "argmin_candidate": 0.5045123100280762,
       "nominal_candidate": 0.4919627606868744,
@@ -267,8 +278,8 @@
      "nearest_wrong_x_gap": 0.009036779403686523,
      "nearest_wrong_z_gap": 0.014479517936706543,
      "band": 0.019113204771280288,
-     "split_half_argmin_agree": false,
-     "split_half_argmins": [
+     "fit_quarter_argmin_agree": false,
+     "fit_quarter_argmins": [
       {
        "dcom_x": 0.0,
        "dcom_z": 0.015
@@ -280,6 +291,7 @@
      ],
      "noise_floor": 0.009074926376342773,
      "noise_floor_vs_band": 0.47479878361261835,
+     "below_noise": false,
      "held_out_one_step_err": {
       "argmin_candidate": 0.4629999101161957,
       "nominal_candidate": 0.4788069725036621,
@@ -325,12 +337,24 @@
      }
     }
    ],
+   "below_noise": [
+    false,
+    false,
+    false
+   ],
+   "n_below_noise": 0,
    "argmin_correct": {
     "per_seed": [
      false,
      false,
      false
     ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
     "resolved": true,
     "value": false
    },
@@ -340,6 +364,12 @@
      false,
      true
     ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
     "resolved": false,
     "value": null
    },
@@ -349,15 +379,27 @@
      false,
      false
     ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
     "resolved": true,
     "value": false
    },
-   "split_half_agree": {
+   "fit_quarter_agree": {
     "per_seed": [
      false,
      false,
      false
     ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
     "resolved": true,
     "value": false
    },
@@ -367,6 +409,12 @@
      true,
      true
     ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
     "resolved": true,
     "value": true
    },
@@ -464,8 +512,8 @@
      "nearest_wrong_x_gap": 0.01459115743637085,
      "nearest_wrong_z_gap": 0.02154296636581421,
      "band": 0.04330003171563148,
-     "split_half_argmin_agree": false,
-     "split_half_argmins": [
+     "fit_quarter_argmin_agree": false,
+     "fit_quarter_argmins": [
       {
        "dcom_x": -0.045,
        "dcom_z": 0.0
@@ -477,6 +525,7 @@
      ],
      "noise_floor": 0.008764088153839111,
      "noise_floor_vs_band": 0.20240373520731722,
+     "below_noise": false,
      "held_out_one_step_err": {
       "argmin_candidate": 0.5703443288803101,
       "nominal_candidate": 0.621902585029602,
@@ -541,8 +590,8 @@
      "nearest_wrong_x_gap": 0.017536640167236328,
      "nearest_wrong_z_gap": 0.037368059158325195,
      "band": 0.016610614907741544,
-     "split_half_argmin_agree": true,
-     "split_half_argmins": [
+     "fit_quarter_argmin_agree": true,
+     "fit_quarter_argmins": [
       {
        "dcom_x": -0.045,
        "dcom_z": 0.0
@@ -554,6 +603,7 @@
      ],
      "noise_floor": 0.0015568137168884277,
      "noise_floor_vs_band": 0.0937240268066692,
+     "below_noise": false,
      "held_out_one_step_err": {
       "argmin_candidate": 0.5361326932907104,
       "nominal_candidate": 0.579426646232605,
@@ -622,8 +672,8 @@
      "nearest_wrong_x_gap": 0.014895915985107422,
      "nearest_wrong_z_gap": 0.002108633518218994,
      "band": 0.03295669468045234,
-     "split_half_argmin_agree": false,
-     "split_half_argmins": [
+     "fit_quarter_argmin_agree": false,
+     "fit_quarter_argmins": [
       {
        "dcom_x": -0.015,
        "dcom_z": 0.03
@@ -635,6 +685,7 @@
      ],
      "noise_floor": 0.0016657710075378418,
      "noise_floor_vs_band": 0.05054423763332866,
+     "below_noise": false,
      "held_out_one_step_err": {
       "argmin_candidate": 0.5416075587272644,
       "nominal_candidate": 0.5829699039459229,
@@ -680,12 +731,24 @@
      }
     }
    ],
+   "below_noise": [
+    false,
+    false,
+    false
+   ],
+   "n_below_noise": 0,
    "argmin_correct": {
     "per_seed": [
      false,
      false,
      false
     ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
     "resolved": true,
     "value": false
    },
@@ -695,6 +758,12 @@
      false,
      true
     ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
     "resolved": false,
     "value": null
    },
@@ -704,15 +773,27 @@
      false,
      false
     ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
     "resolved": true,
     "value": false
    },
-   "split_half_agree": {
+   "fit_quarter_agree": {
     "per_seed": [
      false,
      true,
      false
     ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
     "resolved": false,
     "value": null
    },
@@ -722,6 +803,12 @@
      false,
      false
     ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
     "resolved": true,
     "value": false
    },
@@ -817,8 +904,8 @@
      "nearest_wrong_x_gap": 0.005217820405960083,
      "nearest_wrong_z_gap": 0.0034873485565185547,
      "band": 0.010001765486598015,
-     "split_half_argmin_agree": false,
-     "split_half_argmins": [
+     "fit_quarter_argmin_agree": false,
+     "fit_quarter_argmins": [
       {
        "dcom_x": 0.03,
        "dcom_z": 0.015
@@ -830,6 +917,7 @@
      ],
      "noise_floor": 0.008797287940979004,
      "noise_floor_vs_band": 0.8795735065741178,
+     "below_noise": false,
      "held_out_one_step_err": {
       "argmin_candidate": 0.5512715578079224,
       "nominal_candidate": 0.5990405678749084,
@@ -894,8 +982,8 @@
      "nearest_wrong_x_gap": 0.020531654357910156,
      "nearest_wrong_z_gap": 0.031156957149505615,
      "band": 0.010933647608757018,
-     "split_half_argmin_agree": false,
-     "split_half_argmins": [
+     "fit_quarter_argmin_agree": false,
+     "fit_quarter_argmins": [
       {
        "dcom_x": 0.015,
        "dcom_z": 0.015
@@ -907,6 +995,7 @@
      ],
      "noise_floor": 0.001696765422821045,
      "noise_floor_vs_band": 0.15518749858574782,
+     "below_noise": false,
      "held_out_one_step_err": {
       "argmin_candidate": 0.5313474535942078,
       "nominal_candidate": 0.559135377407074,
@@ -971,8 +1060,8 @@
      "nearest_wrong_x_gap": 0.015490353107452393,
      "nearest_wrong_z_gap": 0.01627171039581299,
      "band": 0.012803995406627654,
-     "split_half_argmin_agree": false,
-     "split_half_argmins": [
+     "fit_quarter_argmin_agree": false,
+     "fit_quarter_argmins": [
       {
        "dcom_x": 0.03,
        "dcom_z": -0.01
@@ -984,6 +1073,7 @@
      ],
      "noise_floor": 0.015576958656311035,
      "noise_floor_vs_band": 1.2165701534263305,
+     "below_noise": true,
      "held_out_one_step_err": {
       "argmin_candidate": 0.47560739517211914,
       "nominal_candidate": 0.5239942073822021,
@@ -1029,12 +1119,24 @@
      }
     }
    ],
+   "below_noise": [
+    false,
+    false,
+    true
+   ],
+   "n_below_noise": 1,
    "argmin_correct": {
     "per_seed": [
      true,
      false,
      false
     ],
+    "counted": [
+     true,
+     true,
+     false
+    ],
+    "n_counted": 2,
     "resolved": false,
     "value": null
    },
@@ -1044,6 +1146,12 @@
      false,
      false
     ],
+    "counted": [
+     true,
+     true,
+     false
+    ],
+    "n_counted": 2,
     "resolved": false,
     "value": null
    },
@@ -1053,15 +1161,27 @@
      false,
      false
     ],
+    "counted": [
+     true,
+     true,
+     false
+    ],
+    "n_counted": 2,
     "resolved": true,
     "value": false
    },
-   "split_half_agree": {
+   "fit_quarter_agree": {
     "per_seed": [
      false,
      false,
      false
     ],
+    "counted": [
+     true,
+     true,
+     false
+    ],
+    "n_counted": 2,
     "resolved": true,
     "value": false
    },
@@ -1071,6 +1191,12 @@
      true,
      true
     ],
+    "counted": [
+     true,
+     true,
+     false
+    ],
+    "n_counted": 2,
     "resolved": true,
     "value": true
    },
@@ -1167,8 +1293,8 @@
      "nearest_wrong_x_gap": 0.0043601393699646,
      "nearest_wrong_z_gap": 0.007839858531951904,
      "band": 0.01417699770927429,
-     "split_half_argmin_agree": false,
-     "split_half_argmins": [
+     "fit_quarter_argmin_agree": false,
+     "fit_quarter_argmins": [
       {
        "dcom_x": -0.015,
        "dcom_z": 0.03
@@ -1180,6 +1306,7 @@
      ],
      "noise_floor": 0.0028142333030700684,
      "noise_floor_vs_band": 0.19850700132575014,
+     "below_noise": false,
      "held_out_one_step_err": {
       "argmin_candidate": 0.4876706898212433,
       "nominal_candidate": 0.5251044631004333,
@@ -1246,8 +1373,8 @@
      "nearest_wrong_x_gap": 0.003133535385131836,
      "nearest_wrong_z_gap": 0.003524571657180786,
      "band": 0.008078992277383804,
-     "split_half_argmin_agree": false,
-     "split_half_argmins": [
+     "fit_quarter_argmin_agree": false,
+     "fit_quarter_argmins": [
       {
        "dcom_x": 0.0,
        "dcom_z": 0.03
@@ -1259,6 +1386,7 @@
      ],
      "noise_floor": 0.011678636074066162,
      "noise_floor_vs_band": 1.4455560388093378,
+     "below_noise": true,
      "held_out_one_step_err": {
       "argmin_candidate": 0.5042078495025635,
       "nominal_candidate": 0.5356110334396362,
@@ -1326,8 +1454,8 @@
      "nearest_wrong_x_gap": 0.002895176410675049,
      "nearest_wrong_z_gap": 0.005283772945404053,
      "band": 0.01764630950689316,
-     "split_half_argmin_agree": false,
-     "split_half_argmins": [
+     "fit_quarter_argmin_agree": false,
+     "fit_quarter_argmins": [
       {
        "dcom_x": 0.015,
        "dcom_z": 0.03
@@ -1339,6 +1467,7 @@
      ],
      "noise_floor": 0.006198763847351074,
      "noise_floor_vs_band": 0.35127820040386676,
+     "below_noise": false,
      "held_out_one_step_err": {
       "argmin_candidate": 0.4955936372280121,
       "nominal_candidate": 0.5239545702934265,
@@ -1384,12 +1513,24 @@
      }
     }
    ],
+   "below_noise": [
+    false,
+    true,
+    false
+   ],
+   "n_below_noise": 1,
    "argmin_correct": {
     "per_seed": [
      false,
      false,
      false
     ],
+    "counted": [
+     true,
+     false,
+     true
+    ],
+    "n_counted": 2,
     "resolved": true,
     "value": false
    },
@@ -1399,6 +1540,12 @@
      true,
      true
     ],
+    "counted": [
+     true,
+     false,
+     true
+    ],
+    "n_counted": 2,
     "resolved": true,
     "value": true
    },
@@ -1408,15 +1555,27 @@
      false,
      false
     ],
+    "counted": [
+     true,
+     false,
+     true
+    ],
+    "n_counted": 2,
     "resolved": true,
     "value": false
    },
-   "split_half_agree": {
+   "fit_quarter_agree": {
     "per_seed": [
      false,
      false,
      false
     ],
+    "counted": [
+     true,
+     false,
+     true
+    ],
+    "n_counted": 2,
     "resolved": true,
     "value": false
    },
@@ -1426,6 +1585,12 @@
      false,
      false
     ],
+    "counted": [
+     true,
+     false,
+     true
+    ],
+    "n_counted": 2,
     "resolved": true,
     "value": false
    },
@@ -1524,6 +1689,17 @@
      "slew_determined": [
       null
      ],
+     "deadband_determined_deg": [
+      0.0,
+      2.0
+     ],
+     "argmin_interior": false,
+     "argmin_interior_x": true,
+     "argmin_interior_delay": false,
+     "two_point_axes": [
+      "slew",
+      "deadband"
+     ],
      "within_band_count": 4,
      "within_band_x_values": [
       0.015,
@@ -1609,11 +1785,12 @@
      ],
      "argmin_x_correct": true,
      "argmin_delay_correct": true,
+     "argmin_deadband_correct": false,
      "truth_x_in_set": true,
      "truth_delay_in_set": true,
      "diagonal": false,
      "band": 0.006381871470808983,
-     "split_half_argmins": [
+     "fit_quarter_argmins": [
       {
        "dcom_x": 0.03,
        "delay_ticks": 0,
@@ -1627,8 +1804,8 @@
        "deadband_deg": 2.0
       }
      ],
-     "split_half_x_agree": true,
-     "split_half_delay_agree": true
+     "fit_quarter_x_agree": true,
+     "fit_quarter_delay_agree": true
     },
     {
      "seed": 1,
@@ -1647,6 +1824,17 @@
      ],
      "slew_determined": [
       null
+     ],
+     "deadband_determined_deg": [
+      0.0,
+      2.0
+     ],
+     "argmin_interior": false,
+     "argmin_interior_x": true,
+     "argmin_interior_delay": false,
+     "two_point_axes": [
+      "slew",
+      "deadband"
      ],
      "within_band_count": 2,
      "within_band_x_values": [
@@ -1728,11 +1916,12 @@
      ],
      "argmin_x_correct": true,
      "argmin_delay_correct": true,
+     "argmin_deadband_correct": true,
      "truth_x_in_set": true,
      "truth_delay_in_set": true,
      "diagonal": false,
      "band": 0.004540641537308693,
-     "split_half_argmins": [
+     "fit_quarter_argmins": [
       {
        "dcom_x": 0.03,
        "delay_ticks": 0,
@@ -1746,8 +1935,8 @@
        "deadband_deg": 0.0
       }
      ],
-     "split_half_x_agree": true,
-     "split_half_delay_agree": true
+     "fit_quarter_x_agree": true,
+     "fit_quarter_delay_agree": true
     },
     {
      "seed": 2,
@@ -1769,6 +1958,17 @@
      ],
      "slew_determined": [
       null
+     ],
+     "deadband_determined_deg": [
+      0.0,
+      2.0
+     ],
+     "argmin_interior": false,
+     "argmin_interior_x": true,
+     "argmin_interior_delay": false,
+     "two_point_axes": [
+      "slew",
+      "deadband"
      ],
      "within_band_count": 8,
      "within_band_x_values": [
@@ -1865,11 +2065,12 @@
      ],
      "argmin_x_correct": true,
      "argmin_delay_correct": true,
+     "argmin_deadband_correct": false,
      "truth_x_in_set": true,
      "truth_delay_in_set": true,
      "diagonal": false,
      "band": 0.0068378819704055785,
-     "split_half_argmins": [
+     "fit_quarter_argmins": [
       {
        "dcom_x": 0.015,
        "delay_ticks": 0,
@@ -1883,8 +2084,8 @@
        "deadband_deg": 2.0
       }
      ],
-     "split_half_x_agree": false,
-     "split_half_delay_agree": true
+     "fit_quarter_x_agree": false,
+     "fit_quarter_delay_agree": true
     }
    ],
    "argmin_x_correct": {
@@ -1893,6 +2094,12 @@
      true,
      true
     ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
     "resolved": true,
     "value": true
    },
@@ -1902,6 +2109,12 @@
      true,
      true
     ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
     "resolved": true,
     "value": true
    },
@@ -1911,6 +2124,12 @@
      true,
      true
     ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
     "resolved": true,
     "value": true
    },
@@ -1920,6 +2139,12 @@
      true,
      true
     ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
     "resolved": true,
     "value": true
    },
@@ -1929,24 +2154,106 @@
      false,
      false
     ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
     "resolved": true,
     "value": false
    },
-   "split_half_x_agree": {
+   "argmin_deadband_correct": {
     "per_seed": [
-     true,
+     false,
      true,
      false
     ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
     "resolved": false,
     "value": null
    },
-   "split_half_delay_agree": {
+   "argmin_interior": {
+    "per_seed": [
+     false,
+     false,
+     false
+    ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
+    "resolved": true,
+    "value": false
+   },
+   "argmin_interior_x": {
     "per_seed": [
      true,
      true,
      true
     ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
+    "resolved": true,
+    "value": true
+   },
+   "argmin_interior_delay": {
+    "per_seed": [
+     false,
+     false,
+     false
+    ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
+    "resolved": true,
+    "value": false
+   },
+   "two_point_axes": [
+    "slew",
+    "deadband"
+   ],
+   "fit_quarter_x_agree": {
+    "per_seed": [
+     true,
+     true,
+     false
+    ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
+    "resolved": false,
+    "value": null
+   },
+   "fit_quarter_delay_agree": {
+    "per_seed": [
+     true,
+     true,
+     true
+    ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
     "resolved": true,
     "value": true
    },
@@ -1985,6 +2292,15 @@
      2.0
     ],
     "spread": 1.0
+   },
+   "deadband_set_size": {
+    "mean": 2.0,
+    "per_seed": [
+     2.0,
+     2.0,
+     2.0
+    ],
+    "spread": 0.0
    }
   },
   "nominal CoM, real-log servo": {
@@ -2020,6 +2336,17 @@
      ],
      "slew_determined": [
       2.0
+     ],
+     "deadband_determined_deg": [
+      0.0,
+      2.0
+     ],
+     "argmin_interior": false,
+     "argmin_interior_x": true,
+     "argmin_interior_delay": true,
+     "two_point_axes": [
+      "slew",
+      "deadband"
      ],
      "within_band_count": 14,
      "within_band_x_values": [
@@ -2131,11 +2458,12 @@
      ],
      "argmin_x_correct": false,
      "argmin_delay_correct": true,
+     "argmin_deadband_correct": true,
      "truth_x_in_set": false,
      "truth_delay_in_set": true,
      "diagonal": false,
      "band": 0.01119617232978344,
-     "split_half_argmins": [
+     "fit_quarter_argmins": [
       {
        "dcom_x": -0.015,
        "delay_ticks": 5,
@@ -2149,8 +2477,8 @@
        "deadband_deg": 2.0
       }
      ],
-     "split_half_x_agree": true,
-     "split_half_delay_agree": false
+     "fit_quarter_x_agree": true,
+     "fit_quarter_delay_agree": false
     },
     {
      "seed": 1,
@@ -2178,6 +2506,17 @@
      ],
      "slew_determined": [
       2.0
+     ],
+     "deadband_determined_deg": [
+      0.0,
+      2.0
+     ],
+     "argmin_interior": false,
+     "argmin_interior_x": true,
+     "argmin_interior_delay": false,
+     "two_point_axes": [
+      "slew",
+      "deadband"
      ],
      "within_band_count": 56,
      "within_band_x_values": [
@@ -2376,11 +2715,12 @@
      ],
      "argmin_x_correct": false,
      "argmin_delay_correct": false,
+     "argmin_deadband_correct": true,
      "truth_x_in_set": true,
      "truth_delay_in_set": true,
      "diagonal": true,
      "band": 0.03685806874930858,
-     "split_half_argmins": [
+     "fit_quarter_argmins": [
       {
        "dcom_x": 0.015,
        "delay_ticks": 5,
@@ -2394,8 +2734,8 @@
        "deadband_deg": 2.0
       }
      ],
-     "split_half_x_agree": false,
-     "split_half_delay_agree": false
+     "fit_quarter_x_agree": false,
+     "fit_quarter_delay_agree": false
     },
     {
      "seed": 2,
@@ -2420,6 +2760,17 @@
      ],
      "slew_determined": [
       2.0
+     ],
+     "deadband_determined_deg": [
+      0.0,
+      2.0
+     ],
+     "argmin_interior": false,
+     "argmin_interior_x": true,
+     "argmin_interior_delay": true,
+     "two_point_axes": [
+      "slew",
+      "deadband"
      ],
      "within_band_count": 14,
      "within_band_x_values": [
@@ -2531,11 +2882,12 @@
      ],
      "argmin_x_correct": false,
      "argmin_delay_correct": true,
+     "argmin_deadband_correct": true,
      "truth_x_in_set": false,
      "truth_delay_in_set": true,
      "diagonal": false,
      "band": 0.008109789168834685,
-     "split_half_argmins": [
+     "fit_quarter_argmins": [
       {
        "dcom_x": 0.015,
        "delay_ticks": 5,
@@ -2549,8 +2901,8 @@
        "deadband_deg": 0.0
       }
      ],
-     "split_half_x_agree": true,
-     "split_half_delay_agree": true
+     "fit_quarter_x_agree": true,
+     "fit_quarter_delay_agree": true
     }
    ],
    "argmin_x_correct": {
@@ -2559,6 +2911,12 @@
      false,
      false
     ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
     "resolved": true,
     "value": false
    },
@@ -2568,6 +2926,12 @@
      false,
      true
     ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
     "resolved": false,
     "value": null
    },
@@ -2577,6 +2941,12 @@
      true,
      false
     ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
     "resolved": false,
     "value": null
    },
@@ -2586,6 +2956,12 @@
      true,
      true
     ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
     "resolved": true,
     "value": true
    },
@@ -2595,24 +2971,106 @@
      true,
      false
     ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
     "resolved": false,
     "value": null
    },
-   "split_half_x_agree": {
+   "argmin_deadband_correct": {
+    "per_seed": [
+     true,
+     true,
+     true
+    ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
+    "resolved": true,
+    "value": true
+   },
+   "argmin_interior": {
+    "per_seed": [
+     false,
+     false,
+     false
+    ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
+    "resolved": true,
+    "value": false
+   },
+   "argmin_interior_x": {
+    "per_seed": [
+     true,
+     true,
+     true
+    ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
+    "resolved": true,
+    "value": true
+   },
+   "argmin_interior_delay": {
     "per_seed": [
      true,
      false,
      true
     ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
     "resolved": false,
     "value": null
    },
-   "split_half_delay_agree": {
+   "two_point_axes": [
+    "slew",
+    "deadband"
+   ],
+   "fit_quarter_x_agree": {
+    "per_seed": [
+     true,
+     false,
+     true
+    ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
+    "resolved": false,
+    "value": null
+   },
+   "fit_quarter_delay_agree": {
     "per_seed": [
      false,
      false,
      true
     ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
     "resolved": false,
     "value": null
    },
@@ -2649,6 +3107,15 @@
      7.0,
      7.0,
      7.0
+    ],
+    "spread": 0.0
+   },
+   "deadband_set_size": {
+    "mean": 2.0,
+    "per_seed": [
+     2.0,
+     2.0,
+     2.0
     ],
     "spread": 0.0
    }
@@ -2688,6 +3155,17 @@
      ],
      "slew_determined": [
       2.0
+     ],
+     "deadband_determined_deg": [
+      0.0,
+      2.0
+     ],
+     "argmin_interior": false,
+     "argmin_interior_x": false,
+     "argmin_interior_delay": false,
+     "two_point_axes": [
+      "slew",
+      "deadband"
      ],
      "within_band_count": 34,
      "within_band_x_values": [
@@ -2841,11 +3319,12 @@
      ],
      "argmin_x_correct": false,
      "argmin_delay_correct": false,
+     "argmin_deadband_correct": true,
      "truth_x_in_set": true,
      "truth_delay_in_set": true,
      "diagonal": true,
      "band": 0.009825489735603331,
-     "split_half_argmins": [
+     "fit_quarter_argmins": [
       {
        "dcom_x": 0.03,
        "delay_ticks": 5,
@@ -2859,8 +3338,8 @@
        "deadband_deg": 2.0
       }
      ],
-     "split_half_x_agree": false,
-     "split_half_delay_agree": false
+     "fit_quarter_x_agree": false,
+     "fit_quarter_delay_agree": false
     },
     {
      "seed": 1,
@@ -2885,6 +3364,17 @@
      ],
      "slew_determined": [
       2.0
+     ],
+     "deadband_determined_deg": [
+      0.0,
+      2.0
+     ],
+     "argmin_interior": false,
+     "argmin_interior_x": true,
+     "argmin_interior_delay": true,
+     "two_point_axes": [
+      "slew",
+      "deadband"
      ],
      "within_band_count": 14,
      "within_band_x_values": [
@@ -2996,11 +3486,12 @@
      ],
      "argmin_x_correct": true,
      "argmin_delay_correct": true,
+     "argmin_deadband_correct": true,
      "truth_x_in_set": true,
      "truth_delay_in_set": true,
      "diagonal": false,
      "band": 0.008764322528243064,
-     "split_half_argmins": [
+     "fit_quarter_argmins": [
       {
        "dcom_x": 0.03,
        "delay_ticks": 5,
@@ -3014,8 +3505,8 @@
        "deadband_deg": 2.0
       }
      ],
-     "split_half_x_agree": true,
-     "split_half_delay_agree": true
+     "fit_quarter_x_agree": true,
+     "fit_quarter_delay_agree": true
     },
     {
      "seed": 2,
@@ -3042,6 +3533,17 @@
      ],
      "slew_determined": [
       2.0
+     ],
+     "deadband_determined_deg": [
+      0.0,
+      2.0
+     ],
+     "argmin_interior": false,
+     "argmin_interior_x": true,
+     "argmin_interior_delay": true,
+     "two_point_axes": [
+      "slew",
+      "deadband"
      ],
      "within_band_count": 32,
      "within_band_x_values": [
@@ -3191,11 +3693,12 @@
      ],
      "argmin_x_correct": true,
      "argmin_delay_correct": true,
+     "argmin_deadband_correct": true,
      "truth_x_in_set": true,
      "truth_delay_in_set": true,
      "diagonal": true,
      "band": 0.008965562760829925,
-     "split_half_argmins": [
+     "fit_quarter_argmins": [
       {
        "dcom_x": 0.045,
        "delay_ticks": 6,
@@ -3209,8 +3712,8 @@
        "deadband_deg": 2.0
       }
      ],
-     "split_half_x_agree": false,
-     "split_half_delay_agree": true
+     "fit_quarter_x_agree": false,
+     "fit_quarter_delay_agree": true
     }
    ],
    "argmin_x_correct": {
@@ -3219,6 +3722,12 @@
      true,
      true
     ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
     "resolved": false,
     "value": null
    },
@@ -3228,6 +3737,12 @@
      true,
      true
     ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
     "resolved": false,
     "value": null
    },
@@ -3237,6 +3752,12 @@
      true,
      true
     ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
     "resolved": true,
     "value": true
    },
@@ -3246,6 +3767,12 @@
      true,
      true
     ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
     "resolved": true,
     "value": true
    },
@@ -3255,24 +3782,106 @@
      false,
      true
     ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
     "resolved": false,
     "value": null
    },
-   "split_half_x_agree": {
+   "argmin_deadband_correct": {
+    "per_seed": [
+     true,
+     true,
+     true
+    ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
+    "resolved": true,
+    "value": true
+   },
+   "argmin_interior": {
     "per_seed": [
      false,
-     true,
+     false,
      false
     ],
-    "resolved": false,
-    "value": null
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
+    "resolved": true,
+    "value": false
    },
-   "split_half_delay_agree": {
+   "argmin_interior_x": {
     "per_seed": [
      false,
      true,
      true
     ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
+    "resolved": false,
+    "value": null
+   },
+   "argmin_interior_delay": {
+    "per_seed": [
+     false,
+     true,
+     true
+    ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
+    "resolved": false,
+    "value": null
+   },
+   "two_point_axes": [
+    "slew",
+    "deadband"
+   ],
+   "fit_quarter_x_agree": {
+    "per_seed": [
+     false,
+     true,
+     false
+    ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
+    "resolved": false,
+    "value": null
+   },
+   "fit_quarter_delay_agree": {
+    "per_seed": [
+     false,
+     true,
+     true
+    ],
+    "counted": [
+     true,
+     true,
+     true
+    ],
+    "n_counted": 3,
     "resolved": false,
     "value": null
    },
@@ -3311,8 +3920,41 @@
      7.0
     ],
     "spread": 0.0
+   },
+   "deadband_set_size": {
+    "mean": 2.0,
+    "per_seed": [
+     2.0,
+     2.0,
+     2.0
+    ],
+    "spread": 0.0
    }
   }
  },
- "runtime_s": 678.5611410140991
+ "runtime_s": 731.0225574970245,
+ "provenance": {
+  "git_commit": "b9ae8f5296e369b252eba294d05e68fa554decbd",
+  "git_dirty": false,
+  "python": "3.11.15",
+  "numpy": "2.4.6",
+  "torch": "2.5.1+cpu",
+  "mujoco": "3.11.0",
+  "argv": [
+   "com_id.py"
+  ],
+  "seeds": {
+   "hidden": [
+    0,
+    1,
+    2
+   ],
+   "candidate": 1000,
+   "noise": 1001,
+   "train_npz": 0,
+   "mlp": 0
+  },
+  "timestamp": "2026-08-27T20:23:43+00:00",
+  "data": "data/train.npz"
+ }
 }

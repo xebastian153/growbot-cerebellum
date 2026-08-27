@@ -23,92 +23,93 @@ DECISION RULE, stated before the numbers
 CANDIDATE MODELS (35 bodies + 1 noise-floor model + the shipped model)
 ====================================================================================================
   trained dcom_x -0.045 dcom_z -0.020   (15s)
-  trained dcom_x -0.045 dcom_z -0.010   (29s)
-  trained dcom_x -0.045 dcom_z +0.000   (44s)
-  trained dcom_x -0.045 dcom_z +0.015   (59s)
-  trained dcom_x -0.045 dcom_z +0.030   (77s)
-  trained dcom_x -0.030 dcom_z -0.020   (91s)
-  trained dcom_x -0.030 dcom_z -0.010   (105s)
-  trained dcom_x -0.030 dcom_z +0.000   (119s)
-  trained dcom_x -0.030 dcom_z +0.015   (134s)
-  trained dcom_x -0.030 dcom_z +0.030   (149s)
-  trained dcom_x -0.015 dcom_z -0.020   (163s)
-  trained dcom_x -0.015 dcom_z -0.010   (177s)
-  trained dcom_x -0.015 dcom_z +0.000   (192s)
-  trained dcom_x -0.015 dcom_z +0.015   (206s)
-  trained dcom_x -0.015 dcom_z +0.030   (221s)
-  trained dcom_x +0.000 dcom_z -0.020   (235s)
-  trained dcom_x +0.000 dcom_z -0.010   (249s)
-  trained dcom_x +0.000 dcom_z +0.000   (264s)
-  trained dcom_x +0.000 dcom_z +0.015   (278s)
-  trained dcom_x +0.000 dcom_z +0.030   (293s)
-  trained dcom_x +0.015 dcom_z -0.020   (307s)
-  trained dcom_x +0.015 dcom_z -0.010   (321s)
-  trained dcom_x +0.015 dcom_z +0.000   (335s)
-  trained dcom_x +0.015 dcom_z +0.015   (350s)
-  trained dcom_x +0.015 dcom_z +0.030   (364s)
-  trained dcom_x +0.030 dcom_z -0.020   (378s)
-  trained dcom_x +0.030 dcom_z -0.010   (392s)
-  trained dcom_x +0.030 dcom_z +0.000   (407s)
-  trained dcom_x +0.030 dcom_z +0.015   (421s)
-  trained dcom_x +0.030 dcom_z +0.030   (436s)
-  trained dcom_x +0.045 dcom_z -0.020   (451s)
-  trained dcom_x +0.045 dcom_z -0.010   (465s)
-  trained dcom_x +0.045 dcom_z +0.000   (479s)
-  trained dcom_x +0.045 dcom_z +0.015   (494s)
-  trained dcom_x +0.045 dcom_z +0.030   (509s)
-  candidates ready in 550s
+  trained dcom_x -0.045 dcom_z -0.010   (30s)
+  trained dcom_x -0.045 dcom_z +0.000   (45s)
+  trained dcom_x -0.045 dcom_z +0.015   (60s)
+  trained dcom_x -0.045 dcom_z +0.030   (78s)
+  trained dcom_x -0.030 dcom_z -0.020   (93s)
+  trained dcom_x -0.030 dcom_z -0.010   (107s)
+  trained dcom_x -0.030 dcom_z +0.000   (122s)
+  trained dcom_x -0.030 dcom_z +0.015   (137s)
+  trained dcom_x -0.030 dcom_z +0.030   (152s)
+  trained dcom_x -0.015 dcom_z -0.020   (167s)
+  trained dcom_x -0.015 dcom_z -0.010   (182s)
+  trained dcom_x -0.015 dcom_z +0.000   (196s)
+  trained dcom_x -0.015 dcom_z +0.015   (211s)
+  trained dcom_x -0.015 dcom_z +0.030   (226s)
+  trained dcom_x +0.000 dcom_z -0.020   (241s)
+  trained dcom_x +0.000 dcom_z -0.010   (255s)
+  trained dcom_x +0.000 dcom_z +0.000   (269s)
+  trained dcom_x +0.000 dcom_z +0.015   (284s)
+  trained dcom_x +0.000 dcom_z +0.030   (299s)
+  trained dcom_x +0.015 dcom_z -0.020   (313s)
+  trained dcom_x +0.015 dcom_z -0.010   (327s)
+  trained dcom_x +0.015 dcom_z +0.000   (342s)
+  trained dcom_x +0.015 dcom_z +0.015   (357s)
+  trained dcom_x +0.015 dcom_z +0.030   (371s)
+  trained dcom_x +0.030 dcom_z -0.020   (386s)
+  trained dcom_x +0.030 dcom_z -0.010   (400s)
+  trained dcom_x +0.030 dcom_z +0.000   (415s)
+  trained dcom_x +0.030 dcom_z +0.015   (429s)
+  trained dcom_x +0.030 dcom_z +0.030   (444s)
+  trained dcom_x +0.045 dcom_z -0.020   (458s)
+  trained dcom_x +0.045 dcom_z -0.010   (473s)
+  trained dcom_x +0.045 dcom_z +0.000   (488s)
+  trained dcom_x +0.045 dcom_z +0.015   (502s)
+  trained dcom_x +0.045 dcom_z +0.030   (518s)
+  data/train.npz asserted equal to collect(400000, seed=0, body=walk)
+  candidates ready in 601s
 
 ====================================================================================================
 IDENTIFICATION A -- centre of mass alone, ideal servo
 ====================================================================================================
   hidden body            seed     argmin (x, z)                             x set                         z set      band    noise     xgap     zgap  verdict
-  nominal (null case)       0  (-0.015, +0.000)['-0.030', '-0.015', '+0.000', '+0.015', '+0.030']['-0.020', '-0.010', '+0.000', '+0.015']   0.05960  0.00458  0.02444  0.03541  truth in set split-half DISAGREE
-  nominal (null case)       1  (-0.015, -0.010)    ['-0.015', '+0.000', '+0.015']                    ['-0.010']   0.01618  0.00727  0.01356  0.01795  WRONG split-half DISAGREE
-  nominal (null case)       2  (+0.015, +0.000)    ['-0.015', '+0.000', '+0.015']['-0.010', '+0.000', '+0.015', '+0.030']   0.01911  0.00907  0.00904  0.01448  truth in set split-half DISAGREE
-  com x -0.03               0  (-0.045, +0.000)    ['-0.045', '-0.030', '-0.015']['-0.020', '-0.010', '+0.000']   0.04330  0.00876  0.01459  0.02154  truth in set [boundary] split-half DISAGREE
+  nominal (null case)       0  (-0.015, +0.000)['-0.030', '-0.015', '+0.000', '+0.015', '+0.030']['-0.020', '-0.010', '+0.000', '+0.015']   0.05960  0.00458  0.02444  0.03541  truth in set fit-quarter DISAGREE
+  nominal (null case)       1  (-0.015, -0.010)    ['-0.015', '+0.000', '+0.015']                    ['-0.010']   0.01618  0.00727  0.01356  0.01795  WRONG fit-quarter DISAGREE
+  nominal (null case)       2  (+0.015, +0.000)    ['-0.015', '+0.000', '+0.015']['-0.010', '+0.000', '+0.015', '+0.030']   0.01911  0.00907  0.00904  0.01448  truth in set fit-quarter DISAGREE
+  com x -0.03               0  (-0.045, +0.000)    ['-0.045', '-0.030', '-0.015']['-0.020', '-0.010', '+0.000']   0.04330  0.00876  0.01459  0.02154  truth in set [boundary] fit-quarter DISAGREE
   com x -0.03               1  (-0.045, +0.000)                        ['-0.045']                    ['+0.000']   0.01661  0.00156  0.01754  0.03737  WRONG [boundary]
-  com x -0.03               2  (-0.045, +0.000)    ['-0.045', '-0.030', '-0.015']['-0.020', '-0.010', '+0.000']   0.03296  0.00167  0.01490  0.00211  truth in set [boundary] split-half DISAGREE
-  com x +0.03               0  (+0.030, +0.000)              ['+0.015', '+0.030']          ['+0.000', '+0.015']   0.01000  0.00880  0.00522  0.00349  truth in set split-half DISAGREE
-  com x +0.03               1  (+0.015, +0.015)                        ['+0.015']                    ['+0.015']   0.01093  0.00170  0.02053  0.03116  WRONG split-half DISAGREE
-  com x +0.03               2  (+0.030, +0.015)                        ['+0.030']                    ['+0.015']   0.01280  0.01558  0.01549  0.01627  WRONG split-half DISAGREE
-  com z +0.015              0  (-0.015, +0.030)    ['-0.015', '+0.000', '+0.015']          ['+0.015', '+0.030']   0.01418  0.00281  0.00436  0.00784  truth in set [boundary] split-half DISAGREE
-  com z +0.015              1  (+0.000, +0.030)              ['-0.015', '+0.000']          ['+0.015', '+0.030']   0.00808  0.01168  0.00313  0.00352  truth in set [boundary] split-half DISAGREE
-  com z +0.015              2  (+0.015, +0.030)    ['-0.015', '+0.000', '+0.015']          ['+0.015', '+0.030']   0.01765  0.00620  0.00290  0.00528  truth in set [boundary] split-half DISAGREE
-  null case: nominal hidden body identifies to (0, 0) on every seed -- FAIL [False, False, False]
+  com x -0.03               2  (-0.045, +0.000)    ['-0.045', '-0.030', '-0.015']['-0.020', '-0.010', '+0.000']   0.03296  0.00167  0.01490  0.00211  truth in set [boundary] fit-quarter DISAGREE
+  com x +0.03               0  (+0.030, +0.000)              ['+0.015', '+0.030']          ['+0.000', '+0.015']   0.01000  0.00880  0.00522  0.00349  truth in set fit-quarter DISAGREE
+  com x +0.03               1  (+0.015, +0.015)                        ['+0.015']                    ['+0.015']   0.01093  0.00170  0.02053  0.03116  WRONG fit-quarter DISAGREE
+  com x +0.03               2  (+0.030, +0.015)                        ['+0.030']                    ['+0.015']   0.01280  0.01558  0.01549  0.01627  WRONG fit-quarter DISAGREE BELOW NOISE (excluded)
+  com z +0.015              0  (-0.015, +0.030)    ['-0.015', '+0.000', '+0.015']          ['+0.015', '+0.030']   0.01418  0.00281  0.00436  0.00784  truth in set [boundary] fit-quarter DISAGREE
+  com z +0.015              1  (+0.000, +0.030)              ['-0.015', '+0.000']          ['+0.015', '+0.030']   0.00808  0.01168  0.00313  0.00352  truth in set [boundary] fit-quarter DISAGREE BELOW NOISE (excluded)
+  com z +0.015              2  (+0.015, +0.030)    ['-0.015', '+0.000', '+0.015']          ['+0.015', '+0.030']   0.01765  0.00620  0.00290  0.00528  truth in set [boundary] fit-quarter DISAGREE
+  null case: nominal hidden body identifies to (0, 0) on every counted seed -- FAIL [False, False, False] (3 of 3 seeds above the noise floor)
 
 ====================================================================================================
 IDENTIFICATION B -- the confound: joint dcom_x x servo grid
 ====================================================================================================
-  com x +0.03, ideal servo       seed 0: argmin dcom_x +0.030 delay 0 slew None db 2 deg | x set ['+0.015', '+0.030'] delay set [0] | within band: 4 hyps over x ['+0.015', '+0.030'] x delay [0] | band 0.00638 | point
+  com x +0.03, ideal servo       seed 0: argmin dcom_x +0.030 delay 0 slew None db 2 deg | x set ['+0.015', '+0.030'] delay set [0] | within band: 4 hyps over x ['+0.015', '+0.030'] x delay [0] | band 0.00638 | point [delay boundary] [slew/deadband two-point]
       ridge (best servo per dcom_x): x-0.045->d0, x-0.030->d0, x-0.015->d0, x+0.000->d0, x+0.015->d0*, x+0.030->d0*, x+0.045->d0
-  com x +0.03, ideal servo       seed 1: argmin dcom_x +0.030 delay 0 slew None db 0 deg | x set ['+0.030'] delay set [0] | within band: 2 hyps over x ['+0.030'] x delay [0] | band 0.00454 | point
+  com x +0.03, ideal servo       seed 1: argmin dcom_x +0.030 delay 0 slew None db 0 deg | x set ['+0.030'] delay set [0] | within band: 2 hyps over x ['+0.030'] x delay [0] | band 0.00454 | point [delay boundary] [slew/deadband two-point]
       ridge (best servo per dcom_x): x-0.045->d0, x-0.030->d1, x-0.015->d0, x+0.000->d0, x+0.015->d0, x+0.030->d0*, x+0.045->d0
-  com x +0.03, ideal servo       seed 2: argmin dcom_x +0.030 delay 0 slew None db 2 deg | x set ['+0.015', '+0.030', '+0.045'] delay set [0, 1] | within band: 8 hyps over x ['+0.015', '+0.030', '+0.045'] x delay [0, 1] | band 0.00684 | point
+  com x +0.03, ideal servo       seed 2: argmin dcom_x +0.030 delay 0 slew None db 2 deg | x set ['+0.015', '+0.030', '+0.045'] delay set [0, 1] | within band: 8 hyps over x ['+0.015', '+0.030', '+0.045'] x delay [0, 1] | band 0.00684 | point [delay boundary] [slew/deadband two-point]
       ridge (best servo per dcom_x): x-0.045->d0, x-0.030->d0, x-0.015->d0, x+0.000->d0, x+0.015->d0*, x+0.030->d0*, x+0.045->d0*
-  nominal CoM, real-log servo    seed 0: argmin dcom_x -0.015 delay 5 slew 2.0 db 2 deg | x set ['-0.015'] delay set [0, 1, 2, 3, 4, 5, 6] | within band: 14 hyps over x ['-0.015'] x delay [0, 1, 2, 3, 4, 5, 6] | band 0.01120 | point
+  nominal CoM, real-log servo    seed 0: argmin dcom_x -0.015 delay 5 slew 2.0 db 2 deg | x set ['-0.015'] delay set [0, 1, 2, 3, 4, 5, 6] | within band: 14 hyps over x ['-0.015'] x delay [0, 1, 2, 3, 4, 5, 6] | band 0.01120 | point [slew/deadband two-point]
       ridge (best servo per dcom_x): x-0.045->d5, x-0.030->d6, x-0.015->d5*, x+0.000->d5, x+0.015->d5, x+0.030->d6, x+0.045->d6
-  nominal CoM, real-log servo    seed 1: argmin dcom_x -0.015 delay 6 slew 2.0 db 2 deg | x set ['-0.030', '-0.015', '+0.000', '+0.015'] delay set [0, 1, 2, 3, 4, 5, 6] | within band: 56 hyps over x ['-0.030', '-0.015', '+0.000', '+0.015'] x delay [0, 1, 2, 3, 4, 5, 6] | band 0.03686 | DIAGONAL
+  nominal CoM, real-log servo    seed 1: argmin dcom_x -0.015 delay 6 slew 2.0 db 2 deg | x set ['-0.030', '-0.015', '+0.000', '+0.015'] delay set [0, 1, 2, 3, 4, 5, 6] | within band: 56 hyps over x ['-0.030', '-0.015', '+0.000', '+0.015'] x delay [0, 1, 2, 3, 4, 5, 6] | band 0.03686 | DIAGONAL [delay boundary] [slew/deadband two-point]
       ridge (best servo per dcom_x): x-0.045->d5, x-0.030->d6*, x-0.015->d6*, x+0.000->d6*, x+0.015->d5*, x+0.030->d5, x+0.045->d6
-  nominal CoM, real-log servo    seed 2: argmin dcom_x +0.015 delay 5 slew 2.0 db 2 deg | x set ['+0.015'] delay set [0, 1, 2, 3, 4, 5, 6] | within band: 14 hyps over x ['+0.015'] x delay [0, 1, 2, 3, 4, 5, 6] | band 0.00811 | point
+  nominal CoM, real-log servo    seed 2: argmin dcom_x +0.015 delay 5 slew 2.0 db 2 deg | x set ['+0.015'] delay set [0, 1, 2, 3, 4, 5, 6] | within band: 14 hyps over x ['+0.015'] x delay [0, 1, 2, 3, 4, 5, 6] | band 0.00811 | point [slew/deadband two-point]
       ridge (best servo per dcom_x): x-0.045->d5, x-0.030->d6, x-0.015->d5, x+0.000->d5, x+0.015->d5*, x+0.030->d5, x+0.045->d5
-  com x +0.03, real-log servo    seed 0: argmin dcom_x +0.045 delay 6 slew 2.0 db 2 deg | x set ['+0.015', '+0.030', '+0.045'] delay set [0, 1, 2, 3, 4, 5, 6] | within band: 34 hyps over x ['+0.015', '+0.030', '+0.045'] x delay [0, 1, 2, 3, 4, 5, 6] | band 0.00983 | DIAGONAL
+  com x +0.03, real-log servo    seed 0: argmin dcom_x +0.045 delay 6 slew 2.0 db 2 deg | x set ['+0.015', '+0.030', '+0.045'] delay set [0, 1, 2, 3, 4, 5, 6] | within band: 34 hyps over x ['+0.015', '+0.030', '+0.045'] x delay [0, 1, 2, 3, 4, 5, 6] | band 0.00983 | DIAGONAL [x boundary] [delay boundary] [slew/deadband two-point]
       ridge (best servo per dcom_x): x-0.045->d5, x-0.030->d0, x-0.015->d6, x+0.000->d6, x+0.015->d6*, x+0.030->d5*, x+0.045->d6*
-  com x +0.03, real-log servo    seed 1: argmin dcom_x +0.030 delay 5 slew 2.0 db 2 deg | x set ['+0.030'] delay set [0, 1, 2, 3, 4, 5, 6] | within band: 14 hyps over x ['+0.030'] x delay [0, 1, 2, 3, 4, 5, 6] | band 0.00876 | point
+  com x +0.03, real-log servo    seed 1: argmin dcom_x +0.030 delay 5 slew 2.0 db 2 deg | x set ['+0.030'] delay set [0, 1, 2, 3, 4, 5, 6] | within band: 14 hyps over x ['+0.030'] x delay [0, 1, 2, 3, 4, 5, 6] | band 0.00876 | point [slew/deadband two-point]
       ridge (best servo per dcom_x): x-0.045->d5, x-0.030->d0, x-0.015->d6, x+0.000->d6, x+0.015->d5, x+0.030->d5*, x+0.045->d6
-  com x +0.03, real-log servo    seed 2: argmin dcom_x +0.030 delay 5 slew 2.0 db 2 deg | x set ['+0.015', '+0.030', '+0.045'] delay set [0, 1, 2, 3, 4, 5, 6] | within band: 32 hyps over x ['+0.015', '+0.030', '+0.045'] x delay [0, 1, 2, 3, 4, 5, 6] | band 0.00897 | DIAGONAL
+  com x +0.03, real-log servo    seed 2: argmin dcom_x +0.030 delay 5 slew 2.0 db 2 deg | x set ['+0.015', '+0.030', '+0.045'] delay set [0, 1, 2, 3, 4, 5, 6] | within band: 32 hyps over x ['+0.015', '+0.030', '+0.045'] x delay [0, 1, 2, 3, 4, 5, 6] | band 0.00897 | DIAGONAL [slew/deadband two-point]
       ridge (best servo per dcom_x): x-0.045->d5, x-0.030->d4, x-0.015->d6, x+0.000->d6, x+0.015->d5*, x+0.030->d5*, x+0.045->d6*
 
 ====================================================================================================
 VERDICT (resolved = the same on all three seeds)
 ====================================================================================================
-  A nominal (null case)    identified [False, False, False] resolved=True | truth in sets [True, False, True] | x-set size [5.0, 3.0, 3.0] z-set size [4.0, 1.0, 4.0] | band 0.03163 +-0.02171 | noise floor 0.00698 (0.2x band)
-  A com x -0.03            identified [False, False, False] resolved=True | truth in sets [True, False, True] | x-set size [3.0, 1.0, 3.0] z-set size [3.0, 1.0, 3.0] | band 0.03096 +-0.01334 | noise floor 0.00400 (0.1x band)
-  A com x +0.03            identified [False, False, False] resolved=True | truth in sets [True, False, False] | x-set size [2.0, 1.0, 1.0] z-set size [2.0, 1.0, 1.0] | band 0.01125 +-0.00140 | noise floor 0.00869 (0.8x band)
-  A com z +0.015           identified [False, False, False] resolved=True | truth in sets [True, True, True] | x-set size [3.0, 2.0, 3.0] z-set size [2.0, 2.0, 2.0] | band 0.01330 +-0.00478 | noise floor 0.00690 (0.5x band)
+  A nominal (null case)    identified [False, False, False] counted [True, True, True] resolved=True | truth in sets [True, False, True] | x-set size [5.0, 3.0, 3.0] z-set size [4.0, 1.0, 4.0] | band 0.03163 +-0.02171 | noise floor 0.00698 (0.2x band)
+  A com x -0.03            identified [False, False, False] counted [True, True, True] resolved=True | truth in sets [True, False, True] | x-set size [3.0, 1.0, 3.0] z-set size [3.0, 1.0, 3.0] | band 0.03096 +-0.01334 | noise floor 0.00400 (0.1x band)
+  A com x +0.03            identified [False, False, False] counted [True, True, False] resolved=True | truth in sets [True, False, False] | x-set size [2.0, 1.0, 1.0] z-set size [2.0, 1.0, 1.0] | band 0.01125 +-0.00140 | noise floor 0.00869 (0.8x band)
+  A com z +0.015           identified [False, False, False] counted [True, False, True] resolved=True | truth in sets [True, True, True] | x-set size [3.0, 2.0, 3.0] z-set size [2.0, 2.0, 2.0] | band 0.01330 +-0.00478 | noise floor 0.00690 (0.5x band)
   B com x +0.03, ideal servo       x correct [True, True, True] delay correct [True, True, True] | truth x in set [True, True, True] truth delay in set [True, True, True] | diagonal [False, False, False] resolved=True | within-band hyps [4.0, 2.0, 8.0]
   B nominal CoM, real-log servo    x correct [False, False, False] delay correct [True, False, True] | truth x in set [False, True, False] truth delay in set [True, True, True] | diagonal [False, True, False] resolved=False | within-band hyps [14.0, 56.0, 14.0]
   B com x +0.03, real-log servo    x correct [False, True, True] delay correct [False, True, True] | truth x in set [True, True, True] truth delay in set [True, True, True] | diagonal [True, False, True] resolved=False | within-band hyps [34.0, 14.0, 32.0]
 
-wrote results/com_id.json   total 679s
+wrote results/com_id.json   total 731s
 NULL CASE FAILED -- the nominal hidden body did not identify to (0, 0) on every seed; see identification_com['nominal (null case)'] in the artifact
