@@ -401,8 +401,26 @@ def confidence_band(scoresA, scoresB):
     """
     eA = {_key(kw): e for e, kw in scoresA}
     eB = {_key(kw): e for e, kw in scoresB}
-    d = np.array([eA[k] - eB[k] for k in eA])
+    return band_from_errors(eA, eB)
+
+
+def band_from_errors(errA, errB):
+    """The estimator behind confidence_band on plain {hypothesis: error} dicts.
+
+    One implementation for every grid shape: the servo grid keys by (delay, slew,
+    deadband); com_id keys by (dcom_x, dcom_z) or the joint tuple. The math is the one
+    confidence_band documents -- 1.4826 * MAD of (errA - errB) over every hypothesis,
+    halved for the full fit size."""
+    d = np.array([errA[k] - errB[k] for k in errA])
     return float(1.4826 * np.median(np.abs(d - np.median(d)))) / 2.0
+
+
+def within_band(err, best_e, band, values, key_at):
+    """The determined-set rule on a plain {hypothesis: error} dict: the `values` of one
+    axis whose hypothesis `key_at(v)` (the other axes held at the argmin) costs no more
+    than `band` over the best error. determined_sets is this rule on the servo grid."""
+    keep = [v for v in values if err.get(key_at(v), np.inf) - best_e <= band]
+    return sorted(keep, key=lambda v: (v is None, v))
 
 
 def determined_sets(scores, best, grid, band):
@@ -418,18 +436,14 @@ def determined_sets(scores, best, grid, band):
     best_e = scores[0][0]
     db = round(float(best["deadband"]), 5)
 
-    def determined(values, fixed):
-        # ordered with the same key the candidate list uses: 'None' (no slew limit) is a
-        # legal member, and plain sorted() raises the moment it lands in a set beside a
-        # number. That is exactly the under-determined case this function exists to
-        # report -- the log could not rule out "no slew limit at all" -- so the crash was
-        # waiting for the one answer it most needed to deliver.
-        keep = {v for v in values if fit_err.get(fixed(v), np.inf) - best_e <= band}
-        return sorted(keep, key=lambda v: (v is None, v))
-
+    # ordered with the same key the candidate list uses: 'None' (no slew limit) is a
+    # legal member, and plain sorted() raises the moment it lands in a set beside a
+    # number. That is exactly the under-determined case this function exists to
+    # report -- the log could not rule out "no slew limit at all" -- so the crash was
+    # waiting for the one answer it most needed to deliver.
     delays = sorted({d for d, _, _ in grid})
     slews = sorted({s for _, s, _ in grid}, key=lambda v: (v is None, v))
-    return (determined(delays, lambda v: (v, best["slew_rad_s"], db)),
-            determined(slews, lambda v: (best["delay_ticks"], v, db)))
+    return (within_band(fit_err, best_e, band, delays, lambda v: (v, best["slew_rad_s"], db)),
+            within_band(fit_err, best_e, band, slews, lambda v: (best["delay_ticks"], v, db)))
 
 

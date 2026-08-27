@@ -33,10 +33,16 @@ cannot separate them.
 
 Decision rule, stated before the numbers (the same machinery as servo_id / body_params):
   band        1.4826 * MAD / 2 of (err_A - err_B) over every hypothesis, A/B = the two
-              quarters of the fit half (`servo_id.confidence_band`'s estimator).
+              quarters of the fit half (`servo_id.band_from_errors`, the estimator behind
+              `servo_id.confidence_band`, imported, not re-implemented).
   determined  the grid values within `band` of the best error with the other parameters
-              held at the argmin (`servo_id.determined_sets`' rule); a one-element set
-              containing the truth is an identification, a longer set is the honest answer.
+              held at the argmin (`servo_id.within_band`, the rule behind
+              `servo_id.determined_sets`); a one-element set containing the truth is an
+              identification, a longer set is the honest answer.
+  interior    an argmin counts only when it is interior on EVERY searched axis
+              (`servo_id.argmin_interior`'s semantics: 'slew None' is the open end). The
+              joint grid's slew and deadband axes carry two values each, so a joint argmin
+              is at a boundary on those two axes by construction; the artifact says so.
   per seed    argmin correct / truth in set / set == {truth}; three hidden seeds per body.
   resolved    the per-seed verdict is the same on all three seeds. Seeds are NOT paired
               (collect() draws sim.rng every tick for the push test, mode-dependently inside
@@ -44,7 +50,10 @@ Decision rule, stated before the numbers (the same machinery as servo_id / body_
               verdict hold on every seed", not "is the mean significant".
   null case   the nominal hidden body MUST identify to (0, 0) on every seed. Hard assertion.
   noise floor |err(nominal candidate) - err(second nominal candidate)| on the same hidden
-              log; a CoM separation smaller than this is not evidence.
+              log; a CoM separation smaller than this is not evidence. CONSUMED, not just
+              printed: a seed whose noise floor reaches its band (ratio >= 1) is marked
+              below_noise and excluded from every identified / argmin / truth-in-set tally
+              and from the null-case assertion; the count excluded is published.
   mechanism   every sentence in the write-up that explains a result carries the same
               resolved / unresolved mark as the numbers it rests on.
 
@@ -62,12 +71,14 @@ import numpy as np
 from growbot_cerebellum import provenance
 from growbot_cerebellum.sim import collect, ServoModel, DR
 from growbot_cerebellum.forward import MLP, make_windows, K
-from growbot_cerebellum.servo_id import realized_from_commands, _extend_cuts
+from growbot_cerebellum.servo_id import (realized_from_commands, _extend_cuts, band_from_errors,
+                                         within_band, argmin_interior)
 from growbot_cerebellum.honesty import seed_stat
 
 BODY = "walk"
 CAND_SEED, NOISE_SEED = 1000, 1001          # candidate collections; never a hidden-log seed
 HIDDEN_SEEDS = [0, 1, 2]
+TRAIN_STEPS, TRAIN_SEED = 400_000, 0        # data/train.npz, asserted before the shipped model is fit
 X_STEP, Z_LO, Z_HI = 0.015, DR["dcom_z"][0], DR["dcom_z"][1]
 X_GRID = [-0.045, -0.030, -0.015, 0.0, 0.015, 0.030, 0.045]          # DR ends +-0.030, one step beyond
 Z_GRID = [-0.020, Z_LO, 0.0, Z_HI, 0.030]                              # DR ends -0.010 / +0.015, one step beyond
@@ -108,16 +119,6 @@ def one_step_scorer(O, A, O2, D, max_delay):
     return score
 
 
-def band_of(errA, errB):
-    d = np.array([errA[k] - errB[k] for k in errA])
-    return float(1.4826 * np.median(np.abs(d - np.median(d)))) / 2.0
-
-
-def determined(err, best_key, best_e, band, axis, values, key_at):
-    """Values of one parameter within `band` of the best error, the others held at the argmin."""
-    return [v for v in values if err.get(key_at(best_key, axis, v), np.inf) - best_e <= band]
-
-
 # ----------------------------------------------------------------------
 # identification A: CoM alone (ideal servo)
 # ----------------------------------------------------------------------
@@ -129,9 +130,8 @@ def identify_com(models, O, A, O2, D):
 
 def com_verdict(err, band, truth):
     best_key = min(err, key=err.get); best_e = err[best_key]
-    at = lambda bk, axis, v: ((v, bk[1]) if axis == "x" else (bk[0], v))
-    xs = determined(err, best_key, best_e, band, "x", X_GRID, at)
-    zs = determined(err, best_key, best_e, band, "z", Z_GRID, at)
+    xs = within_band(err, best_e, band, X_GRID, lambda v: (v, best_key[1]))
+    zs = within_band(err, best_e, band, Z_GRID, lambda v: (best_key[0], v))
     interior = (min(X_GRID) < best_key[0] < max(X_GRID)) and (min(Z_GRID) < best_key[1] < max(Z_GRID))
     tx, tz = truth[0], truth[2]
     return {"argmin": {"dcom_x": best_key[0], "dcom_z": best_key[1]}, "best_err": best_e,
@@ -166,9 +166,17 @@ def identify_joint(models_x, O, A, O2, D):
 def joint_verdict(err, band, truth_x, truth_servo):
     best_key = min(err, key=err.get); best_e = err[best_key]
     x0, d0, s0, db0 = best_key
-    xs = [v for v in X_GRID if err[(v, d0, s0, db0)] - best_e <= band]
-    ds = [v for v in DELAYS if err[(x0, v, s0, db0)] - best_e <= band]
-    ss = [v for v in SLEWS if err[(x0, d0, v, db0)] - best_e <= band]
+    xs = within_band(err, best_e, band, X_GRID, lambda v: (v, d0, s0, db0))
+    ds = within_band(err, best_e, band, DELAYS, lambda v: (x0, v, s0, db0))
+    ss = within_band(err, best_e, band, SLEWS, lambda v: (x0, d0, v, db0))
+    dbs = within_band(err, best_e, band, DBS, lambda v: (x0, d0, s0, v))
+    # interiority on all four searched axes. servo_id.argmin_interior rules the three servo
+    # axes ('slew None' is the open end); x is the same test on its own grid. SLEWS and DBS
+    # hold two values each, so on those axes every argmin is a boundary by construction.
+    servo_interior, _ = argmin_interior(dict(delay_ticks=d0, slew_rad_s=s0, deadband=db0),
+                                        list(itertools.product(DELAYS, SLEWS, DBS)))
+    x_interior = min(X_GRID) < x0 < max(X_GRID)
+    delay_interior = min(DELAYS) < d0 < max(DELAYS)
     within = sorted([k for k, e in err.items() if e - best_e <= band], key=lambda k: err[k])
     # the ridge: for each dcom_x, the best servo hypothesis and its error. A delay that
     # drifts with dcom_x is the trade-off, a delay that stays put is separability.
@@ -186,22 +194,31 @@ def joint_verdict(err, band, truth_x, truth_servo):
     ridge_delays = [r["best_delay"] for r in ridge if r["within_band"]]
     return {"argmin": {"dcom_x": x0, "delay_ticks": d0, "slew_rad_s": s0, "deadband_deg": float(np.rad2deg(db0))},
             "best_err": best_e,
-            "x_determined": xs, "delay_determined": ds, "slew_determined": ss,
+            "x_determined": xs, "delay_determined": ds, "slew_determined": ss, "deadband_determined_deg": [float(np.rad2deg(v)) for v in dbs],
+            "argmin_interior": bool(x_interior and servo_interior),
+            "argmin_interior_x": bool(x_interior), "argmin_interior_delay": bool(delay_interior),
+            "two_point_axes": ["slew", "deadband"],
             "within_band_count": len(within), "within_band_x_values": xs_in, "within_band_delay_values": ds_in,
             "within_band_pairs_x_delay": [list(p) for p in pairs],
             "ridge": ridge,
             "argmin_x_correct": bool(abs(x0 - truth_x) < 1e-9),
             "argmin_delay_correct": bool(d0 == ts["delay_ticks"]),
+            "argmin_deadband_correct": bool(abs(db0 - ts["deadband"]) < 1e-9),
             "truth_x_in_set": bool(any(abs(v - truth_x) < 1e-9 for v in xs)),
             "truth_delay_in_set": bool(ts["delay_ticks"] in ds),
             "diagonal": bool(len(xs_in) > 1 and len(ds_in) > 1 and len(set(ridge_delays)) > 1)}
 
 
 # ----------------------------------------------------------------------
-def summarize(flags):
-    """resolved = the same boolean on every seed; value = that boolean if resolved."""
-    return {"per_seed": flags, "resolved": bool(all(flags) or not any(flags)),
-            "value": (bool(flags[0]) if (all(flags) or not any(flags)) else None)}
+def summarize(flags, counted=None):
+    """resolved = the same boolean on every COUNTED seed; value = that boolean if resolved.
+    `counted` masks out below-noise seeds; with none counted the verdict is unresolved."""
+    counted = [True] * len(flags) if counted is None else list(counted)
+    kept = [bool(f) for f, c in zip(flags, counted) if c]
+    resolved = bool(kept) and (all(kept) or not any(kept))
+    return {"per_seed": [bool(f) for f in flags], "counted": [bool(c) for c in counted],
+            "n_counted": len(kept), "resolved": resolved,
+            "value": (kept[0] if resolved else None)}
 
 
 def main():
@@ -245,6 +262,11 @@ def main():
         print(f"  trained dcom_x {x:+.3f} dcom_z {z:+.3f}   ({time.time() - t0:.0f}s)", flush=True)
     noise_model = train_candidate((0.0, 0.0, 0.0), args.cand_steps, args.cand_epochs, NOISE_SEED)
     tr = np.load("data/train.npz")
+    # the shipped model's data is asserted, not assumed: the same check coverage.py makes
+    std_nom = collect(TRAIN_STEPS, TRAIN_SEED, body=BODY)
+    assert len(tr["obs"]) == TRAIN_STEPS and np.array_equal(std_nom[0], tr["obs"]) \
+        and np.array_equal(std_nom[1], tr["act"]), "data/train.npz is not collect(400000, seed=0) on the walk body"
+    print(f"  data/train.npz asserted equal to collect({TRAIN_STEPS}, seed={TRAIN_SEED}, body={BODY})", flush=True)
     Xtr, Ytr, *_ = make_windows(tr["obs"], tr["act"], tr["next_obs"], tr["done"], K)
     shipped = MLP(hidden=128, epochs=args.shipped_epochs).fit(Xtr, Ytr)
     print(f"  candidates ready in {time.time() - t0:.0f}s", flush=True)
@@ -268,7 +290,7 @@ def main():
             err = identify_com(models, O[fit], A[fit], O2[fit], D[fit])
             eA = identify_com(models, O[qa], A[qa], O2[qa], D[qa])
             eB = identify_com(models, O[qb], A[qb], O2[qb], D[qb])
-            band = band_of(eA, eB)
+            band = band_from_errors(eA, eB)
             v = com_verdict(err, band, dcom)
             vA, vB = com_verdict(eA, band, dcom), com_verdict(eB, band, dcom)
             split_agree = vA["argmin"] == vB["argmin"]
@@ -280,22 +302,28 @@ def main():
                         "nominal_candidate": sc_held(models[(0.0, 0.0)], A[held]),
                         "truth_candidate": sc_held(models[(dcom[0], dcom[2])], A[held]),
                         "shipped_model": sc_held(shipped, A[held])}
-            rows.append({"seed": sd, **v, "band": band, "split_half_argmin_agree": bool(split_agree),
-                         "split_half_argmins": [vA["argmin"], vB["argmin"]],
-                         "noise_floor": float(noise), "noise_floor_vs_band": float(noise / band) if band > 0 else None,
+            ratio = float(noise / band) if band > 0 else None
+            rows.append({"seed": sd, **v, "band": band, "fit_quarter_argmin_agree": bool(split_agree),
+                         "fit_quarter_argmins": [vA["argmin"], vB["argmin"]],
+                         "noise_floor": float(noise), "noise_floor_vs_band": ratio,
+                         "below_noise": bool(ratio is None or ratio >= 1.0),
                          "held_out_one_step_err": held_err,
                          "errors": {f"{k[0]:+.3f},{k[1]:+.3f}": e for k, e in err.items()}})
             verdict = ("IDENTIFIED" if v["identified"] else "truth in set" if v["truth_in_sets"] else "WRONG")
             print(f"  {name:<22}{sd:>5}{f'({bx:+.3f}, {bz:+.3f})':>18}{str([f'{u:+.3f}' for u in v['x_determined']]):>34}"
                   f"{str([f'{u:+.3f}' for u in v['z_determined']]):>30}{band:>10.5f}{noise:>9.5f}"
                   f"{v['nearest_wrong_x_gap']:>9.5f}{v['nearest_wrong_z_gap']:>9.5f}  {verdict}"
-                  f"{'' if v['argmin_interior'] else ' [boundary]'}{'' if split_agree else ' split-half DISAGREE'}")
+                  f"{'' if v['argmin_interior'] else ' [boundary]'}{'' if split_agree else ' fit-quarter DISAGREE'}"
+                  f"{' BELOW NOISE (excluded)' if rows[-1]['below_noise'] else ''}")
+        counted = [not r["below_noise"] for r in rows]
         resA[name] = {"truth": {"dcom_x": dcom[0], "dcom_z": dcom[2]}, "per_seed": rows,
-                      "argmin_correct": summarize([r["argmin_correct"] for r in rows]),
-                      "truth_in_sets": summarize([r["truth_in_sets"] for r in rows]),
-                      "identified": summarize([r["identified"] for r in rows]),
-                      "split_half_agree": summarize([r["split_half_argmin_agree"] for r in rows]),
-                      "argmin_interior": summarize([r["argmin_interior"] for r in rows]),
+                      "below_noise": [r["below_noise"] for r in rows],
+                      "n_below_noise": int(sum(r["below_noise"] for r in rows)),
+                      "argmin_correct": summarize([r["argmin_correct"] for r in rows], counted),
+                      "truth_in_sets": summarize([r["truth_in_sets"] for r in rows], counted),
+                      "identified": summarize([r["identified"] for r in rows], counted),
+                      "fit_quarter_agree": summarize([r["fit_quarter_argmin_agree"] for r in rows], counted),
+                      "argmin_interior": summarize([r["argmin_interior"] for r in rows], counted),
                       "band": seed_stat([r["band"] for r in rows]),
                       "noise_floor": seed_stat([r["noise_floor"] for r in rows]),
                       "nearest_wrong_x_gap": seed_stat([r["nearest_wrong_x_gap"] for r in rows]),
@@ -308,8 +336,9 @@ def main():
     null_ok = bool(null["argmin_correct"]["resolved"] and null["argmin_correct"]["value"])
     # a failed null case is a RESULT about the method, so the run records it and finishes;
     # the hard assertion is the non-zero exit at the end, after the artifact is written
-    print("  null case: nominal hidden body identifies to (0, 0) on every seed -- "
-          + ("PASS" if null_ok else f"FAIL {null['argmin_correct']['per_seed']}"))
+    print("  null case: nominal hidden body identifies to (0, 0) on every counted seed -- "
+          + ("PASS" if null_ok else f"FAIL {null['argmin_correct']['per_seed']}")
+          + f" ({null['argmin_correct']['n_counted']} of {len(HIDDEN_SEEDS)} seeds above the noise floor)")
 
     # ---- identification B --------------------------------------------------------------
     print("\n" + "=" * 100)
@@ -324,19 +353,21 @@ def main():
             err = identify_joint(models_x, O[fit], A[fit], O2[fit], D[fit])
             eA = identify_joint(models_x, O[qa], A[qa], O2[qa], D[qa])
             eB = identify_joint(models_x, O[qb], A[qb], O2[qb], D[qb])
-            band = band_of(eA, eB)
+            band = band_from_errors(eA, eB)
             v = joint_verdict(err, band, dcom[0], servo)
             vA, vB = joint_verdict(eA, band, dcom[0], servo), joint_verdict(eB, band, dcom[0], servo)
             rows.append({"seed": sd, **v, "band": band,
-                         "split_half_argmins": [vA["argmin"], vB["argmin"]],
-                         "split_half_x_agree": bool(vA["argmin"]["dcom_x"] == vB["argmin"]["dcom_x"]),
-                         "split_half_delay_agree": bool(vA["argmin"]["delay_ticks"] == vB["argmin"]["delay_ticks"])})
+                         "fit_quarter_argmins": [vA["argmin"], vB["argmin"]],
+                         "fit_quarter_x_agree": bool(vA["argmin"]["dcom_x"] == vB["argmin"]["dcom_x"]),
+                         "fit_quarter_delay_agree": bool(vA["argmin"]["delay_ticks"] == vB["argmin"]["delay_ticks"])})
             a = v["argmin"]
             print(f"  {name:<30} seed {sd}: argmin dcom_x {a['dcom_x']:+.3f} delay {a['delay_ticks']} slew {a['slew_rad_s']} "
                   f"db {a['deadband_deg']:.0f} deg | x set {[f'{u:+.3f}' for u in v['x_determined']]} "
                   f"delay set {v['delay_determined']} | within band: {v['within_band_count']} hyps over "
                   f"x {[f'{u:+.3f}' for u in v['within_band_x_values']]} x delay {v['within_band_delay_values']} "
-                  f"| band {band:.5f} | {'DIAGONAL' if v['diagonal'] else 'point'}")
+                  f"| band {band:.5f} | {'DIAGONAL' if v['diagonal'] else 'point'}"
+                  f"{'' if v['argmin_interior_x'] else ' [x boundary]'}{'' if v['argmin_interior_delay'] else ' [delay boundary]'}"
+                  " [slew/deadband two-point]")
             print("      ridge (best servo per dcom_x): " + ", ".join(
                 f"x{r['dcom_x']:+.3f}->d{r['best_delay']}{'*' if r['within_band'] else ''}" for r in v["ridge"]))
         truth_servo = servo or dict(delay_ticks=0, slew_rad_s=None, deadband=0.0)
@@ -347,19 +378,26 @@ def main():
                       "truth_x_in_set": summarize([r["truth_x_in_set"] for r in rows]),
                       "truth_delay_in_set": summarize([r["truth_delay_in_set"] for r in rows]),
                       "diagonal": summarize([r["diagonal"] for r in rows]),
-                      "split_half_x_agree": summarize([r["split_half_x_agree"] for r in rows]),
-                      "split_half_delay_agree": summarize([r["split_half_delay_agree"] for r in rows]),
+                      "argmin_deadband_correct": summarize([r["argmin_deadband_correct"] for r in rows]),
+                      "argmin_interior": summarize([r["argmin_interior"] for r in rows]),
+                      "argmin_interior_x": summarize([r["argmin_interior_x"] for r in rows]),
+                      "argmin_interior_delay": summarize([r["argmin_interior_delay"] for r in rows]),
+                      "two_point_axes": ["slew", "deadband"],
+                      "fit_quarter_x_agree": summarize([r["fit_quarter_x_agree"] for r in rows]),
+                      "fit_quarter_delay_agree": summarize([r["fit_quarter_delay_agree"] for r in rows]),
                       "band": seed_stat([r["band"] for r in rows]),
                       "within_band_count": seed_stat([r["within_band_count"] for r in rows]),
                       "x_set_size": seed_stat([len(r["x_determined"]) for r in rows]),
-                      "delay_set_size": seed_stat([len(r["delay_determined"]) for r in rows])}
+                      "delay_set_size": seed_stat([len(r["delay_determined"]) for r in rows]),
+                      "deadband_set_size": seed_stat([len(r["deadband_determined_deg"]) for r in rows])}
 
     # ---- verdict -------------------------------------------------------------------------
     print("\n" + "=" * 100)
     print("VERDICT (resolved = the same on all three seeds)")
     print("=" * 100)
     for name, r in resA.items():
-        print(f"  A {name:<22} identified {r['identified']['per_seed']} resolved={r['identified']['resolved']} | "
+        print(f"  A {name:<22} identified {r['identified']['per_seed']} counted {r['identified']['counted']} "
+              f"resolved={r['identified']['resolved']} | "
               f"truth in sets {r['truth_in_sets']['per_seed']} | x-set size {r['x_set_size']['per_seed']} "
               f"z-set size {r['z_set_size']['per_seed']} | band {r['band']['mean']:.5f} +-{r['band']['spread'] / 2:.5f} "
               f"| noise floor {r['noise_floor']['mean']:.5f} ({r['noise_floor']['mean'] / max(r['band']['mean'], 1e-12):.1f}x band)")
@@ -371,6 +409,7 @@ def main():
 
     out = {"config": {**vars(args), "body": BODY, "candidate_seed": CAND_SEED, "noise_seed": NOISE_SEED,
                       "hidden_seeds": HIDDEN_SEEDS, "K": K,
+                      "train_npz": {"ticks": TRAIN_STEPS, "seed": TRAIN_SEED, "body": BODY, "asserted_equal": True},
                       "x_grid_m": X_GRID, "z_grid_m": Z_GRID, "delays": DELAYS, "slews": SLEWS,
                       "deadbands_deg": [float(np.rad2deg(d)) for d in DBS], "joint_hypotheses": len(joint_grid()),
                       "real_log_servo_candidate": {k: (None if v is None else float(v)) for k, v in SERVO_REAL.items()},
@@ -383,10 +422,20 @@ def main():
                                       "verdict holds on every seed, not whether a mean is significant",
                              "noise_floor": "|err(nominal candidate) - err(second nominal candidate, other collection seed)| "
                                             "on the same hidden log; a separation below it is not evidence",
-                             "null_case": "nominal hidden body must identify to (0, 0) on every seed (asserted)"},
+                             "below_noise": "a seed whose noise floor / band >= 1 is marked below_noise and excluded "
+                                            "from every identified / argmin / truth-in-set tally and from the null "
+                                            "case; n_below_noise is published per body",
+                             "interior": "an argmin counts only when interior on every searched axis "
+                                         "(servo_id.argmin_interior); the joint grid's slew and deadband axes are "
+                                         "two-point, so joint argmins are boundary on them by construction",
+                             "fit_quarter": "fit_quarter_* compares the two QUARTERS of the fit half, not fit vs "
+                                            "held-out; held-out errors are reported separately",
+                             "null_case": "nominal hidden body must identify to (0, 0) on every counted seed (asserted)"},
            "null_case_pass": null_ok,
            "identification_com": resA, "confound": resB, "runtime_s": time.time() - t_start}
-    out["provenance"] = provenance(seeds={"hidden": HIDDEN_SEEDS, "collect": 0, "mlp": 0})
+    out["provenance"] = provenance(seeds={"hidden": HIDDEN_SEEDS, "candidate": CAND_SEED, "noise": NOISE_SEED,
+                                          "train_npz": TRAIN_SEED, "mlp": 0},
+                                   data="data/train.npz")
     with open("results/com_id.json", "w") as fh:
         json.dump(out, fh, indent=1)
     print(f"\nwrote results/com_id.json   total {time.time() - t_start:.0f}s")
