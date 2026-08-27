@@ -50,6 +50,7 @@ Sim-only until a real IMU log exists.
 | `docs/READING.md` | literature tied to each open question, plus what talks and tools left behind |
 | `docs/EXPERIMENTS.md` | full write-ups of every experiment |
 | `docs/CONVENTIONS.md` | the rules this repository holds itself to |
+| `AGENTS.md` | the invariants and the rules with scars — read before touching a script or quoting a number |
 | `docs/ISSUE-6.md` | the proposal text as opened upstream |
 
 ## Setup
