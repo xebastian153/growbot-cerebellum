@@ -1,0 +1,37 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install --extra-index-url https://download.pytorch.org/whl/cpu -e ".[dev]"
+      - name: Lint
+        run: ruff check .
+      - name: Fast tests
+        run: pytest -q -m "not slow"
+      - name: JS runner equivalence
+        run: node test_forward.mjs
+        working-directory: forward-model
+      - name: Twin data for the suite
+        # data/*.npz is gitignored and regenerated; the suite trains its forward model on it
+        run: python sim/growbot_sim.py --steps 400000 --seed 0 --out data/train.npz
+      - name: Round-trip suite
+        run: pytest -q -m slow
+      - name: Nothing tracked changed
+        run: git diff --exit-code --stat
