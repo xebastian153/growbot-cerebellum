@@ -28,10 +28,31 @@ jobs:
       - name: JS runner equivalence
         run: node test_forward.mjs
         working-directory: forward-model
-      - name: Twin data for the suite
-        # data/*.npz is gitignored and regenerated; the suite trains its forward model on it
-        run: python sim/growbot_sim.py --steps 400000 --seed 0 --out data/train.npz
+      - name: Twin data
+        # data/*.npz is gitignored and regenerated with the README's commands; the suite
+        # trains its forward model on train.npz, forward.py scores on test.npz
+        run: |
+          python sim/growbot_sim.py --steps 400000 --seed 0 --out data/train.npz
+          python sim/growbot_sim.py --steps 60000  --seed 1 --out data/test.npz
       - name: Round-trip suite
         run: pytest -q -m slow
-      - name: Nothing tracked changed
-        run: git diff --exit-code --stat
+      - name: Headline artifact reproduces
+        # The documented command must give back the committed results/forward_K5.json —
+        # every number, not the wall-clock fit_s or the provenance block. A mismatch here
+        # means the published table no longer follows from the code and data as written.
+        run: |
+          git show HEAD:results/forward_K5.json > committed_forward_K5.json
+          python forward.py
+          python - <<'PY'
+          import json, sys
+          def strip(d):
+              d.pop("provenance", None)
+              for m in d.values():
+                  if isinstance(m, dict): m.pop("fit_s", None)
+              return d
+          a = strip(json.load(open("committed_forward_K5.json")))
+          b = strip(json.load(open("results/forward_K5.json")))
+          if a != b:
+              sys.exit("results/forward_K5.json does not reproduce from the committed code and regenerated data")
+          print("results/forward_K5.json reproduces: every number identical")
+          PY
