@@ -17,7 +17,7 @@ VIRTUAL_ENV=.venv uv pip install --index-url https://pypi.org/simple \
 mirrors them for pip, and `requirements.lock` is the exact freeze that produced the shipped
 artifacts (use it when a number has to be reproduced to the decimal). CPU only. Node 18 or
 newer for the JS test. Then regenerate the gitignored twin data — the four
-`sim/growbot_sim.py` commands at the top of the README's "Reproduce" block.
+`sim/growbot_sim.py` commands in the README's "Setup" section.
 
 ## The tests
 

@@ -1,9 +1,15 @@
-"""The provenance block every artifact under results/ carries.
+"""The provenance block every script writes into its artifact under results/.
 
 A number without the commit, the library versions and the seeds that produced it cannot
 be reproduced to the decimal, and a stale artifact cannot be told from a fresh one. The
 shipped forward-model weights were once found to have been trained on a data file that
 was no longer the one on disk; nothing in the JSON could say so. This block can.
+
+Every writer has called it since the package was introduced; artifacts committed before
+that were not regenerated (expensive, or dependent on real logs that are not in the
+repository) and carry no `provenance` key. An artifact without the key predates it.
+`git_commit` and `git_dirty` are `null` when git cannot answer (no binary, no repository,
+timeout) -- never a value that could be mistaken for a clean checkout.
 """
 from __future__ import annotations
 import datetime as _dt
@@ -38,9 +44,11 @@ def provenance(seeds=None, **extra):
     seeds); it is stored as given. `extra` keys are merged verbatim so a script can add
     what only it knows (a data file, a hypothesis grid size).
     """
+    commit = _git("rev-parse", "HEAD")
+    status = _git("status", "--porcelain")
     return {
-        "git_commit": _git("rev-parse", "HEAD"),
-        "git_dirty": bool(_git("status", "--porcelain")),
+        "git_commit": commit,
+        "git_dirty": None if commit is None or status is None else bool(status),
         "python": platform.python_version(),
         "numpy": _version("numpy"),
         "torch": _version("torch"),

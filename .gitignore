@@ -2,6 +2,7 @@
 __pycache__/
 data/*.npz
 *.pyc
+.pytest_cache/
 
 # maintainer-provided session logs: theirs to publish, never committed here
 imu-walk-*.json

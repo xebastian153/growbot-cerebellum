@@ -75,7 +75,7 @@ def parsed_v1(walk_v1):
 @pytest.fixture(scope="module")
 def model():
     if not TRAIN.exists():
-        pytest.skip(f"{TRAIN} missing: regenerate it with the sim/growbot_sim.py commands in the README")
+        pytest.fail(f"{TRAIN} missing: regenerate it with the sim/growbot_sim.py commands in the README")
     tr = np.load(TRAIN)
     Xtr, Ytr, *_ = make_windows(tr["obs"], tr["act"], tr["next_obs"], tr["done"], K)
     return MLP(hidden=128, epochs=60).fit(Xtr, Ytr)

@@ -9,7 +9,7 @@ touching a script, and before letting any number out of this repository.
 
 ```bash
 .venv/bin/pytest -m "not slow"                   # 17 fast checks, one second
-.venv/bin/pytest                                 # + the round-trip suite: 8 round-trips, hidden secrets, must PASS before and after every change
+.venv/bin/pytest                                 # + the round-trip suite: 13 tests (the 8 round-trips, split), hidden secrets, must PASS before and after every change; FAILS without data/train.npz (regenerate it with the README's sim/growbot_sim.py commands)
 .venv/bin/python imulog.py                       # the same suite, run through the day-of-log command
 .venv/bin/python imulog.py session.json          # preflight a real log: units, rates, clock, stillness — FAIL gates everything downstream
 .venv/bin/python gap_report.py session.json --servo-id   # gap per regime and axis (real − twin floor), servo identified on the first half only
@@ -38,8 +38,9 @@ The suite takes about five minutes on CPU (4:40 measured). A change that touches
     `planner.py` (`Imagination`, `cem_plan`), `tee.py`, `provenance.py`.
 - One script per experiment at the root, a thin CLI over the package (see the README
   table); `results/<name>.json` is the machine-readable source for every published
-  number and carries a `provenance` block (commit, versions, seeds, argv), `results/logs/`
-  the run log. `gap_report.py`, `real_log_report.py`, `real2sim.py` are the day-of-log
+  number, `results/logs/` the run log. Every script writes a `provenance` block (commit,
+  versions, seeds, argv) into its artifact; artifacts committed before the package existed
+  were not regenerated and carry none — an artifact without the key predates it. `gap_report.py`, `real_log_report.py`, `real2sim.py` are the day-of-log
   chain and the loop back into the twin.
 - `tests/` — `test_imulog_roundtrips.py` is the suite (marked `slow`); the rest run in a
   second. `.github/workflows/ci.yml` runs lint, both, and the JS equivalence test.

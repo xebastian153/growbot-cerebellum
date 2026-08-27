@@ -10,7 +10,7 @@
     honesty     seed_stat, per-metric bars, resolved verdicts, score_corners
     planner     Imagination and the CEM planner
     tee         Tee, the run-log mirror
-    provenance  provenance(), the block every artifact carries
+    provenance  provenance(), the block every script writes into its artifact (older artifacts predate it)
 
 Every script at the root is a thin CLI over these modules; every documented command still
 runs as written.
