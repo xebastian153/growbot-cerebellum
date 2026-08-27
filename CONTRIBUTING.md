@@ -10,26 +10,30 @@ invariants and the publishing rules, each with the mistake that produced it.
 uv venv --python 3.11 .venv
 VIRTUAL_ENV=.venv uv pip install --index-url https://pypi.org/simple \
   --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match \
-  -r requirements.txt
+  -e ".[dev]"
 ```
 
-`requirements.txt` is the direct set; `requirements.lock` is the exact freeze that produced
-the shipped artifacts (use it when a number has to be reproduced to the decimal). CPU only.
-Node 18 or newer for the JS test. Then regenerate the gitignored twin data — the four
+`pyproject.toml` declares the direct dependencies (and `dev`: pytest, ruff); `requirements.txt`
+mirrors them for pip, and `requirements.lock` is the exact freeze that produced the shipped
+artifacts (use it when a number has to be reproduced to the decimal). CPU only. Node 18 or
+newer for the JS test. Then regenerate the gitignored twin data — the four
 `sim/growbot_sim.py` commands at the top of the README's "Reproduce" block.
 
-## The one command
+## The tests
 
 ```bash
-.venv/bin/python imulog.py          # the round-trip suite, ~5 min, must print PASS on every line
+.venv/bin/pytest -m "not slow"      # 17 checks, one second: windows, rollouts, the twin, evaluate_axes, the honesty helpers
+.venv/bin/pytest                    # + the round-trip suite (~5 min), must print PASS on every line
+.venv/bin/python imulog.py          # the suite alone, as the day-of-log command runs it
 ```
 
-It generates a 600 s twin session with a hidden servo and hidden sensor secrets, pushes it
-through every accepted log dialect, the segmenter, per-side identification and the
-sensor-side estimators, and asserts the secrets come back. A change that touches
-`imulog.py`, `servo_id.py`, `sensor_id.py` or `sim/` is not done until it is green, before
-and after. `imulog.py --selftest` is the same thing spelled out; `imulog.py FILE` is the
-preflight on a real log and writes nothing.
+The suite (`tests/test_imulog_roundtrips.py`) generates a 600 s twin session with a hidden
+servo and hidden sensor secrets, pushes it through every accepted log dialect, the
+segmenter, per-side identification and the sensor-side estimators, and asserts the secrets
+come back. A change that touches `growbot_cerebellum/` is not done until it is green,
+before and after. `imulog.py --selftest` is the same thing spelled out; `imulog.py FILE` is
+the preflight on a real log and writes nothing. CI (`.github/workflows/ci.yml`) runs the
+lint, both test tiers and the JS test on every push, regenerating the twin data first.
 
 The JS runner has its own equivalence test against the trained PyTorch net, float32
 tolerance:
@@ -39,7 +43,9 @@ cd forward-model && node test_forward.mjs      # PASS
 ```
 
 `export_js.py` regenerates `forward-model/forward_85mm.json` and the reference vectors from
-`data/train.npz`; training is seeded, so two runs on the same data are byte-identical.
+`data/train.npz` and writes the shipped weights' own held-out score to `results/export_js.json`;
+training is seeded, so two runs on the same data give identical weights and vectors (only the
+`provenance` timestamp differs).
 
 ## `--help` never runs anything
 
@@ -47,16 +53,16 @@ Every script parses its arguments before it opens a file for writing or starts a
 collection: `python <script>.py --help` prints the question the script answers and what
 it writes, and exits. Keep it that way — a script whose import has side effects has once
 retrained the shipped weights during a documentation sweep. `ruff check .` is the linter
-(`ruff.toml`; lint only, nothing reformats). At the commit that introduced the config it
-reports 18 findings — unused imports, empty f-strings, unused locals — left for a cleanup
-commit rather than mixed into an unrelated change.
+(`[tool.ruff]` in `pyproject.toml`; lint only, nothing reformats) and must be clean.
 
 ## Adding an experiment
 
 The workflow is in `AGENTS.md` ("Building a new experiment"); the rules the write-up has
-to satisfy are in `docs/CONVENTIONS.md`. In short: one script, a docstring that states the
-question, a working `--help`, output to `results/<name>.json` and a run log in
-`results/logs/<name>.txt`, a `Reproduce:` line in `docs/EXPERIMENTS.md`, and every figure in
+to satisfy are in `docs/CONVENTIONS.md`. In short: one script at the root that imports the
+shared code from `growbot_cerebellum/` (never a sibling script), a docstring that states the
+question, a working `--help`, output to `results/<name>.json` with a `provenance` block
+(`growbot_cerebellum.provenance(seeds=...)`: commit, library versions, argv, seeds) and a
+run log in `results/logs/<name>.txt`, a `Reproduce:` line in `docs/EXPERIMENTS.md`, and every figure in
 the text traceable to that artifact. Decision rules are written before the numbers. Negative
 results get the same prominence as positive ones.
 

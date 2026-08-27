@@ -9,50 +9,13 @@ The launch video names the wall: the creature can read the last second of its IM
 cannot imagine the next one, so it fails the mimic game and cannot learn fine motor
 skill from experience. The missing piece is a cerebellum — a fast model that predicts
 the sensory outcome of an action, so the error against reality can drive learning.
-This repository builds the predicting half in simulation and measures, honestly, what
-it can and cannot do.
+This repository builds the predicting half in simulation, measures what it can and
+cannot do, and reads the first real IMU logs against it.
 
 **Status:** proposed and accepted in [GrowBot #6](https://github.com/britcruise9/GrowBot/issues/6),
 submitted as [GrowBot PR #7](https://github.com/britcruise9/GrowBot/pull/7) (`policy/forward/`).
-Sim-only until a real IMU log exists.
-
----
-
-## Contents
-
-| path | what |
-|---|---|
-| `sim/growbot_sim.py` | the twin at 50 Hz: phone-style IMU (rpy + gyro), numpy port of the shipped walk policy, excitation mix, pushes, two bodies (85 mm walk, Olie spin), domain-randomisation corners, data collection |
-| `forward.py` | forward models (persistence / linear / MLP), one-step and open-loop rollout evaluation, per-regime breakdown |
-| `mimic.py` | CEM planner over 300 ms action chunks that imagines with a forward model; executes in the twin against held-out target motions |
-| `export_js.py` | exports weights + reference vectors for the JS runner |
-| `forward-model/` | **the PR payload**: `growbot_forward.js`, `growbot_planner.js`, `forward_85mm.json`, `test_forward.mjs`, README |
-| `sim2real_proxy.py` | frozen vs online-residual vs oracle across the project's 13 DR corners |
-| `body_params.py` | the same 13 corners plus ±75 g at a fixed centre of mass and one-axis CoM shifts, scored at 100 and 500 ms with yaw, each drop split into stream difficulty and model mismatch — closes the proxy's horizon limit |
-| `com_id.py` | can the day-of-log chain identify the **centre of mass** the way it identifies the servo, and are the two separable — 35 body-candidate models on a dcom grid plus a 196-hypothesis CoM × servo grid, with a null-case assertion and a published noise floor |
-| `multistep.py` | H-step unrolled training loss vs one-step |
-| `pets.py`, `pets_fall.py` | probabilistic ensemble + particle planner: calibration by regime, mimic, fall recovery |
-| `fall_recovery.py` | planner vs hold-still vs scripted wiggle from real fallen states, by severity |
-| `actuator_proxy.py`, `servo_id.py` | actuator-dynamics proxy (latency / slew / deadband) and servo identification from IMU + commands through the frozen model |
-| `model_mismatch.py` | identification stress test: out-of-family servos (load-dependent slew, voltage sag) vs the grid, plus a residual fallback |
-| `yaw_floor.py` | yaw-floor decomposition: data/capacity scaling vs a teacher-forced privileged-state probe (contact forces, linear velocity) |
-| `sensor_id.py` | the sensor side of the same question: fused-orientation lag behind the raw gyro, still-segment Allan deviation (measured gyro noise for the twin), clock-jitter stats per stream |
-| `metadata_experiment.py` | does conditioning on excitation mode / body help? (π0.7 analogue) |
-| `timesfm_baseline.py` | Google TimesFM 2.5 zero-shot as an action-blind baseline |
-| `gap_report.py` | the day-of-log command: gap per regime and axis as real − twin floor, optional after-identified-servo column |
-| `real_log_report.py` | the full day-of-log run on the maintainer's real walk files, **per file**: computed adapter evidence, per-segment gap, extended-grid servo identification, the agent-gain differential test, sensor-side numbers (needs the untracked walk logs) |
-| `gesture_id.py` | what an `act` capture can identify: **nothing** — delay and slew both come back as the entire grid at a band 19× the walk lane's, the argmin sits on the grid boundary, and the act duration the log never records leaves two readings of the commanded rate that this file cannot separate (needs the untracked captures) |
-| `real2sim.py` | the loop closed: identified servo → twin's `ServoModel` → retrain → score on walk-1's held-out half, at three points of the identification band, plus a zero-delay smoothing-only cell and a nominal control (needs the untracked walk logs) |
-| `coverage.py` | **retracted** 2×2 factorial: {nominal, identified servo} × {standard, +sit↔stand transition data}. Kept with its sanity precondition fixed; see the retraction in `docs/EXPERIMENTS.md` |
-| `identification_ablation.py` | four changes to how the servo is identified — observation/command channel alignment, multi-horizon scoring, per-side servos — each scored on walk-1's held-out half (needs the untracked walk logs) |
-| `imulog.py` | parser for GrowBot `?imulog=1` sessions (two native-rate streams → 50 Hz arrays; regimes from event rows, or **synthesized from the data** for `growbot-imulog-1`, which carries none: still / walking / acting / impact / fall / unknown — the driven class is named after the header's verb, so an `act` lane reads `acting` and motion under no command reads `unknown`) + preflight (`imulog.py <file>`: units, rates, clock, per-segment still physics, still-under-active-commands — validated against deliberately corrupted fixtures) + round-trip tests that recover a hidden servo through 60/30 Hz jittered sampling and a hidden still prefix, walk and tip through the segmenter |
-| `results/` | every number below, as JSON; raw run logs in `results/logs/` |
-| `docs/READING.md` | literature tied to each open question, plus what talks and tools left behind |
-| `docs/EXPERIMENTS.md` | full write-ups of every experiment |
-| `docs/CONVENTIONS.md` | the rules this repository holds itself to |
-| `AGENTS.md` | the invariants and the rules with scars — read before touching a script or quoting a number |
-| `CONTRIBUTING.md` | setup, the one test command, the `--help` guarantee, how real logs are obtained and why none are shipped |
-| `docs/ISSUE-6.md` | the proposal text as opened upstream |
+Two real walk sessions, one still capture and one gesture capture have been read; every
+real number here comes from one unit and one phone.
 
 ## Setup
 
@@ -60,95 +23,90 @@ Sim-only until a real IMU log exists.
 uv venv --python 3.11 .venv
 VIRTUAL_ENV=.venv uv pip install --index-url https://pypi.org/simple \
   --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match \
-  mujoco numpy 'torch==2.5.1'
+  -e ".[dev]"
+.venv/bin/pytest -m "not slow"                  # 17 tests, one second
+.venv/bin/pytest                                # + the round-trip suite, ~5 min (same as `python imulog.py`)
 ```
 
-CPU is enough for everything. The twin steps at ~178× realtime headless. `data/*.npz` is
-gitignored and regenerated by the commands below.
-
-`requirements.txt` lists the direct dependencies; `requirements.lock` is the `uv pip freeze`
-of the venv that produced every artifact under `results/` (Python 3.11, torch 2.5.1 CPU). The
-JS equivalence test needs Node 18 or newer. Expected runtimes on that CPU: the `imulog.py`
-suite ~5 min; `contact_friction.py` 2.7 min, `body_params.py` 3.9 min, `com_id.py` 11.3 min
-(each artifact's `runtime_s`); `servo_id.py` ~1 min. How to set up, test and add an
-experiment: [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## Reproduce
+CPU is enough for everything; `requirements.lock` is the exact freeze that produced
+`results/`. The twin data is gitignored and regenerated with:
 
 ```bash
-# data: 400k ticks train (seed 0), 60k test (seed 1), per body
 .venv/bin/python sim/growbot_sim.py --steps 400000 --seed 0  --out data/train.npz
 .venv/bin/python sim/growbot_sim.py --steps 60000  --seed 1  --out data/test.npz
 .venv/bin/python sim/growbot_sim.py --body olie --steps 400000 --seed 10 --out data/olie_train.npz
 .venv/bin/python sim/growbot_sim.py --body olie --steps 60000  --seed 11 --out data/olie_test.npz
-
-.venv/bin/python forward.py                # forward models, horizons, regimes   → results/forward_K5.json
-.venv/bin/python mimic.py                  # mimic game, 40 targets              → results/mimic.json
-.venv/bin/python export_js.py && (cd forward-model && node test_forward.mjs)      # PASS
-.venv/bin/python sim2real_proxy.py         # DR corners                          → results/sim2real_proxy.json
-.venv/bin/python body_params.py            # DR corners at 500 ms, with yaw      → results/body_params.json
-.venv/bin/python com_id.py                 # CoM identifiability + servo confound → results/com_id.json (exits 1 by design)
-.venv/bin/python metadata_experiment.py    # metadata conditioning               → results/metadata_experiment.json
-.venv/bin/python yaw_floor.py              # yaw floor decomposition             → results/yaw_floor.json
-VIRTUAL_ENV=.venv uv pip install timesfm && .venv/bin/python timesfm_baseline.py   # → results/timesfm_baseline.json
 ```
 
-On a real `?imulog=1` session the whole analysis is:
+Each experiment is one script with a `Reproduce:` line in [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md);
+`python <script>.py --help` states its question and never runs anything.
+
+## On a real `?imulog=1` session
 
 ```bash
-.venv/bin/python imulog.py session.jsonl            # preflight: units, rates, clock, jitter, per-segment physics
-.venv/bin/python sensor_id.py session.jsonl         # sensor side: fusion-filter lag, gyro Allan noise, dt stats -> results/sensor_id_<stem>.json
-.venv/bin/python gap_report.py session.jsonl --servo-id   # gap per regime and axis vs the twin floor
+.venv/bin/python imulog.py session.json                  # preflight: units, rates, clock, jitter, per-segment physics
+.venv/bin/python sensor_id.py session.json               # sensor side: fusion-filter lag, gyro Allan noise, dt stats
+.venv/bin/python gap_report.py session.json --servo-id   # gap per regime and axis vs the twin floor, servo identified
 ```
 
-One session per command. `gap_report.py` accepts several files but refuses to concatenate
-any that disagree on agent gain or resting attitude: those are different experiments, and
-pooling them averages two things into a number that describes neither.
+One session per command; `gap_report.py` refuses to pool files that differ in agent gain
+or resting attitude. Real logs are the maintainers' data and are never committed.
 
-## Results at a glance
+## Results
 
-Full write-ups with conditions and per-regime splits: [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md).
+One line per experiment; the full write-up with conditions, per-seed spreads and the
+decision rule stated before the run is behind each link, and every number resolves to a
+file under `results/`.
 
 | experiment | verdict |
 |---|---|
-| Forward model | 96.0 % within 0.2 rad at 100 ms, 82.7 % at 500 ms; yaw is the hard axis (59 % vs 77 % at 1 s); the gain over baselines concentrates in fast motion (41 → 86 %) and falls (58 → 89 %) |
-| Mimic game | planning without a model is worse than doing nothing; with it, error halves (0.210 → 0.095 rad) and 39/40 traces beat hold-still |
-| JS runner | float32-equivalent to the trained net; the equivalence test caught a real convention bug |
-| Body-parameter DR proxy | **negative at 100 ms** — mass/CoM/leg/gain/*sliding* friction never reach the IMU there; contact chatter dominates the gyro. Re-scored at 500 ms below |
-| Body parameters at 500 ms | shifting the base **centre of mass** 3 cm forward drops 500 ms pitch predictability by 33.8 pts (38.5 / 34.9 / 28.1 across seeds; RMSE +129 %), 3 cm back by 14.2, and leg 1.15 by 7.4 — while mass moves nothing, neither −20 % / +25 % on the whole body nor ±75 g at a fixed centre of mass, and neither do gain or sliding friction. At +3 cm the whole-body CoM crosses into the foot support box (body-frame x ±10.5 mm; the CoM goes from 16.9 mm behind it at nominal to 0.7 mm inside), and on the **held-out half** a model trained on that body still pays 13.5 of the 30.2 pts there — **37–55 % across the three seeds**, a range and not a point estimate, and a different quantity from the 33.8-pt full-stream figure. The drop is resolved by seeds; the split is not, and the oracle behind it is a lower bound, not a ceiling. **No corner here mounts a phone**: the twin carries none, and a 200 g one would be mass_scale 1.42, outside the sweep |
-| Centre-of-mass identifiability | **negative** — the one-step score that identifies the servo cannot identify the centre of mass from IMU + commands: 0 of 12 body-seeds identified, the nominal body reads as ±1.5 cm off on every seed (null case fails, asserted), and the shipped model beats every body-matched candidate on held-out data. What holds, 3 of 3: a CoM shift does **not** read as a servo delay (joint grid recovers +0.030 m and delay 0 with an ideal servo). What does not resolve: with the real-log servo in the loop the delay set is the whole grid on all 6 seeds and a 1.5 cm CoM offset enters the argmin on 2 of 3 — the servo identified on the real log may carry a little body inside it |
-| Contact friction | the twin has **no torsional friction**: at the shipped `condim=3` the XML's torsional and rolling coefficients are inert (bit-identical under a ×100 change). Switched on, torsional still moves nothing on any axis, yaw included — the DR negative survives a proper test. The XML's own unapplied rolling value costs 22.6 pts of yaw at 500 ms if enabled |
-| Actuator dynamics | the sim-to-real signature that *is* there: a slew-limited servo opens a 3–4 pt gap; the servo is identifiable from IMU + commands alone |
-| Multi-step training loss | +1.3 pts at 500 ms, consistent across seeds, saturates by H=5 |
-| Fall recovery | planner doubles hold-still (18 → 37 %) on recoverable falls; ceiling is the two-legged body |
-| PETS | uncertainty is well calibrated per regime; planning through it is neutral-to-harmful |
-| Metadata conditioning | **negative** — a forward model has no quality axis for a tag to separate; one model serves two bodies regardless |
-| TimesFM 2.5 baseline | a 200M-param action-blind forecaster ties persistence; the information is in the action |
-| `?imulog=1` parser | round-trip validated: a hidden servo survives 60/30 Hz jittered sampling into the 50 Hz arrays, determined to one grid step — the injected 40 ms delay is inside the determined set on all 5 seeds tested and the set never leaves ±20 ms; slew resolves to within one grid step of the injected 5 rad/s (the set contains it on 4 of 5). The argmin alone is a coin flip here and is no longer the acceptance rule |
-| Yaw floor | **negative** — the twin's own yaw weakness (58.6 % @1 s vs ~83 % roll/pitch) is not a model limit: 4× data +0.9 pts, 4× capacity +1.3, and a teacher-forced probe fed true contact forces and linear velocity +3.1 — all under the pre-stated 4.6-pt materiality threshold (2× seed spread). Contact chatter is aleatoric at 20 ms; planning should not chase it. Sim-only, 3 MLP seeds |
-| Model mismatch | out-of-family servos (load-dependent slew, voltage sag) identify to their nearest grid point and still recover 90–94 % of the closable held-out gap at 500 ms; split-half DISAGREE fires on drift but is blind to stationary mismatch; a linear residual on top adds nothing (**negative**) — seed 777, sim-only |
-| Real logs (2 sessions, 21 s) | read **per file, per segment** — the two logs differ in agent gain and rest 43° apart, so they are never pooled. `growbot-imulog-1` carries no event rows, so the regimes are synthesized from the data: walk-1 = still 1.1 s + walking 15 s; walk-3 = still 2.6 s + impact + fall, and **no walking at all**. walk-1's walking gap @500 ms is −36.9 / −37.1 / −43.0 pts vs the twin's policy floor (−0.4 to +2.2 @100 ms). walk-3's *motionless* segment reads 4.8 % on pitch while the commands swing ±34° — that number measures the robot, not the model. Servo on walk-1 alone: argmin delay 100 ms / slew 2.0, split-half DISAGREE, delay determined set [2 … 6] ticks and slew [2.0, 3.0] rad/s. Fusion lag +12.8 to +13.8 ms, split-half AGREE (walk-1 only). Measured, not assumed: `header.gain` is baked into the logged commands (amplitude ratio 1.230, CI [1.171, 1.281] against 1.25 vs 1.00) |
-| Real2Sim loop closure | an actuator model helps on the real walk; **which** one is not identified. On walk-1's held-out half, retraining the twin against a servo from the determined band closes roll at every tested point — but the two cells inside both determined sets spread +16.0 to +33.4 pts, and the tested cells cover only 40 % of the determined delay set and 50 % of the slew set, so "robust to the identification uncertainty" is **retracted**. (The wider +4.5 to +33.4 range across all four cells is not that swing: its low end is `half-A` at slew 5.0, outside the slew set [2.0, 3.0], so the identification does tell that one apart.) A zero-delay smoothing-only cell closes yaw to within 2.7 pts of the best delayed cell — under the 10.7-pt threshold — so this log does not separate identified dynamics from plain action smoothing on yaw; on roll and pitch the latency does carry more. That cell is **outside** the determined band (delay 0 ∉ [2 … 6]), so it is an action-smoothing control rather than a rival hypothesis about the same servo — the earlier "inside the band" reading came from a hand-copied mirror of the determined sets that had gone stale; `real2sim` now reads them from `results/real_log_report.json` and fails hard if it cannot. Delay is determined only to [2 … 6] ticks (40–120 ms), deadband untested, 405 held-out ticks |
-| Coverage | **RETRACTED** — invalid twice over. The premise was false (no sit-to-stand exists in either log: the header puts the fold *after* recording ends, and the −1.0 rad tail is a **fall**), and the manipulation was null (the standard data already spans pitch −1.570 to +1.570 against the transitions' −1.568 to +1.459 and walk-3's −1.013 to +0.014 — the sanity check compared the treatment with the target and skipped the control, so it could not fail). The additivity claim went with it: its differences sit inside one control seed spread. Numbers kept in `results/coverage.json`, conclusion marked retracted; the sanity check is fixed so a rerun would be honest |
-| Identification ablation | four changes to how the servo is identified, on walk-1's held-out half. **Per-side servos give the largest gain and the weakest claim to it**: fitting one triple per horn instead of one for both more than doubles the roll gain, +3.5 → +8.0 pts (real, and it reproduces from the JSON) — but the *fit* improvement behind it, 0.0064, is a ratio of 1.01 against its own confidence band of 0.0063, i.e. on the noise floor; both per-side argmins sit on the grid **boundary** (delay 6 = max, slew 1.0 = min); and the "disjoint" slew sets are one-dimensional conditional slices, each swept with the partner frozen and cut with the *shared* band, so their disjointness restates the argmins rather than confirming them. What does survive a test: re-fitting per-side on each half puts the slower horn on the **right** both times — quoted with its noise floor, because it is now the only support left for that attribution: two halves each picking one of {left, right, neither} agree under a no-asymmetry null roughly 1 time in 2, so the flag is about one coin flip's worth of evidence, the same standard that rejects the 1.01 fit ratio above. (The L/R labels were **inverted** before this revision — action column 0 is the right leg, not the left — so every earlier left/right attribution here was backwards; no error, gain or set changes, only which horn owns which triple.) **Aligning the observation channels** (advancing the fused angles by the measured 13.2 ms so they meet the gyro) moves the identified delay 5 → 4 ticks and narrows its set, with no change in held-out accuracy: the correction is to the attribution, not the prediction, and 80 ms is now an upper bound on the actuator rather than its value. **Multi-horizon scoring backfired** — argmin to the grid's low boundary, delay set widens to everything, band ×14, roll gain negative: the published horizon ablation does not transfer at 16 s. Every variant still splits DISAGREE; none of this fixes the excitation |
-| Sensor characterisation | round-trip validated: a hidden 60 ms fusion-filter lag recovered on 3 of 3 body-rate axes (+61.5 / +61.6 / +62.1 ms, peak corr 0.89–0.92; 60.4–63.5 ms across 5 seeds), gyro noise density within 8%, an injected timing stall flagged, and a bias instability refused on a gyro that has none — all from the file alone |
+| [Forward model](docs/EXPERIMENTS.md#forward-model) | 96.0 % of imagined roll/pitch within 0.2 rad at 100 ms, 82.7 % at 500 ms, 24,841 params; wins where the body is fast or fallen |
+| [Mimic game](docs/EXPERIMENTS.md#mimic-game) | planning without a model is worse than doing nothing (0.220 vs 0.210 rad); with it, 0.095 rad |
+| [JS runner](docs/EXPERIMENTS.md#js-runner) | float32-equivalent to the trained net; the equivalence test caught a real convention bug |
+| [Sim-to-real proxy](docs/EXPERIMENTS.md#sim-to-real-proxy--negative) | **negative at 100 ms** — mass, CoM, leg, gain and sliding friction never reach the IMU there |
+| [Body parameters at 500 ms](docs/EXPERIMENTS.md#body-parameters-at-500-ms--a-3-cm-centre-of-mass-shift-costs-338-pts-of-pitch-and-3755--of-the-held-out-drop-is-the-body-not-the-model) | a 3 cm centre-of-mass shift costs 33.8 pts of pitch (28.1 / 34.9 / 38.5 across seeds); mass alone moves nothing |
+| [Centre-of-mass identifiability](docs/EXPERIMENTS.md#centre-of-mass-identifiability--the-method-that-identifies-the-servo-cannot-identify-the-centre-of-mass-negative-and-a-slow-servo-leaves-the-delay-undetermined-even-with-the-right-body-in-the-grid) | **negative** — the null case fails (asserted); a CoM shift does not read as a servo delay, the reverse is unresolved |
+| [Contact friction](docs/EXPERIMENTS.md#contact-friction--the-twin-has-no-torsional-friction-and-the-dr-negative-could-not-have-seen-one) | the twin has **no torsional friction** at the shipped `condim=3`; the XML's inert rolling value would cost 22.6 pts of yaw at 500 ms if switched on |
+| [Actuator dynamics](docs/EXPERIMENTS.md#actuator-dynamics--the-sim-to-real-signature-that-is-there-and-how-to-recover-it) | the signature that *is* there: a hidden servo is identified from IMU + commands alone, held-out 500 ms 80.4 → 84.0 % |
+| [Model mismatch](docs/EXPERIMENTS.md#model-mismatch--wrong-family-identification-recovers-90--of-the-gap-split-half-catches-drift-not-shape) | out-of-family servos identify to their nearest grid point; split-half catches drift, not shape; a linear residual adds nothing (**negative**) |
+| [Yaw floor](docs/EXPERIMENTS.md#yaw-floor--mostly-noise-not-model-scaling-is-flat-and-privileged-state-adds-little-negative) | **negative** — 4× data +0.9, 4× capacity +1.3, privileged contact state +3.1 pts, none material: contact chatter is aleatoric at 20 ms |
+| [Multi-step training loss](docs/EXPERIMENTS.md#multi-step-training-loss--small-real-gain) | +1.2–1.4 pts at 500 ms, consistent across seeds, saturates by H=5 |
+| [Fall recovery](docs/EXPERIMENTS.md#fall-recovery-through-imagination--a-feature-with-a-low-physical-ceiling) | planner doubles hold-still (18 → 37 %); the ceiling is the two-legged body |
+| [PETS](docs/EXPERIMENTS.md#pets--the-model-knows-where-it-is-unsure-planning-through-that-knowledge-does-not-help) | uncertainty calibrated per regime; planning through it is neutral-to-harmful |
+| [Metadata conditioning](docs/EXPERIMENTS.md#metadata-conditioning--negative) | **negative** — one model serves two bodies regardless of the tag |
+| [TimesFM 2.5 baseline](docs/EXPERIMENTS.md#timesfm-25-baseline) | a 200M-param action-blind forecaster ties persistence; the information is in the action |
+| [The first real logs](docs/EXPERIMENTS.md#the-first-real-logs--read-per-file-per-segment) | walk-1's walking gap at 500 ms is −36.9 / −37.1 / −43.0 pts vs the twin's floor; walk-3 contains **no walking**; servo argmin 100 ms / 2.0 rad/s with sets [2 … 6] ticks and [2.0, 3.0] rad/s; fusion lag +12.8 to +13.8 ms; `gain` proven baked in (ratio 1.23, CI [1.171, 1.281]) |
+| [Real2Sim loop closure](docs/EXPERIMENTS.md#real2sim-loop-closure--an-actuator-model-helps-on-the-real-walk-which-actuator-model-is-not-identified) | an actuator model helps on the real walk (roll +4.5 to +33.4 pts across the tested cells); **which** one is not identified |
+| [Identification ablation](docs/EXPERIMENTS.md#identification-ablation--per-side-gains-the-most-and-proves-the-least-multi-horizon-backfires-and-the-delay-was-over-charged-by-a-tick) | per-side servos gain the most and prove the least; multi-horizon scoring backfires; every variant still splits DISAGREE |
+| [Gesture and still captures](docs/EXPERIMENTS.md#the-gesture-and-still-captures--the-still-lane-pays-out-the-gesture-lane-cannot) | the still lane measures the phone's gyro (ARW 6.42e-04 / 3.05e-04 / 1.26e-04 rad/s/√Hz); the gesture lane determines nothing — both sets are the whole grid |
+| [Coverage](docs/EXPERIMENTS.md#coverage--retracted-the-experiment-was-invalid-twice-over) | **retracted** — false premise and a null manipulation; kept in place with both defects named |
+| [`?imulog=1` parser](tests/test_imulog_roundtrips.py) | round-trip validated: a hidden servo through 60/30 Hz jittered sampling and three dialects, a hidden still prefix, walk and tip through the segmenter |
+| [Sensor characterisation](tests/test_imulog_roundtrips.py) | a hidden 60 ms fusion lag recovered on all three body-rate axes within 10 ms, gyro noise density within 20 %, a timing stall flagged, a bias instability refused |
 
 ## What holds, what doesn't
 
 **Holds.** A small action-conditioned forward model gives the body a usable physical
-imagination: right about the shape of the next 100–500 ms, especially under the shakes
-and falls the video says the creature cannot picture; good enough to win the mimic game;
-small enough to run in the phone browser.
+imagination — right about the shape of the next 100–500 ms, good enough to win the mimic
+game, small enough for the phone browser — and it transfers to the real walk at 100 ms.
 
-**Doesn't, yet.** Everything here has learned MuJoCo. Of the two experiments designed to
-stand in for "a different body", metadata came back flat, and body parameters came back flat
-only for mass, gain and sliding friction: a 3 cm centre-of-mass shift does reach the IMU at
-500 ms, and on the held-out half 37–55 % of that loss (13.5 of 30.2 pts, across three seeds)
-is the body being harder to predict rather than the model being stale, so there is less for
-output-side correction to correct than the 33.8-pt full-stream drop looks like. The third, actuator dynamics, found the real signature: the gap lives on the *input* side (where the horn actually
-is), and it is recoverable from IMU + commands alone. The learning
-half — compare prediction with the *real* IMU on device and update from the error — needs
-a body and a log. That is the next step.
+**Doesn't, yet.** At 500 ms the real walk sits ~40 pts under the twin's floor on every
+axis. The actuator explains part of it and is recoverable from IMU + commands; the rest
+is not identified, and the learning half — compare prediction with the *real* IMU on
+device and update from the error — needs a body and a longer log.
+
+## Contents
+
+| path | what |
+|---|---|
+| `growbot_cerebellum/` | the library: `sim` (twin, `ServoModel`, `perturb`, `collect`), `forward` (models, windows, rollouts), `servo_id`, `sensor_id`, `imulog` (parser, preflight, segmenter, fixture), `gap`, `sim2real`, `honesty`, `planner`, `provenance` |
+| `sim/` | the vendored body XMLs and walk policy (see NOTICE) and the data-collection command |
+| `*.py` | one experiment per script, a thin CLI over the package; `results/<name>.json` is its artifact, `results/logs/` its run log |
+| `forward-model/` | **the PR payload**: `growbot_forward.js`, `growbot_planner.js`, `forward_85mm.json`, `test_forward.mjs`, README |
+| `tests/` | the round-trip suite (`slow`) and the fast checks; `.github/workflows/ci.yml` runs both |
+| `docs/EXPERIMENTS.md` | every write-up, with a table of contents and the at-a-glance table |
+| `docs/READING.md` | literature and repositories, each with a cross-check against this code |
+| `docs/CONVENTIONS.md`, `AGENTS.md`, `CONTRIBUTING.md` | the documentation standard, the invariants with their scars, and how to set up and add an experiment |
+| `docs/ISSUE-6.md` | the proposal text as opened upstream |
 
 ## Third-party files and licence
 

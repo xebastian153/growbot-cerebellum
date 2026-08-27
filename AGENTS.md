@@ -8,30 +8,41 @@ touching a script, and before letting any number out of this repository.
 ## Commands
 
 ```bash
-.venv/bin/python imulog.py                       # the suite: 8 round-trips, hidden secrets, must PASS before and after every change
+.venv/bin/pytest -m "not slow"                   # 17 fast checks, one second
+.venv/bin/pytest                                 # + the round-trip suite: 8 round-trips, hidden secrets, must PASS before and after every change
+.venv/bin/python imulog.py                       # the same suite, run through the day-of-log command
 .venv/bin/python imulog.py session.json          # preflight a real log: units, rates, clock, stillness — FAIL gates everything downstream
 .venv/bin/python gap_report.py session.json --servo-id   # gap per regime and axis (real − twin floor), servo identified on the first half only
 .venv/bin/python sensor_id.py session.json       # sensor side: fusion-filter lag, Allan noise, dt jitter
 .venv/bin/python real_log_report.py a.json b.json        # the whole day-of-log chain, one file at a time
 .venv/bin/python <experiment>.py --help          # every experiment is one script with a docstring stating its question
+.venv/bin/ruff check .                           # lint; must be clean
 ```
 
-The suite takes about four minutes on CPU. A change that touches `imulog.py`,
-`servo_id.py`, `sensor_id.py` or `sim/` is not done until it is green.
+The suite takes about five minutes on CPU (4:40 measured). A change that touches
+`growbot_cerebellum/` is not done until it is green.
 
 ## Repo map
 
-- `sim/growbot_sim.py` — the twin at 50 Hz, `ServoModel` (delay / slew / deadband in
-  front of MuJoCo's ideal PD), `perturb()` for body corners, `collect()`.
-- `forward.py` — models, `make_windows`, `rollout_error`, `by_regime`.
-- `imulog.py` — parser for the real `growbot-imulog-1` format, preflight, the fixture
-  and the suite in `__main__`.
-- `servo_id.py` / `sensor_id.py` — identification of the actuator and characterization
-  of the phone, both from IMU + commands only (this body has no encoder).
-- `gap_report.py`, `real_log_report.py`, `real2sim.py` — the day-of-log chain and the
-  loop back into the twin.
-- One script per experiment (see the README table); `results/<name>.json` is the
-  machine-readable source for every published number, `results/logs/` the run log.
+- `growbot_cerebellum/` — the library every script imports:
+  - `sim.py` — the twin at 50 Hz, `ServoModel` (delay / slew / deadband in front of
+    MuJoCo's ideal PD), `perturb()` for body corners, `collect()`. The body XMLs and the
+    walk policy it loads stay in `sim/`.
+  - `forward.py` — models, `make_windows`, `rollout_error`, `by_regime`, `K`, `AXES`.
+  - `imulog.py` — parser for the real `growbot-imulog-1` format, preflight, segmenter,
+    and the fixture that hides secrets for the suite.
+  - `servo_id.py` / `sensor_id.py` — identification of the actuator and characterization
+    of the phone, both from IMU + commands only (this body has no encoder).
+  - `gap.py` (`evaluate_axes`, `twin_regimes`), `sim2real.py` (`horizon_within`, the DR
+    corners), `honesty.py` (`seed_stat`, `score_corners`, `decide_per_metric`),
+    `planner.py` (`Imagination`, `cem_plan`), `tee.py`, `provenance.py`.
+- One script per experiment at the root, a thin CLI over the package (see the README
+  table); `results/<name>.json` is the machine-readable source for every published
+  number and carries a `provenance` block (commit, versions, seeds, argv), `results/logs/`
+  the run log. `gap_report.py`, `real_log_report.py`, `real2sim.py` are the day-of-log
+  chain and the loop back into the twin.
+- `tests/` — `test_imulog_roundtrips.py` is the suite (marked `slow`); the rest run in a
+  second. `.github/workflows/ci.yml` runs lint, both, and the JS equivalence test.
 - `docs/EXPERIMENTS.md` write-ups, `docs/READING.md` literature with code cross-checks,
   `docs/CONVENTIONS.md` the documentation standard this file extends.
 
