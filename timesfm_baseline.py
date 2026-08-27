@@ -4,10 +4,10 @@ Question: how much of the next 100-500 ms is predictable from the sensor history
 alone, by the strongest generic forecaster available, versus a small model that
 knows what the legs were told to do? Same windows, same metric as forward.py.
 """
-import sys, time, json, argparse
+import time, json, argparse
 import numpy as np, timesfm
 from pathlib import Path
-sys.path.insert(0, "."); from forward import make_windows, MLP, Linear, Persistence, encode_obs, decode_obs
+from growbot_cerebellum.forward import make_windows, MLP, Linear, Persistence, encode_obs, decode_obs
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--n", type=int, default=400); ap.add_argument("--ctx", type=int, default=256)

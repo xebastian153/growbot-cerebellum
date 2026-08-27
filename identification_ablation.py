@@ -29,26 +29,15 @@ the parameters well enough for the answer to mean anything.
 from __future__ import annotations
 import argparse, json, sys, time
 import numpy as np
-sys.path.insert(0, "."); sys.path.insert(0, "sim")
-from imulog import parse, CTRL_HZ
-from forward import MLP, make_windows
-from sim2real_proxy import K
-from gap_report import evaluate_axes, AXES
-from servo_id import (identify, identify_per_side, realized_from_commands, realized_per_side,
-                      confidence_band, determined_sets, default_grid, argmin_interior,
-                      slower_side)
+from growbot_cerebellum.imulog import parse, CTRL_HZ
+from growbot_cerebellum.forward import MLP, make_windows, K, AXES
+from growbot_cerebellum.gap import evaluate_axes
+from growbot_cerebellum.servo_id import identify, identify_per_side, realized_from_commands, realized_per_side, confidence_band, determined_sets, default_grid, argmin_interior, slower_side
+from growbot_cerebellum.tee import Tee
 
 HORIZONS = [5, 25]                      # 100 ms and 500 ms, as everywhere else
 CLIPS = {"min_ticks": 2, "max_ticks": 40, "n_starts": 400}   # 40 ms .. 800 ms clips
 
-
-class Tee:
-    def __init__(self, path):
-        self.f, self.t = open(path, "w"), sys.__stdout__
-    def write(self, s):
-        self.f.write(s); self.t.write(s)
-    def flush(self):
-        self.f.flush(); self.t.flush()
 
 
 def measured_lag(path):

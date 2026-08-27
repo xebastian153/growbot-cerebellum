@@ -27,15 +27,14 @@ data/test.npz, so every number is comparable with the published table. All
 conditions share the evaluation starts (same mask, same rng).
 """
 from __future__ import annotations
-import argparse, json, sys, time
+import argparse, json, time
 from pathlib import Path
 
 import mujoco
 import numpy as np
 
-sys.path.insert(0, "."); sys.path.insert(0, "sim")
-from growbot_sim import GrowBotSim, Excitation, CTRL_HZ, OBS_DIM, ACT_DIM
-from forward import MLP, encode_obs, decode_obs
+from growbot_cerebellum.sim import GrowBotSim, Excitation, CTRL_HZ, OBS_DIM, ACT_DIM
+from growbot_cerebellum.forward import MLP, encode_obs, decode_obs
 
 K = 5
 HORIZONS = (25, 50)                     # 500 ms and 1 s

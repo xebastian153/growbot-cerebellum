@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "growbot-cerebellum"
+version = "0.1.0"
+description = "A forward model (physical imagination) for the GrowBot two-servo body, with the twin, the identification tools and the day-of-log chain"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+# Direct dependencies. The exact set that produced everything under results/ is
+# requirements.lock (uv pip freeze of the .venv; see README "Setup"). torch is the CPU
+# wheel: --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match
+dependencies = [
+    "mujoco>=3.3",
+    "numpy>=1.26",
+    "torch==2.5.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+# Only for timesfm_baseline.py (downloads a 200M-param model on first run)
+timesfm = ["timesfm"]
+
+[tool.setuptools]
+packages = ["growbot_cerebellum"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "slow: the round-trip suite (~5 min on CPU); `pytest -m 'not slow'` runs the rest in seconds",
+]
+
+# Lint only. No formatter runs on this codebase; `ruff check .` is the contract.
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+# E402 stays ON: a late import is a finding now that no script edits sys.path.
+# Ignored below is style this codebase does not follow, not correctness: one-line imports
+# (E401), `;`-joined statements (E701/E702), lambda assignment (E731), and the O/A/D array
+# names the experiments share with the write-ups (E741).
+ignore = ["E401", "E701", "E702", "E731", "E741"]

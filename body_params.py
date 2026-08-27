@@ -48,18 +48,17 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 import time
 from pathlib import Path
 
 import mujoco
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).parent / "sim"))
-from growbot_sim import DR, GrowBotSim, quat_to_rpy               # noqa: E402
-from forward import MLP, make_windows, rollout_error              # noqa: E402
-from sim2real_proxy import K, corners as published_corners        # noqa: E402
-from contact_friction import score_corners, decide                # noqa: E402
+from growbot_cerebellum.sim import DR, GrowBotSim, quat_to_rpy
+from growbot_cerebellum.forward import MLP, make_windows, rollout_error, K, AXES
+from growbot_cerebellum.sim2real import corners as published_corners
+from growbot_cerebellum.honesty import (seed_stat, score_corners, decide, metric_keys, nominal_spread,
+                                        seed_separation, decide_per_metric)
 
 HERE = Path(__file__).parent
 BASE_DELTA_KG = 0.075      # +-75 g added at the base's existing CoM: a mass isolation
@@ -67,7 +66,6 @@ PHONE_KG = 0.200           # a real phone, for the anchor arithmetic only -- nev
 FALL_RAD = 1.2             # GrowBotSim.fallen(): |roll| > 1.2 or |pitch| > 1.2
 FAST_RADS = 3.0            # forward.by_regime's own "fast" cut
 MIN_REGIME_TICKS = 50      # forward.by_regime's own floor
-AXES = ("roll", "pitch", "yaw")
 
 
 def corners():
@@ -235,13 +233,6 @@ def make_partition(h, oracle_epochs):
     return partition
 
 
-def seed_stat(vals, scale=1.0):
-    """mean, the three seeds themselves, and their spread. Nothing in the partition is
-    published as a bare mean, for the same reason no axis verdict is."""
-    v = [float(x) * scale for x in vals]
-    return {"mean": float(np.mean(v)), "per_seed": v, "spread": float(max(v) - min(v))}
-
-
 def partition_table(rows, floor=0.03):
     """Per-SEED partition quantities with their spread, and the exact split of each corner's
     frozen drop, decided by the same two marks the axis table uses.
@@ -346,96 +337,9 @@ def partition_table(rows, floor=0.03):
     return out
 
 
-# ----------------------------------------------------------------------
-# decision rule
-# ----------------------------------------------------------------------
-def metric_keys(horizons):
-    return ["legacy@5"] + [f"{a}@{h}" for h in horizons for a in AXES]
-
-
-def nominal_spread(nom, key):
-    if key == "legacy@5":
-        return nom["legacy_100ms"]["spread"]
-    ax, h = key.split("@")
-    return nom["axis"][h][ax]["spread"]
-
-
-def corner_value(r, key):
-    if key == "legacy@5":
-        return r["legacy_100ms"]
-    ax, h = key.split("@")
-    return r["axis"][h][ax]
-
-
-def seed_separation(corner_seeds, nominal_seeds):
-    """Signed gap between the two closest seeds of the corner and of nominal, in points.
-
-    The seeds are NOT paired: `collect()` draws `sim.rng.random()` every tick for the push
-    test, mode-dependently inside `Excitation` and once per episode in `fresh()`, so two
-    corners diverge at the first tick their dynamics differ and never realign. The honest
-    question a 3-seed run can answer is whether the two sets of seeds separate at all.
-    0.0 means they overlap.
-    """
-    c, n = np.asarray(corner_seeds, float), np.asarray(nominal_seeds, float)
-    if c.max() < n.min():
-        return float((c.max() - n.min()) * 100)
-    if c.min() > n.max():
-        return float((c.min() - n.max()) * 100)
-    return 0.0
-
-
-def decide_per_metric(rows, horizons, floor=0.03):
-    """Threshold per metric and horizon, from the nominal seed spread OF THAT METRIC.
-
-    The earlier rule took the worst nominal spread across every metric (yaw at 100 ms,
-    2.30 pts) and applied the resulting 4.60-pt bar to all of them, which makes a null on
-    a quiet metric far too easy to declare. Each metric now carries its own bar,
-    max(3.0 pts, 2x that metric's nominal spread).
-
-    Every verdict is published beside two things the mean alone hides:
-      spread    the seed spread of the corner it was measured on. A corner whose own
-                spread reaches its threshold is decided at a precision worse than the bar
-                deciding it.
-      resolved  whether the corner's three seeds separate from nominal's three by more
-                than that bar. This is the claim that survives an unpaired 3-seed run: a
-                mean beyond the bar with overlapping seed ranges is not resolved, and a
-                wide spread whose every seed still clears the bar on the same side is.
-    An axis is reported as moved only when it is BOTH material and resolved.
-    """
-    nom = rows[0]
-    keys = metric_keys(horizons)
-    thresh = {k: max(floor, 2.0 * nominal_spread(nom, k)) for k in keys}
-    verdicts = {}
-    for r in rows[1:]:
-        axis, legacy = {}, None
-        for k in keys:
-            c, n = corner_value(r, k), corner_value(nom, k)
-            dd = c["mean"] - n["mean"]
-            sep = seed_separation(c["per_seed"], n["per_seed"])
-            rec = {"delta_pts": float(dd * 100), "threshold_pts": float(thresh[k] * 100),
-                   "corner_spread_pts": float(c["spread"] * 100),
-                   "per_seed_delta_pts": [float((v - n["mean"]) * 100) for v in c["per_seed"]],
-                   "material": bool(abs(dd) > thresh[k]),
-                   "spread_reaches_threshold": bool(c["spread"] >= thresh[k]),
-                   "seed_separation_pts": sep,
-                   "resolved": bool(abs(sep) > thresh[k] * 100)}
-            rec["reported_as_moved"] = bool(rec["material"] and rec["resolved"])
-            if k == "legacy@5":
-                legacy = rec
-            else:
-                axis[k] = rec
-        verdicts[r["corner"]] = {"legacy_delta_pts": legacy["delta_pts"],
-                                 "legacy_material": legacy["material"],
-                                 "legacy_resolved": legacy["resolved"],
-                                 "legacy_spread_reaches_threshold": legacy["spread_reaches_threshold"],
-                                 "legacy_corner_spread_pts": legacy["corner_spread_pts"],
-                                 "axis": axis}
-    return thresh, verdicts
-
-
 def print_threshold_block(thresh, rows, horizons, legacy_thresh):
     nom = rows[0]
-    print(f"\n  per-metric thresholds (max(3.0 pts, 2x the nominal spread of that metric)),")
+    print("\n  per-metric thresholds (max(3.0 pts, 2x the nominal spread of that metric)),")
     print(f"  against the single worst-case bar this section used before, {legacy_thresh * 100:.2f} pts:")
     print(f"    {'metric':<12}{'nominal spread':>16}{'threshold':>12}{'was':>8}")
     for k in metric_keys(horizons):
@@ -743,8 +647,8 @@ def main():
           f"(separation {frv['seed_separation_pts']:+.1f} vs bar {frv['threshold_pts']:.1f}) -- and note this is")
     print("    the FRACTION OF TICKS spent fallen, not how often the body falls; it does not say the")
     print("    body tips over no more often.")
-    print(f"    the oracle is a small-data model, so it is a LOWER BOUND on what a better-matched model")
-    print(f"    recovers, not a ceiling: on the nominal body it trails the frozen model by "
+    print("    the oracle is a small-data model, so it is a LOWER BOUND on what a better-matched model")
+    print("    recovers, not a ceiling: on the nominal body it trails the frozen model by "
           + ", ".join(f"{a} {nomp['oracle_deficit_on_nominal_body_pts'][a]:.1f}" for a in AXES) + " pts.")
 
     out = {"config": vars(args),

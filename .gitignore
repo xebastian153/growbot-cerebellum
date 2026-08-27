@@ -6,3 +6,6 @@ data/*.npz
 # maintainer-provided session logs: theirs to publish, never committed here
 imu-walk-*.json
 SEND-*.json
+
+# editable-install metadata
+*.egg-info/

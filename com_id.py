@@ -59,12 +59,10 @@ here.
 from __future__ import annotations
 import argparse, itertools, json, sys, time
 import numpy as np
-sys.path.insert(0, "."); sys.path.insert(0, "sim")
-from growbot_sim import collect, ServoModel, DR                       # noqa: E402
-from forward import MLP, make_windows                                 # noqa: E402
-from sim2real_proxy import K                                          # noqa: E402
-from servo_id import realized_from_commands, _extend_cuts            # noqa: E402
-from body_params import seed_stat                                     # noqa: E402
+from growbot_cerebellum.sim import collect, ServoModel, DR
+from growbot_cerebellum.forward import MLP, make_windows, K
+from growbot_cerebellum.servo_id import realized_from_commands, _extend_cuts
+from growbot_cerebellum.honesty import seed_stat
 
 BODY = "walk"
 CAND_SEED, NOISE_SEED = 1000, 1001          # candidate collections; never a hidden-log seed

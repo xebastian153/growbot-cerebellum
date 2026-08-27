@@ -36,15 +36,13 @@ parameters undetermined over the entire grid, at a band 19x the walk lane's -- d
 not depend on which is true.
 """
 from __future__ import annotations
-import json, sys
+import json
 import numpy as np
-sys.path.insert(0, "."); sys.path.insert(0, "sim")
-from forward import MLP, make_windows
-from imulog import parse, run_preflight, _read_rows, _convert_growbot_v1
-from sensor_id import default_out_path
-from sim2real_proxy import K
-from servo_id import (identify, confidence_band, determined_sets, default_grid,
-                      argmin_interior)
+from growbot_cerebellum.forward import MLP, make_windows
+from growbot_cerebellum.imulog import parse, run_preflight, _read_rows, _convert_growbot_v1
+from growbot_cerebellum.sensor_id import default_out_path
+from growbot_cerebellum.forward import K
+from growbot_cerebellum.servo_id import identify, confidence_band, determined_sets, default_grid, argmin_interior
 
 LOG = "SEND-gesture-3.6min.json"
 WALK = "imu-walk-1-2026-08-20T17-50-14-713Z.json"

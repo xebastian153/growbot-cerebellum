@@ -3,13 +3,12 @@
 Same 60 "tipped" starts and 4 s budget as fall_recovery.py; hold-still, a single MLP,
 the ensemble mean, and PETS with 8 and 16 particles. Writes results/pets_fall.json.
 """
-import argparse, sys, json, numpy as np, mujoco; sys.path.insert(0,'.'); sys.path.insert(0,'sim')
+import argparse, json, numpy as np, mujoco
 import fall_recovery as FR
-from forward import MLP, make_windows
-from sim2real_proxy import K
-from mimic import Imagination
+from growbot_cerebellum.forward import MLP, make_windows, K
+from growbot_cerebellum.planner import Imagination
 from pets import ProbEnsemble, PETSImagination, cem_plan_pets
-from growbot_sim import GrowBotSim
+from growbot_cerebellum.sim import GrowBotSim
 
 
 def bucket_of(o): r = abs(o[0]); return "tipped" if r < 1.2 else ("side" if r < 2.4 else "back")

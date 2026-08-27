@@ -11,13 +11,11 @@ initial leans until it is past 1.0 rad on roll or pitch, so they are real fallen
 configurations the physics produced, not hand-placed ones.
 """
 from __future__ import annotations
-import argparse, json, sys, time
+import argparse, json, time
 import numpy as np, mujoco
-sys.path.insert(0, "."); sys.path.insert(0, "sim")
-from growbot_sim import GrowBotSim, CTRL_HZ, quat_to_rpy
-from forward import MLP, make_windows, encode_obs
-from sim2real_proxy import K
-from mimic import Imagination, cem_plan
+from growbot_cerebellum.sim import GrowBotSim, CTRL_HZ
+from growbot_cerebellum.forward import MLP, make_windows, encode_obs, K
+from growbot_cerebellum.planner import Imagination, cem_plan
 
 UP = np.array([0.0, -0.6, 0.0], np.float32)   # the settled stance the twin rests in (pitch ~ -0.6 rad)
 

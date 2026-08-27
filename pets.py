@@ -14,13 +14,11 @@ delta, trained with Gaussian NLL on a bootstrap resample. predict() returns the
 ensemble mean so every existing evaluation still runs unchanged.
 """
 from __future__ import annotations
-import argparse, json, sys, time
+import argparse, json, time
 import numpy as np, torch, torch.nn as nn
-sys.path.insert(0, "."); sys.path.insert(0, "sim")
-from forward import MLP, make_windows, encode_obs, decode_obs, rollout_error
-from sim2real_proxy import K
-from mimic import Imagination, angle_cost, pick_targets, run_episode, rpy_to_quat
-from growbot_sim import GrowBotSim
+from growbot_cerebellum.forward import MLP, make_windows, rollout_error, K
+from growbot_cerebellum.planner import Imagination, angle_cost, pick_targets, run_episode, rpy_to_quat
+from growbot_cerebellum.sim import GrowBotSim
 import mujoco
 
 

@@ -12,12 +12,11 @@ vs an oracle trained on that variant. Plus the per-axis one-step BIAS, because a
 systematic error is what a linear residual can learn and the DR proxy had none.
 """
 from __future__ import annotations
-import argparse, json, sys, time
+import argparse, json, time
 import numpy as np
-sys.path.insert(0, "."); sys.path.insert(0, "sim")
-from growbot_sim import ServoModel, collect
-from forward import MLP, make_windows
-from sim2real_proxy import horizon_within, adapt_online, K
+from growbot_cerebellum.sim import ServoModel, collect
+from growbot_cerebellum.forward import MLP, make_windows, K
+from growbot_cerebellum.sim2real import horizon_within, adapt_online
 
 D2R = np.deg2rad
 VARIANTS = [

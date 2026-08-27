@@ -13,11 +13,9 @@ Sequences never cross episode boundaries. Angles are (sin, cos) and re-normalise
 after each imagined step exactly as at inference, so train and test see the same map.
 """
 from __future__ import annotations
-import argparse, json, sys, time
+import argparse, json, time
 import numpy as np, torch, torch.nn as nn
-sys.path.insert(0, ".")
-from forward import encode_obs, rollout_error
-from sim2real_proxy import K
+from growbot_cerebellum.forward import encode_obs, rollout_error, K
 
 def sequences(obs, act, next_obs, done, H):
     """windows for multi-step training: hist F (N,K,9), hist A (N,K,2), future A (N,H,2), future F (N,H,9)."""

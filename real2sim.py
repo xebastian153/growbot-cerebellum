@@ -48,14 +48,13 @@ sanity of each collection is reported as context.
 from __future__ import annotations
 import argparse, json, sys, time
 import numpy as np
-sys.path.insert(0, "."); sys.path.insert(0, "sim")
 
-from growbot_sim import ServoModel, collect
-from forward import MLP, make_windows
-from sim2real_proxy import K
-from gap_report import evaluate_axes, twin_regimes, REGIME_MAP, AXES
-from imulog import parse, run_preflight
-from servo_id import default_grid
+from growbot_cerebellum.sim import ServoModel, collect
+from growbot_cerebellum.forward import MLP, make_windows, K, AXES
+from growbot_cerebellum.gap import evaluate_axes, twin_regimes, REGIME_MAP
+from growbot_cerebellum.imulog import parse, run_preflight
+from growbot_cerebellum.servo_id import default_grid
+from growbot_cerebellum.tee import Tee
 
 LOG = "imu-walk-1-2026-08-20T17-50-14-713Z.json"     # the only real file that walks
 EXCLUDED = {"imu-walk-3-2026-08-20T17-38-19-478Z.json":
@@ -100,7 +99,7 @@ def determined_band(path=REAL_LOG_REPORT):
     return delay, slew
 
 
-DETERMINED_DELAY, DETERMINED_SLEW = determined_band()
+DETERMINED_DELAY, DETERMINED_SLEW = None, None      # read in main(), after --help
 
 # delay_ticks count CALLS at GrowBotSim.step's 50 Hz (1 tick = 20 ms)
 CONFIGS = {
@@ -112,16 +111,6 @@ CONFIGS = {
 }
 CONTROL_EXTRA_SEEDS = [1, 2]            # extra MLP seeds on the control, for the spread
 
-
-class Tee:
-    def __init__(self, path):
-        self.f = open(path, "w")
-    def write(self, s):
-        sys.__stdout__.write(s); self.f.write(s)
-    def flush(self):
-        sys.__stdout__.flush()
-        if not self.f.closed:
-            self.f.flush()
 
 
 def load_real_heldout():
@@ -186,6 +175,8 @@ def main():
                     "untracked walk log and results/real_log_report.json.")
     ap.parse_args()
     sys.stdout = tee = Tee("results/logs/real2sim.txt")
+    global DETERMINED_DELAY, DETERMINED_SLEW
+    DETERMINED_DELAY, DETERMINED_SLEW = determined_band()
     t0 = time.time()
     Oh, Ah, Dh, labelh, half, total, header = load_real_heldout()
     segs = {m: int((labelh == m).sum()) for m in sorted(set(labelh))}

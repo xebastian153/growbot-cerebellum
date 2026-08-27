@@ -82,13 +82,12 @@ alone -- and is left here only so this file reproduces what it published.
 from __future__ import annotations
 import argparse, json, sys, time
 import numpy as np
-sys.path.insert(0, "."); sys.path.insert(0, "sim")
 
-from growbot_sim import GrowBotSim, ServoModel, WalkPolicy, collect, CTRL_HZ
-from forward import MLP, make_windows
-from sim2real_proxy import K
-from gap_report import evaluate_axes, AXES
-from imulog import parse, run_preflight
+from growbot_cerebellum.sim import GrowBotSim, ServoModel, WalkPolicy, collect, CTRL_HZ
+from growbot_cerebellum.forward import MLP, make_windows, K, AXES
+from growbot_cerebellum.gap import evaluate_axes
+from growbot_cerebellum.imulog import parse, run_preflight
+from growbot_cerebellum.tee import Tee
 
 LOGS = ["imu-walk-1-2026-08-20T17-50-14-713Z.json",
         "imu-walk-3-2026-08-20T17-38-19-478Z.json"]
@@ -114,16 +113,6 @@ def thresholds():
     spread = json.load(open("results/real2sim.json"))["control_seed_spread_500ms"]
     return {ax: max(0.03, 2 * spread[ax]) for ax in AXES}
 
-
-class Tee:
-    def __init__(self, path):
-        self.f = open(path, "w")
-    def write(self, s):
-        sys.__stdout__.write(s); self.f.write(s)
-    def flush(self):
-        sys.__stdout__.flush()
-        if not self.f.closed:
-            self.f.flush()
 
 
 # The retraction travels WITH the artifact. A rerun rewrites results/coverage.json, and

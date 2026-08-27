@@ -19,13 +19,13 @@ Identification uses the first half of the log; every reported gap number comes
 from the second half only (the gap* circularity rule).
 """
 from __future__ import annotations
-import argparse, itertools, json, sys, time
+import argparse, itertools, json, time
 import numpy as np
-sys.path.insert(0, "."); sys.path.insert(0, "sim")
-from growbot_sim import ServoModel, collect
-from forward import MLP, make_windows
-from servo_id import identify, realized_from_commands, confidence_band, determined_sets
-from sim2real_proxy import horizon_within, K
+from growbot_cerebellum.sim import ServoModel, collect
+from growbot_cerebellum.forward import MLP, make_windows
+from growbot_cerebellum.servo_id import identify, realized_from_commands, confidence_band, determined_sets
+from growbot_cerebellum.forward import K
+from growbot_cerebellum.sim2real import horizon_within
 
 
 class LoadDependentServo(ServoModel):

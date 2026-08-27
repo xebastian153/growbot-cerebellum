@@ -39,17 +39,15 @@ This script does five things the generic tools do not:
 Every number carries its conditions; n is small and printed everywhere.
 """
 from __future__ import annotations
-import argparse, itertools, json, subprocess, sys
+import argparse, json, subprocess, sys
 import numpy as np
-sys.path.insert(0, "."); sys.path.insert(0, "sim")
 
-from imulog import parse, _deviceorientation_to_R, CTRL_HZ, rest_attitude
-from forward import MLP, make_windows
-from sim2real_proxy import K
-from gap_report import evaluate_axes, twin_regimes, REGIME_MAP, AXES
-from servo_id import (identify, realized_from_commands, confidence_band, determined_sets,
-                      default_grid, argmin_interior)
-from sensor_id import default_out_path as sensor_out_path
+from growbot_cerebellum.imulog import parse, _deviceorientation_to_R, CTRL_HZ, rest_attitude
+from growbot_cerebellum.forward import MLP, make_windows, K, AXES
+from growbot_cerebellum.gap import evaluate_axes, twin_regimes, REGIME_MAP
+from growbot_cerebellum.servo_id import identify, realized_from_commands, confidence_band, determined_sets, default_grid, argmin_interior
+from growbot_cerebellum.sensor_id import default_out_path as sensor_out_path
+from growbot_cerebellum.tee import Tee
 
 # The rate-axis assignment claim is "the logged rates are the device x/y/z body
 # rates, in that order". The test of that claim is diagonal dominance of the
@@ -61,16 +59,6 @@ RATE_SEPARATION_FACTOR = 1.5
 GAIN_RATIO_BOOTSTRAP = 4000     # resamples for the agent-gain amplitude ratio CI
 GAIN_AMPLITUDE_PCT = 95         # the amplitude statistic compared between files
 
-
-class Tee:
-    def __init__(self, path):
-        self.f = open(path, "w")
-    def write(self, s):
-        sys.__stdout__.write(s); self.f.write(s)
-    def flush(self):
-        sys.__stdout__.flush()
-        if not self.f.closed:
-            self.f.flush()
 
 
 def twin_rest_pitch(settle_s=5.0):
@@ -339,9 +327,9 @@ def main():
         print(f"  {f}")
         print(f"    walk {header.get('walk')}, end_why={header.get('end_why')!r}, agent gain="
               f"{header.get('gain_agent')}, {len(O)} ticks ({len(O) / 50:.1f} s)")
-        print(f"    rest attitude: " + ("none (no still segment)" if rest is None else
+        print("    rest attitude: " + ("none (no still segment)" if rest is None else
               f"roll {rest[0]:+.2f}, pitch {rest[1]:+.2f} rad"))
-        print(f"    segments: " + " | ".join(f"{(t - t0) / 1000:.2f}s {n.removesuffix('_start')}"
+        print("    segments: " + " | ".join(f"{(t - t0) / 1000:.2f}s {n.removesuffix('_start')}"
                                              for t, n in segs))
         print(f"    regimes: { {m: int((mode == m).sum()) for m in sorted(set(mode))} }")
     rests = [parsed[f][6] for f in args.logs]

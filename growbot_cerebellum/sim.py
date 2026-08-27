@@ -18,7 +18,9 @@ from pathlib import Path
 import mujoco
 import numpy as np
 
-HERE = Path(__file__).parent
+# The vendored GrowBot assets (body XMLs, policy weights) stay under sim/ at the repository
+# root, where NOTICE and the licence point; this module only moved.
+HERE = Path(__file__).resolve().parent.parent / "sim"
 BODIES = {"walk": HERE / "growbot_body.xml", "olie": HERE / "growbot_olie_body.xml"}
 XML = BODIES["walk"]
 POLICY = HERE / "policy_85mm.json"
@@ -315,25 +317,3 @@ def collect(n_steps, seed=0, push_prob=0.01, episode_s=8.0, log_every=0, body="w
         return O, A, O2, D, np.array(modes), R
     return O, A, O2, D, np.array(modes)
 
-
-if __name__ == "__main__":
-    import argparse, time
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--steps", type=int, default=200_000)
-    ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--out", default=str(HERE.parent / "data" / "growbot_50hz.npz"))
-    ap.add_argument("--body", default="walk", choices=list(BODIES))
-    args = ap.parse_args()
-    t0 = time.time()
-    O, A, O2, D, M = collect(args.steps, args.seed, log_every=50_000, body=args.body)
-    Path(args.out).parent.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(args.out, obs=O, act=A, next_obs=O2, done=D, mode=M)
-    dt = time.time() - t0
-    print(f"{args.steps} steps = {args.steps / CTRL_HZ / 60:.1f} sim-minutes in {dt:.0f}s "
-          f"({args.steps / dt / CTRL_HZ:.0f}x realtime)")
-    print("modes:", {m: int((M == m).sum()) for m in np.unique(M)})
-    print("episodes:", int(D.sum()))
-    r, p = O[:, 0], O[:, 1]
-    print(f"roll  range [{r.min():+.2f}, {r.max():+.2f}]  pitch range [{p.min():+.2f}, {p.max():+.2f}]")
-    print(f"fallen frames (|roll| or |pitch| > 1.2): {np.mean((abs(r) > 1.2) | (abs(p) > 1.2)) * 100:.1f}%")
-    print("saved", args.out)

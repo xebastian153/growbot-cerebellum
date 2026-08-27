@@ -14,10 +14,9 @@ that as one-hot input and ask three questions on the same windows and metric:
       With metadata, does it help?
 """
 from __future__ import annotations
-import argparse, json, sys, time
+import argparse, json, time
 import numpy as np
-sys.path.insert(0, "."); sys.path.insert(0, "sim")
-from forward import MLP, make_windows, encode_obs, decode_obs
+from growbot_cerebellum.forward import MLP, make_windows, encode_obs, decode_obs
 
 MODES = ["keyframe", "sine", "ou", "policy", "still"]
 CLEAN = ["policy", "sine", "keyframe"]
@@ -34,7 +33,7 @@ def meta_cols(mode, body, use_mode, use_body):
     return np.concatenate(cols, 1) if cols else np.zeros((len(mode), 0), np.float32)
 
 def windows(sets, use_mode, use_body, keep_modes=None):
-    Xs, Ys, Ms = [], [], []
+    Xs, Ys = [], []
     for body, (O, A, O2, D, mode) in sets.items():
         X, Y, *_, valid = make_windows(O, A, O2, D, K)
         m = mode[valid]; b = np.full(len(m), body)

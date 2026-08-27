@@ -13,7 +13,7 @@ from pathlib import Path
 
 import numpy as np
 
-from forward import MLP, make_windows, encode_obs
+from growbot_cerebellum.forward import MLP, make_windows, encode_obs
 
 HERE = Path(__file__).parent
 OUT = HERE / "forward-model"
