@@ -31,8 +31,8 @@
   "1000ms": 0.48373979330062866
  },
  "provenance": {
-  "git_commit": "1491d438c3ae8e8126e143c173ee863da92c7396",
-  "git_dirty": true,
+  "git_commit": "ac3b8c9855e82f03b706417e0e1db4adf56be828",
+  "git_dirty": false,
   "python": "3.11.15",
   "numpy": "2.4.6",
   "torch": "2.5.1+cpu",
@@ -42,9 +42,13 @@
   ],
   "seeds": {
    "torch": 0,
-   "reference": 0
+   "reference": 0,
+   "rollout": 0
   },
-  "timestamp": "2026-08-27T18:17:25+00:00",
-  "data": "data/train.npz"
+  "timestamp": "2026-08-27T18:39:50+00:00",
+  "data": {
+   "train": "data/train.npz",
+   "score": "data/test.npz"
+  }
  }
 }
