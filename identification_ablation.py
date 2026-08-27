@@ -29,6 +29,7 @@ the parameters well enough for the answer to mean anything.
 from __future__ import annotations
 import argparse, json, sys, time
 import numpy as np
+from growbot_cerebellum import provenance
 from growbot_cerebellum.imulog import parse, CTRL_HZ
 from growbot_cerebellum.forward import MLP, make_windows, K, AXES
 from growbot_cerebellum.gap import evaluate_axes
@@ -379,6 +380,7 @@ def main():
                "model": "MLP h128 on data/train.npz",
                "sensor_json": sensor_json, "sensor_lag_ms": lag, "sensor_lag_meta": lag_meta},
            "variants": variants, "delay_decomposition": decomp}
+    out["provenance"] = provenance(seeds={"mlp": 0})
     with open("results/identification_ablation.json", "w") as fh:
         json.dump(out, fh, indent=1, default=float)
     print("\nwrote results/identification_ablation.json")

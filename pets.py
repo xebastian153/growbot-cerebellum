@@ -16,6 +16,7 @@ ensemble mean so every existing evaluation still runs unchanged.
 from __future__ import annotations
 import argparse, json, time
 import numpy as np, torch, torch.nn as nn
+from growbot_cerebellum import provenance
 from growbot_cerebellum.forward import MLP, make_windows, rollout_error, K
 from growbot_cerebellum.planner import Imagination, angle_cost, pick_targets, run_episode, rpy_to_quat
 from growbot_cerebellum.sim import GrowBotSim
@@ -185,6 +186,7 @@ def main():
     for name, r in (("single MLP, mean plan", r_det), ("ensemble mean, mean plan", r_ensmean), (f"PETS, {args.particles} particles", r_pets)):
         res[f"mimic/{name}"] = {"rmse": r[0], "sd": r[1], "within": r[2]}
         print(f"   {name:<28} RMSE {r[0]:.3f} ± {r[1]:.3f}   within 0.2 rad {r[2]*100:5.1f}%")
+    res["provenance"] = provenance(seeds={"rng": args.seed, "sim": "1000 + i"})
     json.dump(res, open("results/pets.json", "w"), indent=1)
 
 if __name__ == "__main__":

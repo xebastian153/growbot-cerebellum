@@ -30,6 +30,7 @@ from pathlib import Path
 
 import numpy as np
 
+from growbot_cerebellum import provenance
 from growbot_cerebellum.sim import GrowBotSim, CTRL_HZ
 from growbot_cerebellum.planner import Imagination, run_episode, pick_targets, rpy_to_quat
 from growbot_cerebellum.forward import Persistence, Linear, MLP, make_windows
@@ -97,7 +98,8 @@ def main():
 
     (HERE / "results").mkdir(exist_ok=True)
     (HERE / "results" / "mimic.json").write_text(json.dumps(
-        {"summary": {n: {"rmse_mean": float(np.mean(v)), "rmse_sd": float(np.std(v))}
+        {"provenance": provenance(seeds={"rng": args.seed, "sim": "1000 + i"}),
+         "summary": {n: {"rmse_mean": float(np.mean(v)), "rmse_sd": float(np.std(v))}
                      for n, v in results.items()}, "per_target": per_target,
          "config": vars(args)}, indent=1))
 

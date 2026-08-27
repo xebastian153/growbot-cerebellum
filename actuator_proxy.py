@@ -14,6 +14,7 @@ systematic error is what a linear residual can learn and the DR proxy had none.
 from __future__ import annotations
 import argparse, json, time
 import numpy as np
+from growbot_cerebellum import provenance
 from growbot_cerebellum.sim import ServoModel, collect
 from growbot_cerebellum.forward import MLP, make_windows, K
 from growbot_cerebellum.sim2real import horizon_within, adapt_online
@@ -83,7 +84,10 @@ def main():
         ad = np.array([r["adapted"][str(w)] for r in non])
         rec = (ad - fr) / np.where(gap > 0.005, gap, np.nan)
         print(f"  gap frozen->oracle recovered by residual after {w:.0f}s: {np.nanmean(rec)*100:.0f}%  (over variants with a gap > 0.5 pt)")
-    json.dump({"rows": rows, "config": vars(args)}, open("results/actuator_proxy.json", "w"), indent=1)
+    json.dump({"rows": rows, "config": vars(args),
+               "provenance": provenance(seeds={"corner": "hash(name) % 10000 -- str hash, randomised per process "
+                                                         "unless PYTHONHASHSEED is set"})},
+              open("results/actuator_proxy.json", "w"), indent=1)
 
 if __name__ == "__main__":
     main()

@@ -33,6 +33,7 @@ from pathlib import Path
 
 import numpy as np
 
+from growbot_cerebellum import provenance
 from growbot_cerebellum.sim import collect
 from growbot_cerebellum.forward import MLP, make_windows, K
 from growbot_cerebellum.honesty import score_corners, decide
@@ -216,6 +217,7 @@ def main():
            "rows": rows, "verdicts": verdicts,
            "runtime_s": float(time.time() - t_start)}
     (HERE / "results").mkdir(exist_ok=True)
+    out["provenance"] = provenance(seeds=args.seeds)
     (HERE / "results" / "contact_friction.json").write_text(json.dumps(out, indent=1))
     print(f"\nwrote results/contact_friction.json   total {time.time() - t_start:.0f}s")
 

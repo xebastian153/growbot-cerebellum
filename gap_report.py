@@ -25,6 +25,7 @@ twin's overall row, printed as such.
 from __future__ import annotations
 import argparse, json
 import numpy as np
+from growbot_cerebellum import provenance
 from growbot_cerebellum.forward import MLP, make_windows, K, AXES
 from growbot_cerebellum.sensor_id import default_out_path
 from growbot_cerebellum.imulog import (parse, run_preflight, rest_attitude, CTRL_HZ,
@@ -209,7 +210,7 @@ def main():
             print(line)
     json.dump({"header": {k: v for k, v in header.items() if not isinstance(v, (list, dict))},
                **({"servo_id": servo_block} if servo_block else {}),
-               "report": report}, open(out_path, "w"), indent=1)
+               "report": report, "provenance": provenance(seeds={"mlp": 0})}, open(out_path, "w"), indent=1)
     print(f"\nwrote {out_path}")
 
 

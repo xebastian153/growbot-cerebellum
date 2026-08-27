@@ -38,6 +38,7 @@ not depend on which is true.
 from __future__ import annotations
 import json
 import numpy as np
+from growbot_cerebellum import provenance
 from growbot_cerebellum.forward import MLP, make_windows
 from growbot_cerebellum.imulog import parse, run_preflight, _read_rows, _convert_growbot_v1
 from growbot_cerebellum.sensor_id import default_out_path
@@ -282,6 +283,7 @@ def main(log=LOG, walk=WALK):
     print(f"  vs walk-1: {out['reading']['vs_walk']}")
     print(f"  cause: {out['reading']['cause_not_established']}")
     path = default_out_path([log], "gesture_id")
+    out["provenance"] = provenance(seeds={"mlp": 0})
     with open(path, "w") as fh:
         json.dump(out, fh, indent=1)
     print(f"\nwrote {path}")

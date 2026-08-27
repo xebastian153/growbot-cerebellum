@@ -35,6 +35,7 @@ from pathlib import Path
 
 import numpy as np
 
+from growbot_cerebellum import provenance
 from growbot_cerebellum.sim import collect
 from growbot_cerebellum.forward import MLP, make_windows, K
 from growbot_cerebellum.sim2real import corners, horizon_within, adapt_online
@@ -87,7 +88,10 @@ def main():
     print("fraction of the frozen->oracle gap recovered by the online residual: "
           + "  ".join(f"{w}s: {np.nanmean(v) * 100:.0f}%" for w, v in rec.items()))
     (HERE / "results").mkdir(exist_ok=True)
-    (HERE / "results" / "sim2real_proxy.json").write_text(json.dumps({"rows": rows, "config": vars(args)}, indent=1))
+    (HERE / "results" / "sim2real_proxy.json").write_text(json.dumps(
+        {"rows": rows, "config": vars(args),
+         "provenance": provenance(seeds={"corner": "hash(name) % 10000 -- str hash, randomised per process "
+                                                   "unless PYTHONHASHSEED is set"})}, indent=1))
 
 
 if __name__ == "__main__":

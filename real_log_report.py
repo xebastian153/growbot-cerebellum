@@ -42,6 +42,7 @@ from __future__ import annotations
 import argparse, json, subprocess, sys
 import numpy as np
 
+from growbot_cerebellum import provenance
 from growbot_cerebellum.imulog import parse, _deviceorientation_to_R, CTRL_HZ, rest_attitude
 from growbot_cerebellum.forward import MLP, make_windows, K, AXES
 from growbot_cerebellum.gap import evaluate_axes, twin_regimes, REGIME_MAP
@@ -548,6 +549,7 @@ def main():
         print(f"  - {a}")
     report["data_ask"] = ask
 
+    report["provenance"] = provenance(seeds={"mlp": 0})
     json.dump(report, open("results/real_log_report.json", "w"), indent=1)
     print("\nwrote results/real_log_report.json")
     tee.f.close()

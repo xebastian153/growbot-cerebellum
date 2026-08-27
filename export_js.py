@@ -13,7 +13,8 @@ from pathlib import Path
 
 import numpy as np
 
-from growbot_cerebellum.forward import MLP, make_windows, encode_obs
+from growbot_cerebellum import provenance
+from growbot_cerebellum.forward import MLP, make_windows, encode_obs, rollout_error
 
 HERE = Path(__file__).parent
 OUT = HERE / "forward-model"
@@ -24,8 +25,9 @@ def main():
     ap = argparse.ArgumentParser(
         description="Train the forward model (128x2, K=5, 80 epochs) on data/train.npz and export "
                     "it in the GrowBot policy-JSON convention, plus reference vectors for the JS "
-                    "equivalence test. Writes <out>/forward_85mm.json and "
-                    "<out>/reference_vectors.json; the shipped copies live in forward-model/. "
+                    "equivalence test. Writes <out>/forward_85mm.json, "
+                    "<out>/reference_vectors.json and results/export_js.json (the shipped weights' "
+                    "own held-out score); the shipped copies live in forward-model/. "
                     "Training is seeded (torch and numpy) so the export is reproducible.")
     ap.add_argument("--seed", type=int, default=0, help="training seed (default 0)")
     ap.add_argument("--out", default=str(OUT), help=f"output directory (default {OUT})")
@@ -63,6 +65,7 @@ def main():
         "out_mean": m.ymu.round(7).tolist(),
         "out_std": m.ysd.round(7).tolist(),
         "layers": layers,
+        "provenance": provenance(seeds={"torch": args.seed, "reference": args.seed}, data="data/train.npz"),
     }
     out.mkdir(exist_ok=True)
     (out / "forward_85mm.json").write_text(json.dumps(doc, separators=(",", ":")))
@@ -103,6 +106,21 @@ def main():
 
     kb = (out / "forward_85mm.json").stat().st_size / 1024
     print(f"wrote {out}/forward_85mm.json ({kb:.0f} KB, {m.n_params:,} params) and reference_vectors.json")
+
+    # The shipped weights' own score, forward.py's protocol (held-out episodes, K=5, 2000
+    # starts, seed 0), so the table in forward-model/README.md resolves to an artifact that
+    # was computed from the file that ships rather than from a differently trained model.
+    ro = rollout_error(m, te["obs"], te["act"], te["done"], K, (5, 25, 50))
+    score = {"weights": "forward-model/forward_85mm.json", "epochs": 80, "seed": args.seed,
+             "n_starts": ro[5]["n_starts"],
+             "within_0.2rad": {f"{h * 20}ms": ro[h]["within_0.2rad"] for h in (5, 25, 50)},
+             "within_0.2rad_axis": {f"{h * 20}ms": ro[h]["within_0.2rad_axis"] for h in (5, 25, 50)},
+             "rmse_rollpitch_rad": {f"{h * 20}ms": ro[h]["rmse_rollpitch_rad"] for h in (5, 25, 50)},
+             "provenance": provenance(seeds={"torch": args.seed, "reference": args.seed}, data="data/train.npz")}
+    (HERE / "results").mkdir(exist_ok=True)
+    (HERE / "results" / "export_js.json").write_text(json.dumps(score, indent=1))
+    print("shipped weights, within 0.2 rad: " + "  ".join(f"{k} {v * 100:.1f}%" for k, v in score["within_0.2rad"].items())
+          + "  -> results/export_js.json")
 
 
 if __name__ == "__main__":

@@ -33,6 +33,7 @@ from pathlib import Path
 import mujoco
 import numpy as np
 
+from growbot_cerebellum import provenance
 from growbot_cerebellum.sim import GrowBotSim, Excitation, CTRL_HZ, OBS_DIM, ACT_DIM
 from growbot_cerebellum.forward import MLP, encode_obs, decode_obs
 
@@ -298,6 +299,7 @@ def main():
           + "  ".join(f"{k}: {g * +100:+.1f} pts ({verdict[k]})" for k, g in gains.items()), flush=True)
 
     Path("results").mkdir(exist_ok=True)
+    results["provenance"] = provenance(seeds={"collect": [0, 1], "mlp": [0, 1, 2]})
     with open("results/yaw_floor.json", "w") as fh:
         json.dump(results, fh, indent=1)
     print(f"\nsaved results/yaw_floor.json   total {(time.time() - t00) / 60:.1f} min", flush=True)

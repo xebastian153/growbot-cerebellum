@@ -16,6 +16,7 @@ that as one-hot input and ask three questions on the same windows and metric:
 from __future__ import annotations
 import argparse, json, time
 import numpy as np
+from growbot_cerebellum import provenance
 from growbot_cerebellum.forward import MLP, make_windows, encode_obs, decode_obs
 
 MODES = ["keyframe", "sine", "ou", "policy", "still"]
@@ -124,6 +125,7 @@ def main():
                     "clean-test": evaluate(m, "walk", (O, A, O2, D2, mode), use_mode, False)}
         report(f"Q3 seed{seed}: adding less-informative excitation", rows)
     print(f"\n{time.time()-t0:.0f}s")
+    results["provenance"] = provenance(seeds=args.seeds)
     json.dump(results, open("results/metadata_experiment.json", "w"), indent=1)
 
 if __name__ == "__main__":

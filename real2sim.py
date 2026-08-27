@@ -49,6 +49,7 @@ from __future__ import annotations
 import argparse, json, sys, time
 import numpy as np
 
+from growbot_cerebellum import provenance
 from growbot_cerebellum.sim import ServoModel, collect
 from growbot_cerebellum.forward import MLP, make_windows, K, AXES
 from growbot_cerebellum.gap import evaluate_axes, twin_regimes, REGIME_MAP
@@ -174,9 +175,9 @@ def main():
                     "Writes results/real2sim.json and results/logs/real2sim.txt. Needs the "
                     "untracked walk log and results/real_log_report.json.")
     ap.parse_args()
-    sys.stdout = tee = Tee("results/logs/real2sim.txt")
     global DETERMINED_DELAY, DETERMINED_SLEW
     DETERMINED_DELAY, DETERMINED_SLEW = determined_band()
+    sys.stdout = tee = Tee("results/logs/real2sim.txt")
     t0 = time.time()
     Oh, Ah, Dh, labelh, half, total, header = load_real_heldout()
     segs = {m: int((labelh == m).sum()) for m in sorted(set(labelh))}
@@ -368,6 +369,7 @@ def main():
     report["conclusion"] = conclusion
     print(f"\n  {conclusion}")
 
+    report["provenance"] = provenance(seeds={"train": TRAIN_SEED, "test": TEST_SEED, "mlp": [0, *CONTROL_EXTRA_SEEDS]})
     json.dump(report, open("results/real2sim.json", "w"), indent=1)
     print(f"\nwrote results/real2sim.json   total {(time.time() - t0) / 60:.1f} min")
     tee.f.close()

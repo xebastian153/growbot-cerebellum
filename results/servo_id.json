@@ -40,5 +40,18 @@
    "true_horn": 0.84
   }
  },
- "mean_abs_horn_err_rad": 0.0
+ "mean_abs_horn_err_rad": 0.0,
+ "provenance": {
+  "git_commit": "0fb2b2446205be570cefaf2e585aec5fd27ed2aa",
+  "git_dirty": true,
+  "python": "3.11.15",
+  "numpy": "2.4.6",
+  "torch": "2.5.1+cpu",
+  "mujoco": "3.11.0",
+  "argv": [
+   "servo_id.py"
+  ],
+  "seeds": 777,
+  "timestamp": "2026-08-27T18:07:31+00:00"
+ }
 }

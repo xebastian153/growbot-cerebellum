@@ -5,6 +5,7 @@ the ensemble mean, and PETS with 8 and 16 particles. Writes results/pets_fall.js
 """
 import argparse, json, numpy as np, mujoco
 import fall_recovery as FR
+from growbot_cerebellum import provenance
 from growbot_cerebellum.forward import MLP, make_windows, K
 from growbot_cerebellum.planner import Imagination
 from pets import ProbEnsemble, PETSImagination, cem_plan_pets
@@ -51,6 +52,7 @@ def main():
     for P in (8, 16):
         name = f"plan, PETS {P} particles"; res[name] = trial('plan', PETSImagination(ens, K, P, 0), cem_plan_pets)
         print(f"  {name:<28} {res[name]*100:5.1f}%", flush=True)
+    res["provenance"] = provenance(seeds={"sim": "5000 + i"})
     json.dump(res, open("results/pets_fall.json", "w"), indent=1)
 
 

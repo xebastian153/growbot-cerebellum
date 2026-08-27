@@ -7,6 +7,7 @@ knows what the legs were told to do? Same windows, same metric as forward.py.
 import time, json, argparse
 import numpy as np, timesfm
 from pathlib import Path
+from growbot_cerebellum import provenance
 from growbot_cerebellum.forward import make_windows, MLP, Linear, Persistence, encode_obs, decode_obs
 
 ap = argparse.ArgumentParser()
@@ -64,4 +65,4 @@ res = {}
 for name, P in preds.items():
     row = [score(P, h) for h in args.horizons]; res[name] = row
     print(f"{name:<28}" + "".join(f"{r:>13.4f}{w * 100:>9.1f}%" for r, w in row))
-Path("results").mkdir(exist_ok=True); Path("results/timesfm_baseline.json").write_text(json.dumps({"horizons": args.horizons, "n": len(starts), "ctx": args.ctx, "rows": res}, indent=1))
+Path("results").mkdir(exist_ok=True); Path("results/timesfm_baseline.json").write_text(json.dumps({"horizons": args.horizons, "n": len(starts), "ctx": args.ctx, "rows": res, "provenance": provenance(seeds={"starts": 0, "mlp": 0})}, indent=1))

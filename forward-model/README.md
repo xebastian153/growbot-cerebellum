@@ -54,6 +54,10 @@ whose imagined roll/pitch stays within 0.2 rad of the truth:
 | 100 ms | 85.9 % | 93.5 % | **96.0 %** |
 | 500 ms | 59.0 % | 75.0 % | **82.7 %** |
 
+The shipped `forward_85mm.json` scores exactly that on the held-out set — 96.0 % at 100 ms,
+82.7 % at 500 ms, 77.4 % at 1 s (`results/export_js.json` in the source repository, written by the
+same run that exports the weights; the persistence and linear columns come from `results/forward_K5.json`).
+
 Where the body is calm the three tie; the model earns its keep under fast motion
 (41 → 86 %) and while tipping or fallen (58 → 89 %) — the bounces and shakes the
 video says the creature cannot picture.

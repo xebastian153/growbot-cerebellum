@@ -1,0 +1,50 @@
+{
+ "weights": "forward-model/forward_85mm.json",
+ "epochs": 80,
+ "seed": 0,
+ "n_starts": 2000,
+ "within_0.2rad": {
+  "100ms": 0.96,
+  "500ms": 0.827,
+  "1000ms": 0.774
+ },
+ "within_0.2rad_axis": {
+  "100ms": {
+   "roll": 0.9705,
+   "pitch": 0.975,
+   "yaw": 0.962
+  },
+  "500ms": {
+   "roll": 0.879,
+   "pitch": 0.8715,
+   "yaw": 0.7745
+  },
+  "1000ms": {
+   "roll": 0.838,
+   "pitch": 0.828,
+   "yaw": 0.5875
+  }
+ },
+ "rmse_rollpitch_rad": {
+  "100ms": 0.09551066160202026,
+  "500ms": 0.3251856863498688,
+  "1000ms": 0.48373979330062866
+ },
+ "provenance": {
+  "git_commit": "1491d438c3ae8e8126e143c173ee863da92c7396",
+  "git_dirty": true,
+  "python": "3.11.15",
+  "numpy": "2.4.6",
+  "torch": "2.5.1+cpu",
+  "mujoco": "3.11.0",
+  "argv": [
+   "export_js.py"
+  ],
+  "seeds": {
+   "torch": 0,
+   "reference": 0
+  },
+  "timestamp": "2026-08-27T18:17:25+00:00",
+  "data": "data/train.npz"
+ }
+}

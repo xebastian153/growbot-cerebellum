@@ -13,6 +13,7 @@ configurations the physics produced, not hand-placed ones.
 from __future__ import annotations
 import argparse, json, time
 import numpy as np, mujoco
+from growbot_cerebellum import provenance
 from growbot_cerebellum.sim import GrowBotSim, CTRL_HZ
 from growbot_cerebellum.forward import MLP, make_windows, encode_obs, K
 from growbot_cerebellum.planner import Imagination, cem_plan
@@ -97,6 +98,7 @@ def main():
         allv = float(np.mean([ok for _, ok, _ in rows])); res[policy]["all"] = allv
         print(line + f"{allv*100:>9.1f}%")
     print(f"{time.time()-t0:.0f}s")
+    res["provenance"] = provenance(seeds={"rng": args.seed, "sim": "5000 + i"})
     json.dump(res, open("results/fall_recovery.json", "w"), indent=1)
 
 if __name__ == "__main__":

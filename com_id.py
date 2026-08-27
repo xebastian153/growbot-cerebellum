@@ -59,6 +59,7 @@ here.
 from __future__ import annotations
 import argparse, itertools, json, sys, time
 import numpy as np
+from growbot_cerebellum import provenance
 from growbot_cerebellum.sim import collect, ServoModel, DR
 from growbot_cerebellum.forward import MLP, make_windows, K
 from growbot_cerebellum.servo_id import realized_from_commands, _extend_cuts
@@ -385,6 +386,7 @@ def main():
                              "null_case": "nominal hidden body must identify to (0, 0) on every seed (asserted)"},
            "null_case_pass": null_ok,
            "identification_com": resA, "confound": resB, "runtime_s": time.time() - t_start}
+    out["provenance"] = provenance(seeds={"hidden": HIDDEN_SEEDS, "collect": 0, "mlp": 0})
     with open("results/com_id.json", "w") as fh:
         json.dump(out, fh, indent=1)
     print(f"\nwrote results/com_id.json   total {time.time() - t_start:.0f}s")

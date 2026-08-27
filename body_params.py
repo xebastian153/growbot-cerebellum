@@ -54,6 +54,7 @@ from pathlib import Path
 import mujoco
 import numpy as np
 
+from growbot_cerebellum import provenance
 from growbot_cerebellum.sim import DR, GrowBotSim, quat_to_rpy
 from growbot_cerebellum.forward import MLP, make_windows, rollout_error, K, AXES
 from growbot_cerebellum.sim2real import corners as published_corners
@@ -702,6 +703,7 @@ def main():
                          "by_corner": part},
            "runtime_s": float(time.time() - t_start)}
     (HERE / "results").mkdir(exist_ok=True)
+    out["provenance"] = provenance(seeds=args.seeds)
     (HERE / "results" / "body_params.json").write_text(json.dumps(out, indent=1))
     print(f"\nwrote results/body_params.json   total {time.time() - t_start:.0f}s")
 

@@ -83,6 +83,7 @@ from __future__ import annotations
 import argparse, json, sys, time
 import numpy as np
 
+from growbot_cerebellum import provenance
 from growbot_cerebellum.sim import GrowBotSim, ServoModel, WalkPolicy, collect, CTRL_HZ
 from growbot_cerebellum.forward import MLP, make_windows, K, AXES
 from growbot_cerebellum.gap import evaluate_axes
@@ -489,6 +490,7 @@ def main():
     report.update(RETRACTION)          # the withdrawal is part of the artifact, not a hand edit
     print(f"\n  {RETRACTION['conclusion']}")
 
+    report["provenance"] = provenance(seeds={"train": TRAIN_SEED, "trans": TRANS_SEED, "test": TEST_SEED, "mlp": 0})
     json.dump(report, open("results/coverage.json", "w"), indent=1)
     print(f"\nwrote results/coverage.json   total {(time.time()-t0)/60:.1f} min")
     tee.f.close()
