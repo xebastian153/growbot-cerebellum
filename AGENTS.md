@@ -43,7 +43,9 @@ The suite takes about five minutes on CPU (4:40 measured). A change that touches
   were not regenerated and carry none — an artifact without the key predates it. `gap_report.py`, `real_log_report.py`, `real2sim.py` are the day-of-log
   chain and the loop back into the twin.
 - `tests/` — `test_imulog_roundtrips.py` is the suite (marked `slow`); the rest run in a
-  second. `.github/workflows/ci.yml` runs lint, both, and the JS equivalence test.
+  second. `.github/workflows/ci.yml` runs lint, both, the JS equivalence test, and the
+  headline-artifact reproduce gate — evaluated only when the runner regenerated the
+  maintainer's twin stream (`data/twin.sha256`); the stream is CPU-dependent.
 - `docs/EXPERIMENTS.md` write-ups, `docs/READING.md` literature with code cross-checks,
   `docs/CONVENTIONS.md` the documentation standard this file extends.
 
