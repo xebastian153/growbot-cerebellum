@@ -13,7 +13,7 @@ from pathlib import Path
 import numpy as np
 
 from growbot_cerebellum import provenance
-from growbot_cerebellum.forward import CTRL_HZ, MLP, Linear, Persistence, make_windows, rollout_error
+from growbot_cerebellum.forward import CTRL_HZ, MLP, Linear, Persistence, by_regime, make_windows, rollout_error
 
 HERE = Path(__file__).parent
 
@@ -24,6 +24,8 @@ def main():
     ap.add_argument("--epochs", type=int, default=80, help="the value behind every published number")
     ap.add_argument("--hidden", type=int, default=128)
     ap.add_argument("--horizons", type=int, nargs="+", default=[1, 5, 10, 25, 50])
+    ap.add_argument("--regime-horizons", type=int, nargs="+", default=[5, 25],
+                    help="horizons of the per-regime table (100 ms and 500 ms)")
     args = ap.parse_args()
 
     tr = np.load(HERE / "data" / "train.npz"); te = np.load(HERE / "data" / "test.npz")
@@ -52,8 +54,23 @@ def main():
                   f"{r['rmse_axis_rad']['yaw']:>11.4f}{r['rmse_gyro_rads']:>12.3f}"
                   f"{r['within_0.2rad'] * 100:>11.1f}%{r['within_0.2rad_axis']['yaw'] * 100:>9.1f}%")
 
+    # Per regime: the same rollout split by what the body was doing at the start
+    # (by_regime samples up to 1500 starts per regime with a fixed seed).
+    results["by_regime"] = {}
+    for h in args.regime_horizons:
+        table = {m.name: {name: {"n": n, "rmse_rollpitch_rad": rmse, "within_0.2rad": w}
+                          for name, n, rmse, w in by_regime(m, te, args.K, h=h)}
+                 for m in models}
+        results["by_regime"][str(h)] = table
+        regimes = list(next(iter(table.values())).keys())
+        print(f"\nby regime @ {h * 1000 // CTRL_HZ} ms, within 0.2 rad (n starts)")
+        print(f"  {'regime':<18}{'n':>6}" + "".join(f"{m.name:>14}" for m in models))
+        for name in regimes:
+            n = table[models[0].name][name]["n"]
+            print(f"  {name:<18}{n:>6}" + "".join(f"{table[m.name][name]['within_0.2rad'] * 100:>13.1f}%" for m in models))
+
     (HERE / "results").mkdir(exist_ok=True)
-    results["provenance"] = provenance(seeds={"mlp": 0, "rollout": 0})
+    results["provenance"] = provenance(seeds={"mlp": 0, "rollout": 0, "regime_starts": 0})
     (HERE / "results" / f"forward_K{args.K}.json").write_text(json.dumps(results, indent=1))
 
 
