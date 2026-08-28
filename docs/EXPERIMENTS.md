@@ -48,7 +48,7 @@ One row per experiment, the verdict with its numbers; every figure resolves to a
 | JS runner | float32-equivalent to the trained net; the equivalence test caught a real convention bug |
 | Body-parameter DR proxy | **negative at 100 ms** — mass/CoM/leg/gain/*sliding* friction never reach the IMU there; contact chatter dominates the gyro. Re-scored at 500 ms below |
 | Body parameters at 500 ms | shifting the base **centre of mass** 3 cm forward drops 500 ms pitch predictability by 33.8 pts (38.5 / 34.9 / 28.1 across seeds; RMSE +129 %), 3 cm back by 14.2, and leg 1.15 by 7.4 — while mass moves nothing, neither −20 % / +25 % on the whole body nor ±75 g at a fixed centre of mass, and neither do gain or sliding friction. At +3 cm the whole-body CoM crosses into the foot support box (body-frame x ±10.5 mm; the CoM goes from 16.9 mm behind it at nominal to 0.7 mm inside), and on the **held-out half** a model trained on that body still pays 13.5 of the 30.2 pts there — **37–55 % across the three seeds**, a range and not a point estimate, and a different quantity from the 33.8-pt full-stream figure. The drop is resolved by seeds; the split is not, and the oracle behind it is a lower bound, not a ceiling. **No corner here mounts a phone**: the twin carries none, and a 200 g one would be mass_scale 1.42, outside the sweep |
-| Centre-of-mass identifiability | **negative** — the one-step score that identifies the servo cannot identify the centre of mass from IMU + commands on a 2-D (x, z) grid: 0 of 10 counted body-seeds identified (2 of 12 below the noise floor, excluded), the nominal body reads as ±1.5 cm off on every seed (null case fails, asserted), and the shipped model beats every body-matched candidate on held-out data on every seed (inferred cause: data budget). Resolved 3 of 3 on one body with an **ideal** servo: a +3 cm shift does **not** read as a servo delay (joint grid recovers +0.030 m and delay 0, the delay reading on the grid's edge by construction). Resolved 6 of 6: with the real-log servo in the loop the delay set is the whole grid, delay 0 included. Unresolved: the CoM/delay trade-off there (diagonal on 3 of 6 seeds); a 1.5 cm offset enters the argmin on 3 of 3 seeds of the unshifted body — the servo identified on the real log may carry a little body inside it. Stated limit: the scorer is one-step, and CoM was published as material only at 500 ms |
+| Centre-of-mass identifiability | **negative** — the one-step score that identifies the servo cannot identify the centre of mass from IMU + commands on a 2-D (x, z) grid: 0 of 10 counted body-seeds identified (2 of 12 below the noise floor, excluded), the nominal body reads as ±1.5 cm off on every seed (null case fails, asserted), and the shipped model beats every body-matched candidate on held-out data on every seed (inferred cause: data budget). Whether a +3 cm shift reads as a servo delay under an **ideal** servo is **unresolved**: the joint grid recovers +0.030 m and delay 0 on all three raw seeds, but two of them are below the noise floor and one counted seed resolves nothing (an earlier "resolved 3 of 3" is withdrawn). Resolved 4 of 4 counted (6 of 6 raw): with the real-log servo in the loop the delay set is the whole grid, delay 0 included — whether the *servo* is the cause is not resolved (the candidates' data budget is a rival). Unresolved: the CoM/delay trade-off there (diagonal on 2 of 4 counted); a 1.5 cm offset enters the argmin on 2 of 2 counted seeds of the unshifted body — the servo identified on the real log may carry a little body inside it. Stated limit: the scorer is one-step, and CoM was published as material only at 500 ms |
 | Contact friction | the twin has **no torsional friction**: at the shipped `condim=3` the XML's torsional and rolling coefficients are inert (bit-identical under a ×100 change). Switched on, torsional still moves nothing on any axis, yaw included — the DR negative survives a proper test. The XML's own unapplied rolling value costs 22.6 pts of yaw at 500 ms if enabled |
 | Actuator dynamics | the sim-to-real signature that *is* there: a slew-limited servo opens a 3–4 pt gap; the servo is identifiable from IMU + commands alone |
 | Multi-step training loss | +1.3 pts at 500 ms, consistent across seeds, saturates by H=5 |
@@ -581,13 +581,21 @@ band; and the walk body is used (a module constant, not a flag), not the olie ro
 parameters*, because the confound question is about the walk-body real log.
 
 **Decision rule, stated before the numbers.** Band = 1.4826·MAD/2 of the errors on the two
-quarters of the fit half over every hypothesis (`servo_id.band_from_errors`, the estimator
-behind `confidence_band`); determined set = the values within the band of the best error with
-the other parameter at the argmin (`servo_id.within_band`); an argmin counts as interior only
-when it is interior on **every** searched axis (`servo_id.argmin_interior`); a verdict is
-**resolved** when all *counted* hidden seeds (0, 1, 2; 30000 ticks each) agree. **A seed whose
-noise floor reaches its band (ratio ≥ 1) is below noise: it is excluded from every tally and
-from the null case, and the count excluded is published.** Seeds are not paired — `collect()`
+halves of the fit half over every hypothesis (`servo_id.band_from_errors`, the estimator
+behind `confidence_band`; `tests/test_com_id.py` pins it to the pre-refactor code); determined
+set = the values within the band of the best error with the other parameter at the argmin
+(`servo_id.within_band`); an argmin counts as interior only when it is interior on **every**
+searched axis (`servo_id.argmin_interior`); a verdict is **resolved** when all *counted* hidden
+seeds (0, 1, 2; 30000 ticks each) agree **and at least two are counted** — one counted seed
+resolves nothing. **Noise floor** = |err(nominal candidate) − err(second nominal candidate)|
+on the hidden log, scored with the commands as realised and no cut extension: a property of
+the stream and the two candidates, so it is the same number in both identifications on the
+same stream (the run asserts this on the ideal-servo confound body, whose stream is
+identification A's). The two candidates differ in collection seed only (torch seed fixed), so
+the floor is a *lower bound* on the candidates' training noise. **A seed whose noise floor
+reaches its band (ratio ≥ 1, or a band of 0) is below noise: it is excluded from every tally
+in both identifications and from the null case, and the count excluded is published per
+body.** Seeds are not paired — `collect()`
 draws `sim.rng` every tick for the push test, mode-dependently inside `Excitation` and once
 per episode in `fresh()` — so three seeds answer whether a verdict holds on every seed, not
 whether a mean is significant. **Null case, asserted:** the nominal hidden body must identify
@@ -622,8 +630,8 @@ decided, the noise floor is at most 0.47 of the band, so there the failure is th
 the noise: the best *other* x value at the argmin's z costs 0.024 / 0.014 / 0.009 more than
 the argmin (`nearest_wrong_x_gap`), inside the band 0.060 / 0.016 / 0.019 on all three seeds.
 Across all 12 body-seeds that gap is inside the band on 9 (outside on com x −0.03 seed 1
-and com x +0.03 seeds 1–2). Fit-quarter argmins (the two quarters of the fit half, not fit
-vs held-out) disagree on 9 of 10 counted body-seeds (11 of 12 raw). The truth landed inside
+and com x +0.03 seeds 1–2). Fit-quarter argmins (the two halves of the fit half — quarters
+of the hidden log — not fit vs held-out) disagree on 9 of 10 counted body-seeds (11 of 12 raw). The truth landed inside
 the determined sets on every counted seed only for com z +0.015 (2 of 2; 3 of 3 raw).
 
 Why the resolution is this poor is *inferred, not resolved*: on the held-out half the
@@ -640,55 +648,70 @@ would cost ~35× this run's training and is not what this run did.
 Candidate models along dcom_x (dcom_z = 0) × servo (delay 0–6 ticks, slew {2.0, none},
 deadband {0, 2}°) applied to the commands, scored on three hidden bodies. The slew and
 deadband axes carry two values each, so every joint argmin is on their boundary by
-construction (`two_point_axes` in the artifact); ⚠ below marks x or delay on the grid's edge.
+construction (`two_point_axes`; the joint `argmin_interior` is therefore `false` on every
+seed and carries no information on this grid — `argmin_interior_x` and
+`argmin_interior_delay` are the fields that do); ⚠ below marks x or delay on the grid's edge.
+The noise floor is the same number as in section A on the same stream and is consumed the
+same way: ✕ marks a seed at ratio ≥ 1, excluded from every tally — **4 of 9 body-seeds
+here** (`confound.*.n_below_noise`), because the joint grid's bands (0.005–0.037) are
+narrower than section A's.
 
-| hidden body | argmin (dcom_x, delay) per seed | x set | delay set | within band | shape |
-|---|---|---|---|---|---|
-| com x +0.03, **ideal servo** | (+0.030, 0 ⚠) × 3 | {+0.015, +0.030} / {+0.030} / {+0.015, +0.030, +0.045} | {0} / {0} / {0, 1} | 4 / 2 / 8 | **point, 3 of 3** |
-| nominal CoM, **real-log servo** (delay 5, slew 2.0, 2°) | (−0.015, 5) / (−0.015, 6 ⚠) / (+0.015, 5) | {−0.015} / {−0.030 … +0.015} / {+0.015} | **whole grid [0 … 6] × 3** | 14 / 56 / 14 | diagonal 1 of 3 |
-| com x +0.03, real-log servo | (+0.045 ⚠, 6 ⚠) / (+0.030, 5) / (+0.030, 5) | {+0.015 … +0.045} / {+0.030} / {+0.015 … +0.045} | **whole grid [0 … 6] × 3** | 34 / 14 / 32 | diagonal 2 of 3 |
+| hidden body | argmin (dcom_x, delay) per seed | x set | delay set | within band | noise floor / band | shape (raw) |
+|---|---|---|---|---|---|---|
+| com x +0.03, **ideal servo** | (+0.030, 0 ⚠) ✕ / (+0.030, 0 ⚠) / (+0.030, 0 ⚠) ✕ | {+0.015, +0.030} / {+0.030} / {+0.015, +0.030, +0.045} | {0} / {0} / {0, 1} | 4 / 2 / 8 | **1.38** / 0.37 / **2.28** | point × 3; **1 of 3 counted** |
+| nominal CoM, **real-log servo** (delay 5, slew 2.0, 2°) | (−0.015, 5) / (−0.015, 6 ⚠) / (+0.015, 5) ✕ | {−0.015} / {−0.030 … +0.015} / {+0.015} | **whole grid [0 … 6] × 3** | 14 / 56 / 14 | 0.61 / 0.59 / **1.38** | diagonal on seed 1; 2 of 3 counted |
+| com x +0.03, real-log servo | (+0.045 ⚠, 6 ⚠) ✕ / (+0.030, 5) / (+0.030, 5) | {+0.015 … +0.045} / {+0.030} / {+0.015 … +0.045} | **whole grid [0 … 6] × 3** | 34 / 14 / 32 | **2.15** / 0.10 / 0.78 | diagonal on seeds 0, 2; 2 of 3 counted |
 
 Delay 0 is the grid's lower edge: no negative delay exists, so a true delay of 0 can only
 ever be read at the boundary. The deadband is never separated: its determined set is {0, 2}°
-on all nine seeds, and the ideal-servo body's argmin lands on 2° on 2 of 3 seeds against a
-truth of 0.
+on all nine seeds, and the ideal-servo body's argmin lands on 2° on 2 of 3 raw seeds against
+a truth of 0.
 
-Three readings, one resolved and two not.
+Three readings; under the counted set, one is resolved and two are not.
 
-**With an ideal servo, a +3 cm centre-of-mass shift does not read as a servo delay — resolved
-on argmin x and argmin delay, 3 of 3, on this one body.** The joint grid recovers dcom_x =
-+0.030 *and* delay 0 on every seed; the delay set is {0} / {0} / {0, 1} and the within-band
-set spans one delay on two seeds and two on the third (4 / 2 / 8 hypotheses). The condition
-travels with the claim: one body, one magnitude and sign, no servo in the loop, the delay
-argmin on the grid's edge by construction, and the x reading's fit-quarter agreement is
-[yes, yes, no] — unresolved. Nothing here says what happens when a shift and a delay are
-present together; that is the next row.
+**Whether a +3 cm centre-of-mass shift reads as a servo delay under an ideal servo is
+unresolved: one counted seed.** On the raw seeds the joint grid recovers dcom_x = +0.030
+*and* delay 0 on all three, with the delay set {0} / {0} / {0, 1} — but on seeds 0 and 2 the
+training noise is 1.38× and 2.28× the band, so by the pre-stated rule they are excluded and
+the reading rests on seed 1 alone (`argmin_x_correct.n_counted` 1, `resolved` false). An
+earlier revision of this section published this row as "resolved, 3 of 3"; that was the rule
+applied to section A only, and it is withdrawn. Nothing in this run tests the reverse
+direction at two or more counted seeds. (The conditions that would travel with the claim if it
+were made: one body, one magnitude and sign, no servo in the loop, the delay argmin on the
+grid's edge by construction.) On this same stream, section A excludes seed 2 and keeps seeds
+0–1 (its bands are wider), so the two sections cannot be compared seed for seed on this body;
+the earlier "section B contradicts the headline" reading is withdrawn with it.
 
-The same stream also contradicts the headline on this body: with dcom_z fixed at 0 and the
-cut mask widened by the grid's largest delay, the one-step score puts the x argmin on the
-truth 3 of 3 here, where the 2-D search of section A put it there on 1 of 2 counted seeds
-(seed 2 below noise). The negative is a statement about the 2-D (x, z) grid at one step, not
-about x alone with z known.
-
-**A slow servo leaves the delay undetermined and lets the CoM reading drift — delay resolved,
-trade-off not.** With the real-log servo candidate in the loop the delay set is the entire
-grid on all six seeds, resolved 6 of 6, whether or not the body is shifted — and delay 0, "no
-servo at all", is inside every one of those sets, so on the delay axis this regime separates
-nothing. The within-band set grows to 14–56 hypotheses spanning several dcom_x values and
-every delay; it is a diagonal on 3 of those 6 seeds ([no, yes, no] and [yes, no, yes]) and a
-point on the other 3, so the trade-off is **not resolved** at three seeds. On the unshifted
-body the argmin lands 1.5 cm off on every seed (3 of 3, resolved; truth in the x set 1 of 3);
-on the shifted body the argmin is right on 2 of 3 and the truth is in the x set on 3 of 3.
+**A slow servo leaves the delay undetermined — resolved on the counted seeds; the CoM/delay
+trade-off is not.** With the real-log servo candidate in the loop the delay set is the entire
+grid on every seed of both bodies (4 of 4 counted, 6 of 6 raw), and delay 0, "no servo at
+all", is inside every one of those sets, so on the delay axis this regime separates nothing.
+Mechanism, marked: that the *servo* is what widens the set is **not resolved by this run** —
+the same candidates are what produce section A's negative, and their data budget is a rival
+cause. On the ideal-servo body of this section the same candidates do narrow the delay set to
+{0} / {0} / {0, 1} (raw), which weakens the rival but does not remove it, because delay 0 is
+the boundary hypothesis whose realised command is the command itself. `servo_id.py`, scoring
+with the *shipped* model on the same kind of stream (300 s of `collect()`'s mixed excitation),
+pins its delay to [1 … 3] ticks — but on a different hidden servo (delay 2, slew 5.0), so it is
+a pointer, not a comparison. The within-band set grows to 14–56 hypotheses spanning several
+dcom_x values and every delay; it is a diagonal on 3 of the 6 raw seeds ([no, yes, no] and
+[yes, no, yes]) and on 2 of the 4 counted, so the trade-off is **not resolved**. On the
+unshifted body the argmin lands 1.5 cm off on every counted seed (2 of 2; 3 of 3 raw — the
+counted verdict is resolved, `argmin_x_correct` false) and the truth is in the x set on 1 of 2
+counted; on the shifted body the argmin is right on 2 of 2 counted (its wrong seed, the
++0.045 ⚠ one, is the excluded one) and the truth is in the x set on 2 of 2 counted (3 of 3 raw).
 
 **What this does to the servo reading on the real log.** The real walk-1 log (`servo_id`, the
 *Real2Sim* section) identified delay 5 with the delay set [2 … 6]. This run reproduces that
-shape in the twin: with a hidden delay-5 servo and the same 300 s of walking, the delay set is
-the whole grid *even with the correct body model in the grid*, and a 1.5 cm CoM offset is read
-into the argmin on 3 of 3 seeds of the unshifted body and on 1 of 3 of the shifted one (the
-+0.045 ⚠ seed). So the servo identified on the real log **may carry a small centre-of-mass
-offset inside it, and this run cannot rule that in or out.** The reverse is ruled out only
-under an ideal servo, on one body (the resolved reading above); with the real-log servo in
-the loop nothing in this run tests it, because the delay axis is not separated there.
+shape in the twin: with a hidden delay-5 servo and a 15000-tick (300 s) fit half of
+`collect()`'s mixed excitation — keyframe holds, sine gaits, OU noise, the walk policy and
+stills at 30 / 20 / 20 / 20 / 10 %, not the 8 s of periodic walking the real log holds — the
+delay set is the whole grid *even with the correct body model in the grid*, and a 1.5 cm CoM
+offset is read into the argmin on 2 of 2 counted seeds of the unshifted body (3 of 3 raw). So
+the servo identified on the real log **may carry a small centre-of-mass offset inside it, and
+this run cannot rule that in or out.** The reverse — a shift reading as a delay — is tested at
+two or more counted seeds nowhere in this run: not under the ideal servo (one counted seed) and
+not under the real-log servo (the delay axis is not separated there).
 
 **What this run cannot see.** The scorer is one-step (20 ms). This repo published the centre
 of mass as invisible in the IMU at 100 ms (*Sim-to-real proxy*) and material only at 500 ms
@@ -706,7 +729,7 @@ Reproduce: regenerate `data/train.npz` with the `sim/growbot_sim.py` command in 
 *Setup* (the script asserts it equals `collect(400000, seed=0)`), then
 `.venv/bin/python com_id.py > /path/outside/the/repo.txt` → `results/com_id.json`; copy the
 redirected stdout into `results/logs/com_id.txt` afterwards. Exits 1 by design: the null case
-fails. 731 s, 6 cores.
+fails. 880 s.
 
 ## Yaw floor — mostly noise, not model: scaling is flat and privileged state adds little (negative)
 
@@ -912,12 +935,13 @@ at that width, but the set is no longer the whole grid.
 > hand-copied mirror of them. The copy is gone (`real2sim.determined_band` reads the
 > artifact and fails hard if it cannot), and every number below that depends on the sets
 > is recomputed against them.
-> *Caveat added later (`com_id.py`): in the twin, a hidden delay-5 servo with the same 300 s of
-> walking leaves the delay set at the whole grid even with the correct body model in the grid
-> (6 of 6 seeds), and a 1.5 cm centre-of-mass offset is read into the argmin on 3 of 3 seeds of
-> the unshifted body — the identified servo may carry a small CoM offset inside it; unresolved.
-> The reverse is ruled out only with an ideal servo, on one body, 3 of 3: a +3 cm shift does not
-> read as a servo delay there. See *Centre-of-mass identifiability*.*
+> *Caveat added later (`com_id.py`): in the twin, a hidden delay-5 servo with 300 s of
+> `collect()`'s mixed excitation (not walking alone) leaves the delay set at the whole grid even
+> with the correct body model in the grid (4 of 4 counted seeds, 6 of 6 raw), and a 1.5 cm
+> centre-of-mass offset is read into the argmin on 2 of 2 counted seeds of the unshifted body —
+> the identified servo may carry a small CoM offset inside it; unresolved. The reverse, a shift
+> reading as a delay, is tested at two or more counted seeds nowhere in that run. See
+> *Centre-of-mass identifiability*.*
 
 **Fusion-filter lag, walk-1 only**: wx +13.0 ± 0.1 ms (corr 0.87), wy +13.8 ± 0.2 (0.95),
 wz +12.8 ± 0.7 (0.96), split-half AGREE on all three. walk-3 gives +17.9 ± 10.1 / +20.7 ±
@@ -1043,11 +1067,13 @@ Read carefully, this is a weaker and more specific result than the one it replac
 - **Deadband is never varied on its own**, so its contribution is untested. The cells
   are not a factorial.
 - **The identified servo may carry a small centre-of-mass offset inside it — unresolved.** In the
-  twin (`com_id.py`), a hidden delay-5 servo with the same 300 s of walking leaves the delay set at
-  the whole grid even with the correct body model available (6 of 6 seeds), and a 1.5 cm CoM
-  offset is read into the joint argmin on 3 of 3 seeds of the unshifted body. The reverse is ruled
-  out only with an ideal servo, on one body, 3 of 3: a +3 cm shift there recovers delay 0. So the closure numbers above stand as measured; what they attribute to *the
-  servo* could include a little body, and this run cannot separate the two at this data scale.
+  twin (`com_id.py`), a hidden delay-5 servo with 300 s of `collect()`'s mixed excitation leaves
+  the delay set at the whole grid even with the correct body model available (4 of 4 counted
+  seeds, 6 of 6 raw), and a 1.5 cm CoM offset is read into the joint argmin on 2 of 2 counted
+  seeds of the unshifted body. The reverse, a shift reading as a delay, is tested at two or more
+  counted seeds nowhere in that run (under an ideal servo one seed is counted, the other two are
+  below the noise floor). So the closure numbers above stand as measured; what they attribute to
+  *the servo* could include a little body, and this run cannot separate the two at this data scale.
 
 Pitch is no longer read as a coverage hole — see the retraction below. On walk-1, the
 only file that walks, pitch and roll sit at similar distances below their twin floors,
