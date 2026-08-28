@@ -24,7 +24,7 @@ uv venv --python 3.11 .venv
 VIRTUAL_ENV=.venv uv pip install --index-url https://pypi.org/simple \
   --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match \
   -e ".[dev]"
-.venv/bin/pytest -m "not slow"                  # 22 tests, one second
+.venv/bin/pytest -m "not slow"                  # 24 tests, one second
 .venv/bin/pytest                                # + the round-trip suite, ~5 min (same as `python imulog.py`)
 ```
 
@@ -37,6 +37,10 @@ CPU is enough for everything; `requirements.lock` is the exact freeze that produ
 .venv/bin/python sim/growbot_sim.py --body olie --steps 400000 --seed 10 --out data/olie_train.npz
 .venv/bin/python sim/growbot_sim.py --body olie --steps 60000  --seed 11 --out data/olie_test.npz
 ```
+
+`sha256sum -c data/twin.sha256` then says whether your machine regenerated the same stream
+the published numbers come from — the twin is chaotic and the stream is CPU-dependent, so
+on a different CPU every number moves at the second digit (see CONTRIBUTING.md).
 
 Each experiment is one script with a `Reproduce:` line in [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md);
 `python <script>.py --help` states its question and never runs anything.
