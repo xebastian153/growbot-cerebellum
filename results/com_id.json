@@ -70,14 +70,14 @@
   }
  },
  "decision_rule": {
-  "band": "1.4826*MAD/2 of err_A - err_B over every hypothesis, A/B = quarters of the fit half",
+  "band": "1.4826*MAD/2 of err_A - err_B over every hypothesis, A/B = the two halves of the fit half",
   "determined": "values within band of the best error, other parameters at the argmin",
-  "resolved": "the per-seed boolean is the same on all three hidden seeds",
+  "resolved": "the per-seed boolean is the same on every counted hidden seed and at least two seeds are counted (n_counted >= 2); one counted seed resolves nothing",
   "seeds": "NOT paired: collect() draws sim.rng every tick for the push test, mode-dependently inside Excitation and once per episode in fresh(); three seeds answer whether the verdict holds on every seed, not whether a mean is significant",
-  "noise_floor": "|err(nominal candidate) - err(second nominal candidate, other collection seed)| on the same hidden log; a separation below it is not evidence",
-  "below_noise": "a seed whose noise floor / band >= 1 is marked below_noise and excluded from every identified / argmin / truth-in-set tally and from the null case; n_below_noise is published per body",
+  "noise_floor": "|err(nominal candidate) - err(second nominal candidate)| on the same hidden log, scored with R = A and no cut extension: a property of the stream and the two candidates, the same number in identification A and B on the same stream (asserted on the ideal-servo confound body). The two candidates differ in collection seed only (torch seed fixed at 0), so the floor is a lower bound on training noise; a separation below it is not evidence",
+  "below_noise": "in BOTH identifications, a seed with noise floor / band >= 1, or band == 0, is marked below_noise and excluded from every identified / argmin / truth-in-set / diagonal tally and from the null case; n_below_noise is published per body",
   "interior": "an argmin counts only when interior on every searched axis (servo_id.argmin_interior); the joint grid's slew and deadband axes are two-point, so joint argmins are boundary on them by construction",
-  "fit_quarter": "fit_quarter_* compares the two QUARTERS of the fit half, not fit vs held-out; held-out errors are reported separately",
+  "fit_quarter": "fit_quarter_* compares the two HALVES of the fit half (quarters of the hidden log), not fit vs held-out; held-out errors are reported separately",
   "null_case": "nominal hidden body must identify to (0, 0) on every counted seed (asserted)"
  },
  "null_case_pass": false,
@@ -1790,6 +1790,9 @@
      "truth_delay_in_set": true,
      "diagonal": false,
      "band": 0.006381871470808983,
+     "noise_floor": 0.008797287940979004,
+     "noise_floor_vs_band": 1.378480901913845,
+     "below_noise": true,
      "fit_quarter_argmins": [
       {
        "dcom_x": 0.03,
@@ -1921,6 +1924,9 @@
      "truth_delay_in_set": true,
      "diagonal": false,
      "band": 0.004540641537308693,
+     "noise_floor": 0.001696765422821045,
+     "noise_floor_vs_band": 0.37368407280763755,
+     "below_noise": false,
      "fit_quarter_argmins": [
       {
        "dcom_x": 0.03,
@@ -2070,6 +2076,9 @@
      "truth_delay_in_set": true,
      "diagonal": false,
      "band": 0.0068378819704055785,
+     "noise_floor": 0.015576958656311035,
+     "noise_floor_vs_band": 2.278038539379338,
+     "below_noise": true,
      "fit_quarter_argmins": [
       {
        "dcom_x": 0.015,
@@ -2088,6 +2097,12 @@
      "fit_quarter_delay_agree": true
     }
    ],
+   "below_noise": [
+    true,
+    false,
+    true
+   ],
+   "n_below_noise": 2,
    "argmin_x_correct": {
     "per_seed": [
      true,
@@ -2095,13 +2110,13 @@
      true
     ],
     "counted": [
+     false,
      true,
-     true,
-     true
+     false
     ],
-    "n_counted": 3,
-    "resolved": true,
-    "value": true
+    "n_counted": 1,
+    "resolved": false,
+    "value": null
    },
    "argmin_delay_correct": {
     "per_seed": [
@@ -2110,13 +2125,13 @@
      true
     ],
     "counted": [
+     false,
      true,
-     true,
-     true
+     false
     ],
-    "n_counted": 3,
-    "resolved": true,
-    "value": true
+    "n_counted": 1,
+    "resolved": false,
+    "value": null
    },
    "truth_x_in_set": {
     "per_seed": [
@@ -2125,13 +2140,13 @@
      true
     ],
     "counted": [
+     false,
      true,
-     true,
-     true
+     false
     ],
-    "n_counted": 3,
-    "resolved": true,
-    "value": true
+    "n_counted": 1,
+    "resolved": false,
+    "value": null
    },
    "truth_delay_in_set": {
     "per_seed": [
@@ -2140,13 +2155,13 @@
      true
     ],
     "counted": [
+     false,
      true,
-     true,
-     true
+     false
     ],
-    "n_counted": 3,
-    "resolved": true,
-    "value": true
+    "n_counted": 1,
+    "resolved": false,
+    "value": null
    },
    "diagonal": {
     "per_seed": [
@@ -2155,13 +2170,13 @@
      false
     ],
     "counted": [
+     false,
      true,
-     true,
-     true
+     false
     ],
-    "n_counted": 3,
-    "resolved": true,
-    "value": false
+    "n_counted": 1,
+    "resolved": false,
+    "value": null
    },
    "argmin_deadband_correct": {
     "per_seed": [
@@ -2170,11 +2185,11 @@
      false
     ],
     "counted": [
+     false,
      true,
-     true,
-     true
+     false
     ],
-    "n_counted": 3,
+    "n_counted": 1,
     "resolved": false,
     "value": null
    },
@@ -2185,13 +2200,13 @@
      false
     ],
     "counted": [
+     false,
      true,
-     true,
-     true
+     false
     ],
-    "n_counted": 3,
-    "resolved": true,
-    "value": false
+    "n_counted": 1,
+    "resolved": false,
+    "value": null
    },
    "argmin_interior_x": {
     "per_seed": [
@@ -2200,13 +2215,13 @@
      true
     ],
     "counted": [
+     false,
      true,
-     true,
-     true
+     false
     ],
-    "n_counted": 3,
-    "resolved": true,
-    "value": true
+    "n_counted": 1,
+    "resolved": false,
+    "value": null
    },
    "argmin_interior_delay": {
     "per_seed": [
@@ -2215,13 +2230,13 @@
      false
     ],
     "counted": [
+     false,
      true,
-     true,
-     true
+     false
     ],
-    "n_counted": 3,
-    "resolved": true,
-    "value": false
+    "n_counted": 1,
+    "resolved": false,
+    "value": null
    },
    "two_point_axes": [
     "slew",
@@ -2234,11 +2249,11 @@
      false
     ],
     "counted": [
+     false,
      true,
-     true,
-     true
+     false
     ],
-    "n_counted": 3,
+    "n_counted": 1,
     "resolved": false,
     "value": null
    },
@@ -2249,13 +2264,13 @@
      true
     ],
     "counted": [
+     false,
      true,
-     true,
-     true
+     false
     ],
-    "n_counted": 3,
-    "resolved": true,
-    "value": true
+    "n_counted": 1,
+    "resolved": false,
+    "value": null
    },
    "band": {
     "mean": 0.005920131659507752,
@@ -2265,6 +2280,15 @@
      0.0068378819704055785
     ],
     "spread": 0.0022972404330968855
+   },
+   "noise_floor": {
+    "mean": 0.008690337340037027,
+    "per_seed": [
+     0.008797287940979004,
+     0.001696765422821045,
+     0.015576958656311035
+    ],
+    "spread": 0.01388019323348999
    },
    "within_band_count": {
     "mean": 4.666666666666667,
@@ -2463,6 +2487,9 @@
      "truth_delay_in_set": true,
      "diagonal": false,
      "band": 0.01119617232978344,
+     "noise_floor": 0.006866097450256348,
+     "noise_floor_vs_band": 0.6132539986001765,
+     "below_noise": false,
      "fit_quarter_argmins": [
       {
        "dcom_x": -0.015,
@@ -2720,6 +2747,9 @@
      "truth_delay_in_set": true,
      "diagonal": true,
      "band": 0.03685806874930858,
+     "noise_floor": 0.021794438362121582,
+     "noise_floor_vs_band": 0.5913071167769859,
+     "below_noise": false,
      "fit_quarter_argmins": [
       {
        "dcom_x": 0.015,
@@ -2887,6 +2917,9 @@
      "truth_delay_in_set": true,
      "diagonal": false,
      "band": 0.008109789168834685,
+     "noise_floor": 0.011193811893463135,
+     "noise_floor_vs_band": 1.3802839581181863,
+     "below_noise": true,
      "fit_quarter_argmins": [
       {
        "dcom_x": 0.015,
@@ -2905,6 +2938,12 @@
      "fit_quarter_delay_agree": true
     }
    ],
+   "below_noise": [
+    false,
+    false,
+    true
+   ],
+   "n_below_noise": 1,
    "argmin_x_correct": {
     "per_seed": [
      false,
@@ -2914,9 +2953,9 @@
     "counted": [
      true,
      true,
-     true
+     false
     ],
-    "n_counted": 3,
+    "n_counted": 2,
     "resolved": true,
     "value": false
    },
@@ -2929,9 +2968,9 @@
     "counted": [
      true,
      true,
-     true
+     false
     ],
-    "n_counted": 3,
+    "n_counted": 2,
     "resolved": false,
     "value": null
    },
@@ -2944,9 +2983,9 @@
     "counted": [
      true,
      true,
-     true
+     false
     ],
-    "n_counted": 3,
+    "n_counted": 2,
     "resolved": false,
     "value": null
    },
@@ -2959,9 +2998,9 @@
     "counted": [
      true,
      true,
-     true
+     false
     ],
-    "n_counted": 3,
+    "n_counted": 2,
     "resolved": true,
     "value": true
    },
@@ -2974,9 +3013,9 @@
     "counted": [
      true,
      true,
-     true
+     false
     ],
-    "n_counted": 3,
+    "n_counted": 2,
     "resolved": false,
     "value": null
    },
@@ -2989,9 +3028,9 @@
     "counted": [
      true,
      true,
-     true
+     false
     ],
-    "n_counted": 3,
+    "n_counted": 2,
     "resolved": true,
     "value": true
    },
@@ -3004,9 +3043,9 @@
     "counted": [
      true,
      true,
-     true
+     false
     ],
-    "n_counted": 3,
+    "n_counted": 2,
     "resolved": true,
     "value": false
    },
@@ -3019,9 +3058,9 @@
     "counted": [
      true,
      true,
-     true
+     false
     ],
-    "n_counted": 3,
+    "n_counted": 2,
     "resolved": true,
     "value": true
    },
@@ -3034,9 +3073,9 @@
     "counted": [
      true,
      true,
-     true
+     false
     ],
-    "n_counted": 3,
+    "n_counted": 2,
     "resolved": false,
     "value": null
    },
@@ -3053,9 +3092,9 @@
     "counted": [
      true,
      true,
-     true
+     false
     ],
-    "n_counted": 3,
+    "n_counted": 2,
     "resolved": false,
     "value": null
    },
@@ -3068,11 +3107,11 @@
     "counted": [
      true,
      true,
-     true
+     false
     ],
-    "n_counted": 3,
-    "resolved": false,
-    "value": null
+    "n_counted": 2,
+    "resolved": true,
+    "value": false
    },
    "band": {
     "mean": 0.01872134341597557,
@@ -3082,6 +3121,15 @@
      0.008109789168834685
     ],
     "spread": 0.028748279580473896
+   },
+   "noise_floor": {
+    "mean": 0.013284782568613688,
+    "per_seed": [
+     0.006866097450256348,
+     0.021794438362121582,
+     0.011193811893463135
+    ],
+    "spread": 0.014928340911865234
    },
    "within_band_count": {
     "mean": 28.0,
@@ -3324,6 +3372,9 @@
      "truth_delay_in_set": true,
      "diagonal": true,
      "band": 0.009825489735603331,
+     "noise_floor": 0.0210798978805542,
+     "noise_floor_vs_band": 2.1454297391579122,
+     "below_noise": true,
      "fit_quarter_argmins": [
       {
        "dcom_x": 0.03,
@@ -3491,6 +3542,9 @@
      "truth_delay_in_set": true,
      "diagonal": false,
      "band": 0.008764322528243064,
+     "noise_floor": 0.0008582472801208496,
+     "noise_floor_vs_band": 0.09792511370446996,
+     "below_noise": false,
      "fit_quarter_argmins": [
       {
        "dcom_x": 0.03,
@@ -3698,6 +3752,9 @@
      "truth_delay_in_set": true,
      "diagonal": true,
      "band": 0.008965562760829925,
+     "noise_floor": 0.006979823112487793,
+     "noise_floor_vs_band": 0.7785147791259992,
+     "below_noise": false,
      "fit_quarter_argmins": [
       {
        "dcom_x": 0.045,
@@ -3716,6 +3773,12 @@
      "fit_quarter_delay_agree": true
     }
    ],
+   "below_noise": [
+    true,
+    false,
+    false
+   ],
+   "n_below_noise": 1,
    "argmin_x_correct": {
     "per_seed": [
      false,
@@ -3723,13 +3786,13 @@
      true
     ],
     "counted": [
-     true,
+     false,
      true,
      true
     ],
-    "n_counted": 3,
-    "resolved": false,
-    "value": null
+    "n_counted": 2,
+    "resolved": true,
+    "value": true
    },
    "argmin_delay_correct": {
     "per_seed": [
@@ -3738,13 +3801,13 @@
      true
     ],
     "counted": [
-     true,
+     false,
      true,
      true
     ],
-    "n_counted": 3,
-    "resolved": false,
-    "value": null
+    "n_counted": 2,
+    "resolved": true,
+    "value": true
    },
    "truth_x_in_set": {
     "per_seed": [
@@ -3753,11 +3816,11 @@
      true
     ],
     "counted": [
-     true,
+     false,
      true,
      true
     ],
-    "n_counted": 3,
+    "n_counted": 2,
     "resolved": true,
     "value": true
    },
@@ -3768,11 +3831,11 @@
      true
     ],
     "counted": [
-     true,
+     false,
      true,
      true
     ],
-    "n_counted": 3,
+    "n_counted": 2,
     "resolved": true,
     "value": true
    },
@@ -3783,11 +3846,11 @@
      true
     ],
     "counted": [
-     true,
+     false,
      true,
      true
     ],
-    "n_counted": 3,
+    "n_counted": 2,
     "resolved": false,
     "value": null
    },
@@ -3798,11 +3861,11 @@
      true
     ],
     "counted": [
-     true,
+     false,
      true,
      true
     ],
-    "n_counted": 3,
+    "n_counted": 2,
     "resolved": true,
     "value": true
    },
@@ -3813,11 +3876,11 @@
      false
     ],
     "counted": [
-     true,
+     false,
      true,
      true
     ],
-    "n_counted": 3,
+    "n_counted": 2,
     "resolved": true,
     "value": false
    },
@@ -3828,13 +3891,13 @@
      true
     ],
     "counted": [
-     true,
+     false,
      true,
      true
     ],
-    "n_counted": 3,
-    "resolved": false,
-    "value": null
+    "n_counted": 2,
+    "resolved": true,
+    "value": true
    },
    "argmin_interior_delay": {
     "per_seed": [
@@ -3843,13 +3906,13 @@
      true
     ],
     "counted": [
-     true,
+     false,
      true,
      true
     ],
-    "n_counted": 3,
-    "resolved": false,
-    "value": null
+    "n_counted": 2,
+    "resolved": true,
+    "value": true
    },
    "two_point_axes": [
     "slew",
@@ -3862,11 +3925,11 @@
      false
     ],
     "counted": [
-     true,
+     false,
      true,
      true
     ],
-    "n_counted": 3,
+    "n_counted": 2,
     "resolved": false,
     "value": null
    },
@@ -3877,13 +3940,13 @@
      true
     ],
     "counted": [
-     true,
+     false,
      true,
      true
     ],
-    "n_counted": 3,
-    "resolved": false,
-    "value": null
+    "n_counted": 2,
+    "resolved": true,
+    "value": true
    },
    "band": {
     "mean": 0.009185125008225438,
@@ -3893,6 +3956,15 @@
      0.008965562760829925
     ],
     "spread": 0.0010611672073602679
+   },
+   "noise_floor": {
+    "mean": 0.009639322757720947,
+    "per_seed": [
+     0.0210798978805542,
+     0.0008582472801208496,
+     0.006979823112487793
+    ],
+    "spread": 0.02022165060043335
    },
    "within_band_count": {
     "mean": 26.666666666666668,
@@ -3932,9 +4004,9 @@
    }
   }
  },
- "runtime_s": 731.0225574970245,
+ "runtime_s": 880.0644390583038,
  "provenance": {
-  "git_commit": "b9ae8f5296e369b252eba294d05e68fa554decbd",
+  "git_commit": "5258eab697741bb4cf38e2265b4a2e712c886c90",
   "git_dirty": false,
   "python": "3.11.15",
   "numpy": "2.4.6",
@@ -3954,7 +4026,7 @@
    "train_npz": 0,
    "mlp": 0
   },
-  "timestamp": "2026-08-27T20:23:43+00:00",
+  "timestamp": "2026-08-28T03:40:12+00:00",
   "data": "data/train.npz"
  }
 }
