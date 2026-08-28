@@ -234,6 +234,8 @@ def main():
                     help="sensor_id output for this log; default results/sensor_id_<stem>.json")
     ap.add_argument("--epochs", type=int, default=80)
     args = ap.parse_args()
+    # Taken before the run log opens (Tee truncates a tracked file -> "dirty").
+    prov = provenance(seeds={"mlp": 0})
     sys.stdout = Tee("results/logs/identification_ablation.txt")
 
     from sensor_id import default_out_path
@@ -380,7 +382,7 @@ def main():
                "model": "MLP h128 on data/train.npz",
                "sensor_json": sensor_json, "sensor_lag_ms": lag, "sensor_lag_meta": lag_meta},
            "variants": variants, "delay_decomposition": decomp}
-    out["provenance"] = provenance(seeds={"mlp": 0})
+    out["provenance"] = prov
     with open("results/identification_ablation.json", "w") as fh:
         json.dump(out, fh, indent=1, default=float)
     print("\nwrote results/identification_ablation.json")

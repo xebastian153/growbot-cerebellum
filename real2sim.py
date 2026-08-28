@@ -177,6 +177,9 @@ def main():
     ap.parse_args()
     global DETERMINED_DELAY, DETERMINED_SLEW
     DETERMINED_DELAY, DETERMINED_SLEW = determined_band()
+    # Taken before the run log opens: Tee truncates a tracked file, which would make
+    # the block read "dirty" on a clean checkout.
+    prov = provenance(seeds={"train": TRAIN_SEED, "test": TEST_SEED, "mlp": [0, *CONTROL_EXTRA_SEEDS]})
     sys.stdout = tee = Tee("results/logs/real2sim.txt")
     t0 = time.time()
     Oh, Ah, Dh, labelh, half, total, header = load_real_heldout()
@@ -369,7 +372,7 @@ def main():
     report["conclusion"] = conclusion
     print(f"\n  {conclusion}")
 
-    report["provenance"] = provenance(seeds={"train": TRAIN_SEED, "test": TEST_SEED, "mlp": [0, *CONTROL_EXTRA_SEEDS]})
+    report["provenance"] = prov
     json.dump(report, open("results/real2sim.json", "w"), indent=1)
     print(f"\nwrote results/real2sim.json   total {(time.time() - t0) / 60:.1f} min")
     tee.f.close()

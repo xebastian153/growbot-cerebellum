@@ -43,7 +43,7 @@ One row per experiment, the verdict with its numbers; every figure resolves to a
 
 | experiment | verdict |
 |---|---|
-| Forward model | 96.0 % within 0.2 rad at 100 ms, 82.7 % at 500 ms; yaw is the hard axis (59 % vs 77 % at 1 s); the gain over baselines concentrates in fast motion (41 → 86 %) and falls (58 → 89 %) |
+| Forward model | 96.0 % within 0.2 rad at 100 ms, 82.7 % at 500 ms; yaw is the hard axis (59 % vs 77 % at 1 s); the gain over baselines concentrates in fast motion (41 → 87 %) and falls (58 → 90 %) |
 | Mimic game | planning without a model is worse than doing nothing; with it, error halves (0.210 → 0.095 rad) and 39/40 traces beat hold-still |
 | JS runner | float32-equivalent to the trained net; the equivalence test caught a real convention bug |
 | Body-parameter DR proxy | **negative at 100 ms** — mass/CoM/leg/gain/*sliding* friction never reach the IMU there; contact chatter dominates the gyro. Re-scored at 500 ms below |
@@ -103,7 +103,7 @@ every model (67 % and 66 % for the MLP).
 Reproduce: `.venv/bin/python forward.py > /path/outside/the/repo.txt` → `results/forward_K5.json`
 (80 epochs, the CLI default); copy the redirected stdout into `results/logs/forward_K5.txt` afterwards —
 redirecting straight into that tracked path dirties the tree before the provenance block is taken. Both
-committed files come from one run (`fit_s` in the JSON equals the `fit` line in the log). ~36 s wall, 6 cores.
+committed files come from one run (`fit_s` in the JSON equals the `fit` line in the log).
 
 ## Mimic game
 

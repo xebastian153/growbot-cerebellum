@@ -301,6 +301,8 @@ def main():
                     "to results/logs/coverage.txt. Needs the untracked walk logs and "
                     "results/real2sim.json.")
     ap.parse_args()
+    # Taken before the run log opens (Tee truncates a tracked file -> "dirty").
+    prov = provenance(seeds={"train": TRAIN_SEED, "trans": TRANS_SEED, "test": TEST_SEED, "mlp": 0})
     sys.stdout = tee = Tee("results/logs/coverage.txt")
     t0 = time.time()
     THRESH = thresholds()
@@ -490,7 +492,7 @@ def main():
     report.update(RETRACTION)          # the withdrawal is part of the artifact, not a hand edit
     print(f"\n  {RETRACTION['conclusion']}")
 
-    report["provenance"] = provenance(seeds={"train": TRAIN_SEED, "trans": TRANS_SEED, "test": TEST_SEED, "mlp": 0})
+    report["provenance"] = prov
     json.dump(report, open("results/coverage.json", "w"), indent=1)
     print(f"\nwrote results/coverage.json   total {(time.time()-t0)/60:.1f} min")
     tee.f.close()

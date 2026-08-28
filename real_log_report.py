@@ -307,6 +307,8 @@ def main():
                     help="the file the servo is identified on and evaluated held-out on; "
                          "default: the first file with a walking segment")
     args = ap.parse_args()
+    # Taken before the run log opens (Tee truncates a tracked file -> "dirty").
+    prov = provenance(seeds={"mlp": 0})
     sys.stdout = tee = Tee("results/logs/real_log_report.txt")
     report = {"files": args.logs, "conditions": {"epochs": args.epochs, "K": K,
               "horizons_ms": [100, 500], "model": "MLP h128 seed 0 on data/train.npz",
@@ -549,7 +551,7 @@ def main():
         print(f"  - {a}")
     report["data_ask"] = ask
 
-    report["provenance"] = provenance(seeds={"mlp": 0})
+    report["provenance"] = prov
     json.dump(report, open("results/real_log_report.json", "w"), indent=1)
     print("\nwrote results/real_log_report.json")
     tee.f.close()
