@@ -33,7 +33,7 @@ cannot separate them.
 
 Decision rule, stated before the numbers (the same machinery as servo_id / body_params):
   band        1.4826 * MAD / 2 of (err_A - err_B) over every hypothesis, A/B = the two
-              quarters of the fit half (`servo_id.band_from_errors`, the estimator behind
+              halves of the fit half (`servo_id.band_from_errors`, the estimator behind
               `servo_id.confidence_band`, imported, not re-implemented).
   determined  the grid values within `band` of the best error with the other parameters
               held at the argmin (`servo_id.within_band`, the rule behind
@@ -44,16 +44,24 @@ Decision rule, stated before the numbers (the same machinery as servo_id / body_
               joint grid's slew and deadband axes carry two values each, so a joint argmin
               is at a boundary on those two axes by construction; the artifact says so.
   per seed    argmin correct / truth in set / set == {truth}; three hidden seeds per body.
-  resolved    the per-seed verdict is the same on all three seeds. Seeds are NOT paired
+  resolved    the per-seed verdict is the same on every COUNTED seed and at least two seeds
+              are counted; one counted seed cannot resolve anything. Seeds are NOT paired
               (collect() draws sim.rng every tick for the push test, mode-dependently inside
               Excitation and once per episode in fresh()), so three seeds answer "does the
               verdict hold on every seed", not "is the mean significant".
-  null case   the nominal hidden body MUST identify to (0, 0) on every seed. Hard assertion.
+  null case   the nominal hidden body MUST identify to (0, 0) on every counted seed. Hard
+              assertion.
   noise floor |err(nominal candidate) - err(second nominal candidate)| on the same hidden
-              log; a CoM separation smaller than this is not evidence. CONSUMED, not just
-              printed: a seed whose noise floor reaches its band (ratio >= 1) is marked
-              below_noise and excluded from every identified / argmin / truth-in-set tally
-              and from the null-case assertion; the count excluded is published.
+              log, scored with R = A and no cut extension -- a property of the stream and
+              the two candidates, so it is the same number in identification A and B on the
+              same stream (asserted at run time on the ideal-servo confound body). The two
+              candidates differ in COLLECTION seed only (the torch seed is fixed at 0), so
+              the floor is a lower bound on the candidates' training noise. A CoM
+              separation smaller than it is not evidence. CONSUMED, not just printed, in
+              BOTH identifications: a seed is below_noise when floor / band >= 1 or the band
+              is 0, and a below-noise seed is excluded from every identified / argmin /
+              truth-in-set / diagonal tally and from the null-case assertion; the count
+              excluded is published per body.
   mechanism   every sentence in the write-up that explains a result carries the same
               resolved / unresolved mark as the numbers it rests on.
 
@@ -79,7 +87,7 @@ BODY = "walk"
 CAND_SEED, NOISE_SEED = 1000, 1001          # candidate collections; never a hidden-log seed
 HIDDEN_SEEDS = [0, 1, 2]
 TRAIN_STEPS, TRAIN_SEED = 400_000, 0        # data/train.npz, asserted before the shipped model is fit
-X_STEP, Z_LO, Z_HI = 0.015, DR["dcom_z"][0], DR["dcom_z"][1]
+Z_LO, Z_HI = DR["dcom_z"][0], DR["dcom_z"][1]
 X_GRID = [-0.045, -0.030, -0.015, 0.0, 0.015, 0.030, 0.045]          # DR ends +-0.030, one step beyond
 Z_GRID = [-0.020, Z_LO, 0.0, Z_HI, 0.030]                              # DR ends -0.010 / +0.015, one step beyond
 DELAYS = [0, 1, 2, 3, 4, 5, 6]
@@ -117,6 +125,20 @@ def one_step_scorer(O, A, O2, D, max_delay):
         X, Y, *_ = make_windows(O, R, O2, D_ext, K)
         return float((((model.predict(X) - Y) / ystd) ** 2).mean())
     return score
+
+
+def noise_floor(O, A, O2, D, nominal, second):
+    """|err(nominal candidate) - err(second nominal candidate)| on (O, A, O2, D), scored
+    with R = A and no cut extension. A property of the stream and the two candidates only,
+    so identification A and B compute the same number on the same stream."""
+    sc = one_step_scorer(O, A, O2, D, 0)
+    return float(abs(sc(nominal, A) - sc(second, A)))
+
+
+def below_noise(noise, band):
+    """The pre-stated exclusion: floor / band >= 1, or a band of 0 (no ratio exists)."""
+    ratio = float(noise / band) if band > 0 else None
+    return ratio, bool(ratio is None or ratio >= 1.0)
 
 
 # ----------------------------------------------------------------------
@@ -211,11 +233,12 @@ def joint_verdict(err, band, truth_x, truth_servo):
 
 # ----------------------------------------------------------------------
 def summarize(flags, counted=None):
-    """resolved = the same boolean on every COUNTED seed; value = that boolean if resolved.
-    `counted` masks out below-noise seeds; with none counted the verdict is unresolved."""
+    """resolved = the same boolean on every COUNTED seed, with at least two seeds counted;
+    value = that boolean if resolved. `counted` masks out below-noise seeds; with fewer
+    than two counted the verdict is unresolved."""
     counted = [True] * len(flags) if counted is None else list(counted)
     kept = [bool(f) for f, c in zip(flags, counted) if c]
-    resolved = bool(kept) and (all(kept) or not any(kept))
+    resolved = len(kept) >= 2 and (all(kept) or not any(kept))
     return {"per_seed": [bool(f) for f in flags], "counted": [bool(c) for c in counted],
             "n_counted": len(kept), "resolved": resolved,
             "value": (kept[0] if resolved else None)}
@@ -239,13 +262,18 @@ def main():
     print("  torch seed 0. The grid extends one step beyond the published DR endpoints on both axes,")
     print("  so a truth at an endpoint is interior and a grid-edge argmin means the search ran out.")
     print("  score = servo_id.identify's normalised one-step error, on the first half of each hidden")
-    print(f"  log ({args.hidden_steps // 2} ticks); band = 1.4826*MAD/2 of the A/B quarter errors; determined")
-    print("  sets hold the other parameter at the argmin; a verdict is RESOLVED when all three")
-    print("  hidden seeds agree. Seeds are not paired (collect() draws sim.rng every tick for the")
-    print("  push test, mode-dependently in Excitation, once per episode in fresh()).")
-    print(f"  noise floor: a second nominal candidate (collection seed {NOISE_SEED}) is scored on every")
-    print("  hidden log; |err(nominal) - err(second nominal)| is the method's own training noise.")
-    print("  null case: the nominal hidden body must identify to (0, 0) on every seed -- asserted.")
+    print(f"  log ({args.hidden_steps // 2} ticks); band = 1.4826*MAD/2 of the errors on the two halves of")
+    print("  the fit half; determined sets hold the other parameter at the argmin; a verdict is")
+    print("  RESOLVED when every COUNTED hidden seed agrees and at least two are counted. Seeds are")
+    print("  not paired (collect() draws sim.rng every tick for the push test, mode-dependently in")
+    print("  Excitation, once per episode in fresh()).")
+    print(f"  noise floor: a second nominal candidate (collection seed {NOISE_SEED}, torch seed 0 like")
+    print("  every candidate, so a lower bound on training noise) is scored on every hidden log with")
+    print("  R = A; |err(nominal) - err(second nominal)| is the floor, the same number in A and B on")
+    print("  the same stream. CONSUMED in both: a seed with floor / band >= 1, or band == 0, is")
+    print("  below_noise and excluded from every identified / argmin / truth-in-set / diagonal tally")
+    print("  and from the null case; the count excluded is published per body.")
+    print("  null case: the nominal hidden body must identify to (0, 0) on every counted seed -- asserted.")
     print(f"  confound grid: dcom_x ({len(X_GRID)}) x delay {DELAYS} x slew {SLEWS} x deadband {[0, 2]} deg")
     print(f"  = {len(joint_grid())} hypotheses, scored on {len(HIDDEN_CONFOUND)} hidden bodies x 3 seeds.")
     print("  limits: prediction accuracy, not policy transfer; every real-log number in this repo")
@@ -294,19 +322,18 @@ def main():
             v = com_verdict(err, band, dcom)
             vA, vB = com_verdict(eA, band, dcom), com_verdict(eB, band, dcom)
             split_agree = vA["argmin"] == vB["argmin"]
-            sc_fit = one_step_scorer(O[fit], A[fit], O2[fit], D[fit], 0)
-            noise = abs(sc_fit(models[(0.0, 0.0)], A[fit]) - sc_fit(noise_model, A[fit]))
+            noise = noise_floor(O[fit], A[fit], O2[fit], D[fit], models[(0.0, 0.0)], noise_model)
             sc_held = one_step_scorer(O[held], A[held], O2[held], D[held], 0)
             bx, bz = v["argmin"]["dcom_x"], v["argmin"]["dcom_z"]
             held_err = {"argmin_candidate": sc_held(models[(bx, bz)], A[held]),
                         "nominal_candidate": sc_held(models[(0.0, 0.0)], A[held]),
                         "truth_candidate": sc_held(models[(dcom[0], dcom[2])], A[held]),
                         "shipped_model": sc_held(shipped, A[held])}
-            ratio = float(noise / band) if band > 0 else None
+            ratio, excluded = below_noise(noise, band)
             rows.append({"seed": sd, **v, "band": band, "fit_quarter_argmin_agree": bool(split_agree),
                          "fit_quarter_argmins": [vA["argmin"], vB["argmin"]],
                          "noise_floor": float(noise), "noise_floor_vs_band": ratio,
-                         "below_noise": bool(ratio is None or ratio >= 1.0),
+                         "below_noise": excluded,
                          "held_out_one_step_err": held_err,
                          "errors": {f"{k[0]:+.3f},{k[1]:+.3f}": e for k, e in err.items()}})
             verdict = ("IDENTIFIED" if v["identified"] else "truth in set" if v["truth_in_sets"] else "WRONG")
@@ -334,6 +361,7 @@ def main():
                                                                  - r["held_out_one_step_err"]["truth_candidate"] for r in rows])}
     null = resA["nominal (null case)"]
     null_ok = bool(null["argmin_correct"]["resolved"] and null["argmin_correct"]["value"])
+    noise_by_seed = {name: {r["seed"]: r["noise_floor"] for r in resA[name]["per_seed"]} for name in resA}
     # a failed null case is a RESULT about the method, so the run records it and finishes;
     # the hard assertion is the non-zero exit at the end, after the artifact is written
     print("  null case: nominal hidden body identifies to (0, 0) on every counted seed -- "
@@ -356,7 +384,17 @@ def main():
             band = band_from_errors(eA, eB)
             v = joint_verdict(err, band, dcom[0], servo)
             vA, vB = joint_verdict(eA, band, dcom[0], servo), joint_verdict(eB, band, dcom[0], servo)
+            noise = noise_floor(O[fit], A[fit], O2[fit], D[fit], models[(0.0, 0.0)], noise_model)
+            if servo is None:
+                # the ideal-servo confound body is collected with the same arguments as the
+                # identification-A body of the same CoM, so its stream and therefore its noise
+                # floor must be A's to the last digit; a mismatch means B is not scoring the
+                # stream the rule was stated on
+                twin = next(n for n, d_ in HIDDEN_COM if d_ == dcom)
+                assert noise == noise_by_seed[twin][sd], (name, sd, noise, noise_by_seed[twin][sd])
+            ratio, excluded = below_noise(noise, band)
             rows.append({"seed": sd, **v, "band": band,
+                         "noise_floor": noise, "noise_floor_vs_band": ratio, "below_noise": excluded,
                          "fit_quarter_argmins": [vA["argmin"], vB["argmin"]],
                          "fit_quarter_x_agree": bool(vA["argmin"]["dcom_x"] == vB["argmin"]["dcom_x"]),
                          "fit_quarter_delay_agree": bool(vA["argmin"]["delay_ticks"] == vB["argmin"]["delay_ticks"])})
@@ -365,27 +403,33 @@ def main():
                   f"db {a['deadband_deg']:.0f} deg | x set {[f'{u:+.3f}' for u in v['x_determined']]} "
                   f"delay set {v['delay_determined']} | within band: {v['within_band_count']} hyps over "
                   f"x {[f'{u:+.3f}' for u in v['within_band_x_values']]} x delay {v['within_band_delay_values']} "
-                  f"| band {band:.5f} | {'DIAGONAL' if v['diagonal'] else 'point'}"
+                  f"| band {band:.5f} noise {noise:.5f} ({'-' if ratio is None else f'{ratio:.2f}'}x band) "
+                  f"| {'DIAGONAL' if v['diagonal'] else 'point'}"
                   f"{'' if v['argmin_interior_x'] else ' [x boundary]'}{'' if v['argmin_interior_delay'] else ' [delay boundary]'}"
-                  " [slew/deadband two-point]")
+                  " [slew/deadband two-point]"
+                  f"{' BELOW NOISE (excluded)' if excluded else ''}")
             print("      ridge (best servo per dcom_x): " + ", ".join(
                 f"x{r['dcom_x']:+.3f}->d{r['best_delay']}{'*' if r['within_band'] else ''}" for r in v["ridge"]))
         truth_servo = servo or dict(delay_ticks=0, slew_rad_s=None, deadband=0.0)
+        counted = [not r["below_noise"] for r in rows]
         resB[name] = {"truth": {"dcom_x": dcom[0], "servo": {k: (None if v is None else float(v)) for k, v in truth_servo.items()}},
                       "per_seed": rows,
-                      "argmin_x_correct": summarize([r["argmin_x_correct"] for r in rows]),
-                      "argmin_delay_correct": summarize([r["argmin_delay_correct"] for r in rows]),
-                      "truth_x_in_set": summarize([r["truth_x_in_set"] for r in rows]),
-                      "truth_delay_in_set": summarize([r["truth_delay_in_set"] for r in rows]),
-                      "diagonal": summarize([r["diagonal"] for r in rows]),
-                      "argmin_deadband_correct": summarize([r["argmin_deadband_correct"] for r in rows]),
-                      "argmin_interior": summarize([r["argmin_interior"] for r in rows]),
-                      "argmin_interior_x": summarize([r["argmin_interior_x"] for r in rows]),
-                      "argmin_interior_delay": summarize([r["argmin_interior_delay"] for r in rows]),
+                      "below_noise": [r["below_noise"] for r in rows],
+                      "n_below_noise": int(sum(r["below_noise"] for r in rows)),
+                      "argmin_x_correct": summarize([r["argmin_x_correct"] for r in rows], counted),
+                      "argmin_delay_correct": summarize([r["argmin_delay_correct"] for r in rows], counted),
+                      "truth_x_in_set": summarize([r["truth_x_in_set"] for r in rows], counted),
+                      "truth_delay_in_set": summarize([r["truth_delay_in_set"] for r in rows], counted),
+                      "diagonal": summarize([r["diagonal"] for r in rows], counted),
+                      "argmin_deadband_correct": summarize([r["argmin_deadband_correct"] for r in rows], counted),
+                      "argmin_interior": summarize([r["argmin_interior"] for r in rows], counted),
+                      "argmin_interior_x": summarize([r["argmin_interior_x"] for r in rows], counted),
+                      "argmin_interior_delay": summarize([r["argmin_interior_delay"] for r in rows], counted),
                       "two_point_axes": ["slew", "deadband"],
-                      "fit_quarter_x_agree": summarize([r["fit_quarter_x_agree"] for r in rows]),
-                      "fit_quarter_delay_agree": summarize([r["fit_quarter_delay_agree"] for r in rows]),
+                      "fit_quarter_x_agree": summarize([r["fit_quarter_x_agree"] for r in rows], counted),
+                      "fit_quarter_delay_agree": summarize([r["fit_quarter_delay_agree"] for r in rows], counted),
                       "band": seed_stat([r["band"] for r in rows]),
+                      "noise_floor": seed_stat([r["noise_floor"] for r in rows]),
                       "within_band_count": seed_stat([r["within_band_count"] for r in rows]),
                       "x_set_size": seed_stat([len(r["x_determined"]) for r in rows]),
                       "delay_set_size": seed_stat([len(r["delay_determined"]) for r in rows]),
@@ -393,19 +437,27 @@ def main():
 
     # ---- verdict -------------------------------------------------------------------------
     print("\n" + "=" * 100)
-    print("VERDICT (resolved = the same on all three seeds)")
+    print("VERDICT (resolved = the same on every counted seed, at least two counted)")
     print("=" * 100)
+
+    def ratios(r):
+        v = [s["noise_floor_vs_band"] for s in r["per_seed"]]
+        return ("per-seed noise/band " + str([None if u is None else round(u, 2) for u in v])
+                + f" max {max((u for u in v if u is not None), default=float('nan')):.2f}")
+
     for name, r in resA.items():
         print(f"  A {name:<22} identified {r['identified']['per_seed']} counted {r['identified']['counted']} "
               f"resolved={r['identified']['resolved']} | "
               f"truth in sets {r['truth_in_sets']['per_seed']} | x-set size {r['x_set_size']['per_seed']} "
-              f"z-set size {r['z_set_size']['per_seed']} | band {r['band']['mean']:.5f} +-{r['band']['spread'] / 2:.5f} "
-              f"| noise floor {r['noise_floor']['mean']:.5f} ({r['noise_floor']['mean'] / max(r['band']['mean'], 1e-12):.1f}x band)")
+              f"z-set size {r['z_set_size']['per_seed']} | band {[round(s['band'], 5) for s in r['per_seed']]} "
+              f"| {ratios(r)} | below noise {r['n_below_noise']} of {len(HIDDEN_SEEDS)}")
     for name, r in resB.items():
         print(f"  B {name:<30} x correct {r['argmin_x_correct']['per_seed']} delay correct {r['argmin_delay_correct']['per_seed']} "
+              f"counted {r['argmin_x_correct']['counted']} n_counted {r['argmin_x_correct']['n_counted']} "
               f"| truth x in set {r['truth_x_in_set']['per_seed']} truth delay in set {r['truth_delay_in_set']['per_seed']} "
               f"| diagonal {r['diagonal']['per_seed']} resolved={r['diagonal']['resolved']} "
-              f"| within-band hyps {r['within_band_count']['per_seed']}")
+              f"| within-band hyps {r['within_band_count']['per_seed']} | {ratios(r)} "
+              f"| below noise {r['n_below_noise']} of {len(HIDDEN_SEEDS)}")
 
     out = {"config": {**vars(args), "body": BODY, "candidate_seed": CAND_SEED, "noise_seed": NOISE_SEED,
                       "hidden_seeds": HIDDEN_SEEDS, "K": K,
@@ -414,22 +466,28 @@ def main():
                       "deadbands_deg": [float(np.rad2deg(d)) for d in DBS], "joint_hypotheses": len(joint_grid()),
                       "real_log_servo_candidate": {k: (None if v is None else float(v)) for k, v in SERVO_REAL.items()},
                       "published_DR": {"dcom_x": DR["dcom_x"], "dcom_z": DR["dcom_z"]}},
-           "decision_rule": {"band": "1.4826*MAD/2 of err_A - err_B over every hypothesis, A/B = quarters of the fit half",
+           "decision_rule": {"band": "1.4826*MAD/2 of err_A - err_B over every hypothesis, A/B = the two halves of the fit half",
                              "determined": "values within band of the best error, other parameters at the argmin",
-                             "resolved": "the per-seed boolean is the same on all three hidden seeds",
+                             "resolved": "the per-seed boolean is the same on every counted hidden seed and at least "
+                                         "two seeds are counted (n_counted >= 2); one counted seed resolves nothing",
                              "seeds": "NOT paired: collect() draws sim.rng every tick for the push test, mode-dependently "
                                       "inside Excitation and once per episode in fresh(); three seeds answer whether the "
                                       "verdict holds on every seed, not whether a mean is significant",
-                             "noise_floor": "|err(nominal candidate) - err(second nominal candidate, other collection seed)| "
-                                            "on the same hidden log; a separation below it is not evidence",
-                             "below_noise": "a seed whose noise floor / band >= 1 is marked below_noise and excluded "
-                                            "from every identified / argmin / truth-in-set tally and from the null "
-                                            "case; n_below_noise is published per body",
+                             "noise_floor": "|err(nominal candidate) - err(second nominal candidate)| on the same hidden "
+                                            "log, scored with R = A and no cut extension: a property of the stream and "
+                                            "the two candidates, the same number in identification A and B on the same "
+                                            "stream (asserted on the ideal-servo confound body). The two candidates "
+                                            "differ in collection seed only (torch seed fixed at 0), so the floor is a "
+                                            "lower bound on training noise; a separation below it is not evidence",
+                             "below_noise": "in BOTH identifications, a seed with noise floor / band >= 1, or band == 0, "
+                                            "is marked below_noise and excluded from every identified / argmin / "
+                                            "truth-in-set / diagonal tally and from the null case; n_below_noise is "
+                                            "published per body",
                              "interior": "an argmin counts only when interior on every searched axis "
                                          "(servo_id.argmin_interior); the joint grid's slew and deadband axes are "
                                          "two-point, so joint argmins are boundary on them by construction",
-                             "fit_quarter": "fit_quarter_* compares the two QUARTERS of the fit half, not fit vs "
-                                            "held-out; held-out errors are reported separately",
+                             "fit_quarter": "fit_quarter_* compares the two HALVES of the fit half (quarters of the "
+                                            "hidden log), not fit vs held-out; held-out errors are reported separately",
                              "null_case": "nominal hidden body must identify to (0, 0) on every counted seed (asserted)"},
            "null_case_pass": null_ok,
            "identification_com": resA, "confound": resB, "runtime_s": time.time() - t_start}
@@ -440,7 +498,7 @@ def main():
         json.dump(out, fh, indent=1)
     print(f"\nwrote results/com_id.json   total {time.time() - t_start:.0f}s")
     if not null_ok:
-        print("NULL CASE FAILED -- the nominal hidden body did not identify to (0, 0) on every seed; "
+        print("NULL CASE FAILED -- the nominal hidden body did not identify to (0, 0) on every counted seed; "
               "see identification_com['nominal (null case)'] in the artifact")
         sys.exit(1)
 
