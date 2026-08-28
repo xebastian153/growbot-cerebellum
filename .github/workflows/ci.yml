@@ -36,6 +36,19 @@ jobs:
           python sim/growbot_sim.py --steps 60000  --seed 1 --out data/test.npz
       - name: Round-trip suite
         run: pytest -q -m slow
+      - name: Environment fingerprint
+        # Diagnostic: which CPU did this runner get, and does the regenerated twin data
+        # match the maintainer's (sha256 bc7d623af4edb75d / 6e27e50e8da71eee)?
+        run: |
+          lscpu | grep -E "Model name|^Flags" | sed -E 's/(Flags:).*/\1 avx512f='"$(grep -c avx512f /proc/cpuinfo)"'/'
+          python - <<'PY'
+          import hashlib, mujoco, numpy as np, torch
+          print("mujoco", mujoco.__version__, "numpy", np.__version__, "torch", torch.__version__, "threads", torch.get_num_threads())
+          for f in ("data/train.npz", "data/test.npz"):
+              print(f, hashlib.sha256(open(f, "rb").read()).hexdigest()[:16])
+          tr = np.load("data/train.npz")
+          print("obs[0,:4]", tr["obs"][0, :4].tolist(), "obs[1000,:3]", tr["obs"][1000, :3].tolist())
+          PY
       - name: Headline artifact reproduces
         # The documented command must give back the committed results/forward_K5.json at
         # the precision the tables quote (0.1 pt on rates, 1e-3 on RMSEs) — wall-clock
