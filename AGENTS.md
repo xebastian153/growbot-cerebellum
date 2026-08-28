@@ -35,7 +35,9 @@ The suite takes about five minutes on CPU (4:40 measured). A change that touches
     of the phone, both from IMU + commands only (this body has no encoder).
   - `gap.py` (`evaluate_axes`, `twin_regimes`), `sim2real.py` (`horizon_within`, the DR
     corners), `honesty.py` (`seed_stat`, `score_corners`, `decide_per_metric`),
-    `planner.py` (`Imagination`, `cem_plan`), `tee.py`, `provenance.py`.
+    `planner.py` (`Imagination`, `cem_plan`), `tee.py`, `provenance.py`, `paths.py`
+    (`ROOT`, `DATA`, `RESULTS`, `LOGS` — every script reads and writes through these, so a
+    documented command runs from any directory).
 - One script per experiment at the root, a thin CLI over the package (see the README
   table); `results/<name>.json` is the machine-readable source for every published
   number, `results/logs/` the run log. Every script writes a `provenance` block (commit,

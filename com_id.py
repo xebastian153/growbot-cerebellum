@@ -77,6 +77,7 @@ from __future__ import annotations
 import argparse, itertools, json, sys, time
 import numpy as np
 from growbot_cerebellum import provenance
+from growbot_cerebellum.paths import DATA, RESULTS
 from growbot_cerebellum.sim import collect, ServoModel, DR
 from growbot_cerebellum.forward import MLP, make_windows, K
 from growbot_cerebellum.servo_id import (realized_from_commands, _extend_cuts, band_from_errors,
@@ -289,7 +290,7 @@ def main():
         models[(x, z)] = train_candidate((x, 0.0, z), args.cand_steps, args.cand_epochs, CAND_SEED)
         print(f"  trained dcom_x {x:+.3f} dcom_z {z:+.3f}   ({time.time() - t0:.0f}s)", flush=True)
     noise_model = train_candidate((0.0, 0.0, 0.0), args.cand_steps, args.cand_epochs, NOISE_SEED)
-    tr = np.load("data/train.npz")
+    tr = np.load(DATA / "train.npz")
     # the shipped model's data is asserted, not assumed: the same check coverage.py makes
     std_nom = collect(TRAIN_STEPS, TRAIN_SEED, body=BODY)
     assert len(tr["obs"]) == TRAIN_STEPS and np.array_equal(std_nom[0], tr["obs"]) \
@@ -494,7 +495,7 @@ def main():
     out["provenance"] = provenance(seeds={"hidden": HIDDEN_SEEDS, "candidate": CAND_SEED, "noise": NOISE_SEED,
                                           "train_npz": TRAIN_SEED, "mlp": 0},
                                    data="data/train.npz")
-    with open("results/com_id.json", "w") as fh:
+    with open(RESULTS / "com_id.json", "w") as fh:
         json.dump(out, fh, indent=1)
     print(f"\nwrote results/com_id.json   total {time.time() - t_start:.0f}s")
     if not null_ok:

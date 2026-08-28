@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse, json, time
 import numpy as np
 from growbot_cerebellum import provenance
+from growbot_cerebellum.paths import DATA, RESULTS
 from growbot_cerebellum.forward import MLP, make_windows, encode_obs, decode_obs
 
 MODES = ["keyframe", "sine", "ou", "policy", "still"]
@@ -24,7 +25,7 @@ CLEAN = ["policy", "sine", "keyframe"]
 K = 5
 
 def load(name):
-    d = np.load(f"data/{name}.npz")
+    d = np.load(DATA / f"{name}.npz")
     return d["obs"], d["act"], d["next_obs"], d["done"], d["mode"].astype(str)
 
 def meta_cols(mode, body, use_mode, use_body):
@@ -126,7 +127,7 @@ def main():
         report(f"Q3 seed{seed}: adding less-informative excitation", rows)
     print(f"\n{time.time()-t0:.0f}s")
     results["provenance"] = provenance(seeds=args.seeds)
-    json.dump(results, open("results/metadata_experiment.json", "w"), indent=1)
+    json.dump(results, open(RESULTS / "metadata_experiment.json", "w"), indent=1)
 
 if __name__ == "__main__":
     main()

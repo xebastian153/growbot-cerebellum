@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse, json, time
 import numpy as np
 from growbot_cerebellum import provenance
+from growbot_cerebellum.paths import DATA, RESULTS
 from growbot_cerebellum.sim import ServoModel, collect
 from growbot_cerebellum.forward import MLP, make_windows, K
 from growbot_cerebellum.sim2real import horizon_within, adapt_online
@@ -47,7 +48,7 @@ def main():
     ap.add_argument("--horizon", type=int, default=5)
     args = ap.parse_args()
 
-    tr = np.load("data/train.npz")
+    tr = np.load(DATA / "train.npz")
     Xtr, Ytr, *_ = make_windows(tr["obs"], tr["act"], tr["next_obs"], tr["done"], K)
     print("training nominal (ideal-servo) forward model...", flush=True)
     nominal = MLP(hidden=128, epochs=args.epochs).fit(Xtr, Ytr)
@@ -87,7 +88,7 @@ def main():
     json.dump({"rows": rows, "config": vars(args),
                "provenance": provenance(seeds={"corner": "hash(name) % 10000 -- str hash, randomised per process "
                                                          "unless PYTHONHASHSEED is set"})},
-              open("results/actuator_proxy.json", "w"), indent=1)
+              open(RESULTS / "actuator_proxy.json", "w"), indent=1)
 
 if __name__ == "__main__":
     main()

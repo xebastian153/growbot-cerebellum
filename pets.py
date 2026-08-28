@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse, json, time
 import numpy as np, torch, torch.nn as nn
 from growbot_cerebellum import provenance
+from growbot_cerebellum.paths import DATA, RESULTS
 from growbot_cerebellum.forward import MLP, make_windows, rollout_error, K
 from growbot_cerebellum.planner import Imagination, angle_cost, pick_targets, run_episode, rpy_to_quat
 from growbot_cerebellum.sim import GrowBotSim
@@ -143,7 +144,7 @@ def main():
     ap.add_argument("--particles", type=int, default=8); ap.add_argument("--n-targets", type=int, default=40)
     ap.add_argument("--seed", type=int, default=0)
     args = ap.parse_args()
-    tr = np.load("data/train.npz"); te = np.load("data/test.npz")
+    tr = np.load(DATA / "train.npz"); te = np.load(DATA / "test.npz")
     Xtr, Ytr, *_ = make_windows(tr["obs"], tr["act"], tr["next_obs"], tr["done"], K)
     Xte, Yte, *_, valid = make_windows(te["obs"], te["act"], te["next_obs"], te["done"], K)
     res = {}
@@ -187,7 +188,7 @@ def main():
         res[f"mimic/{name}"] = {"rmse": r[0], "sd": r[1], "within": r[2]}
         print(f"   {name:<28} RMSE {r[0]:.3f} ± {r[1]:.3f}   within 0.2 rad {r[2]*100:5.1f}%")
     res["provenance"] = provenance(seeds={"rng": args.seed, "sim": "1000 + i"})
-    json.dump(res, open("results/pets.json", "w"), indent=1)
+    json.dump(res, open(RESULTS / "pets.json", "w"), indent=1)
 
 if __name__ == "__main__":
     main()

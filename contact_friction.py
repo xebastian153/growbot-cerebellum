@@ -29,16 +29,15 @@ from __future__ import annotations
 import argparse
 import json
 import time
-from pathlib import Path
 
 import numpy as np
 
 from growbot_cerebellum import provenance
+from growbot_cerebellum.paths import DATA, RESULTS
 from growbot_cerebellum.sim import collect
 from growbot_cerebellum.forward import MLP, make_windows, K
 from growbot_cerebellum.honesty import score_corners, decide
 
-HERE = Path(__file__).parent
 XML_SLIDING, XML_TORSIONAL, XML_ROLLING = 1.2, 0.1, 0.1           # sim/growbot_*_body.xml
 MJ_TORSIONAL, MJ_ROLLING = 0.005, 0.0001                          # MuJoCo defaults
 NOOP = {"mass_scale": 1.0}    # truthy so GrowBotSim actually calls perturb()
@@ -174,7 +173,7 @@ def main():
     print("  Seeds are shared across every corner. Material = a shift from nominal larger")
     print("  than max(3.0 pts, 2x the nominal seed spread), the rule yaw_floor and real2sim use.")
 
-    tr = np.load(HERE / "data" / "olie_train.npz")
+    tr = np.load(DATA / "olie_train.npz")
     Xtr, Ytr, *_ = make_windows(tr["obs"], tr["act"], tr["next_obs"], tr["done"], K)
     print(f"\n  training the frozen nominal model ({args.epochs} epochs)...", flush=True)
     nominal = MLP(hidden=128, epochs=args.epochs).fit(Xtr, Ytr)
@@ -216,9 +215,9 @@ def main():
            "part_a_condim_audit": audit,
            "rows": rows, "verdicts": verdicts,
            "runtime_s": float(time.time() - t_start)}
-    (HERE / "results").mkdir(exist_ok=True)
+    RESULTS.mkdir(exist_ok=True)
     out["provenance"] = provenance(seeds=args.seeds)
-    (HERE / "results" / "contact_friction.json").write_text(json.dumps(out, indent=1))
+    (RESULTS / "contact_friction.json").write_text(json.dumps(out, indent=1))
     print(f"\nwrote results/contact_friction.json   total {time.time() - t_start:.0f}s")
 
 

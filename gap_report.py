@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse, json
 import numpy as np
 from growbot_cerebellum import provenance
+from growbot_cerebellum.paths import DATA, under_root
 from growbot_cerebellum.forward import MLP, make_windows, K, AXES
 from growbot_cerebellum.sensor_id import default_out_path
 from growbot_cerebellum.imulog import (parse, run_preflight, rest_attitude, CTRL_HZ,
@@ -44,7 +45,7 @@ def main():
                     help="output JSON; default results/gap_report_<input stem>.json, so analysing "
                          "two files keeps both instead of overwriting one")
     args = ap.parse_args()
-    out_path = args.out or default_out_path(args.log, "gap_report")
+    out_path = under_root(args.out or default_out_path(args.log, "gap_report"))
 
     parts, header, first, rest0 = [], None, None, None
     for f in args.log:
@@ -93,7 +94,7 @@ def main():
           f"surface={header.get('surface', '?')}, "
           f"regimes={ {m: int((mode == m).sum()) for m in sorted(set(mode))} }")
 
-    tr = np.load("data/train.npz"); te = np.load("data/test.npz")
+    tr = np.load(DATA / "train.npz"); te = np.load(DATA / "test.npz")
     Xtr, Ytr, *_ = make_windows(tr["obs"], tr["act"], tr["next_obs"], tr["done"], K)
     model = MLP(hidden=128, epochs=args.epochs).fit(Xtr, Ytr)
     tw_mode, tw_rest = twin_regimes(te["obs"], te["mode"].astype(str))

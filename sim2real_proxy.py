@@ -31,16 +31,15 @@ from __future__ import annotations
 import argparse
 import json
 import time
-from pathlib import Path
 
 import numpy as np
 
 from growbot_cerebellum import provenance
+from growbot_cerebellum.paths import DATA, RESULTS
 from growbot_cerebellum.sim import collect
 from growbot_cerebellum.forward import MLP, make_windows, K
 from growbot_cerebellum.sim2real import corners, horizon_within, adapt_online
 
-HERE = Path(__file__).parent
 
 def main():
     ap = argparse.ArgumentParser()
@@ -51,7 +50,7 @@ def main():
     ap.add_argument("--corner-steps", type=int, default=30000, help="ticks collected per corner (600 s)")
     args = ap.parse_args()
 
-    tr = np.load(HERE / "data" / "olie_train.npz")
+    tr = np.load(DATA / "olie_train.npz")
     Xtr, Ytr, *_ = make_windows(tr["obs"], tr["act"], tr["next_obs"], tr["done"], K)
     print("training nominal forward model...", flush=True)
     nominal = MLP(hidden=128, epochs=args.epochs).fit(Xtr, Ytr)
@@ -87,8 +86,8 @@ def main():
     rec = {w: (np.array([r["adapted"][str(w)] for r in rows[1:]]) - fr) / np.where(gap > 1e-6, gap, np.nan) for w in args.warm_s}
     print("fraction of the frozen->oracle gap recovered by the online residual: "
           + "  ".join(f"{w}s: {np.nanmean(v) * 100:.0f}%" for w, v in rec.items()))
-    (HERE / "results").mkdir(exist_ok=True)
-    (HERE / "results" / "sim2real_proxy.json").write_text(json.dumps(
+    RESULTS.mkdir(exist_ok=True)
+    (RESULTS / "sim2real_proxy.json").write_text(json.dumps(
         {"rows": rows, "config": vars(args),
          "provenance": provenance(seeds={"corner": "hash(name) % 10000 -- str hash, randomised per process "
                                                    "unless PYTHONHASHSEED is set"})}, indent=1))

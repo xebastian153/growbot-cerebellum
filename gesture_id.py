@@ -39,6 +39,7 @@ from __future__ import annotations
 import json
 import numpy as np
 from growbot_cerebellum import provenance
+from growbot_cerebellum.paths import DATA, under_root
 from growbot_cerebellum.forward import MLP, make_windows
 from growbot_cerebellum.imulog import parse, run_preflight, _read_rows, _convert_growbot_v1
 from growbot_cerebellum.sensor_id import default_out_path
@@ -193,7 +194,7 @@ def main(log=LOG, walk=WALK):
     for f in (log, walk):
         if not run_preflight(f):
             raise SystemExit(f"preflight FAIL on {f}")
-    tr = np.load("data/train.npz")
+    tr = np.load(DATA / "train.npz")
     Xtr, Ytr, *_ = make_windows(tr["obs"], tr["act"], tr["next_obs"], tr["done"], K)
     model = MLP(hidden=128, epochs=80).fit(Xtr, Ytr)
     grid = default_grid()
@@ -282,7 +283,7 @@ def main(log=LOG, walk=WALK):
     print(f"  delay: {out['reading']['delay_reason']}")
     print(f"  vs walk-1: {out['reading']['vs_walk']}")
     print(f"  cause: {out['reading']['cause_not_established']}")
-    path = default_out_path([log], "gesture_id")
+    path = under_root(default_out_path([log], "gesture_id"))
     out["provenance"] = provenance(seeds={"mlp": 0})
     with open(path, "w") as fh:
         json.dump(out, fh, indent=1)

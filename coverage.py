@@ -84,6 +84,7 @@ import argparse, json, sys, time
 import numpy as np
 
 from growbot_cerebellum import provenance
+from growbot_cerebellum.paths import DATA, RESULTS, LOGS as LOG_DIR
 from growbot_cerebellum.sim import GrowBotSim, ServoModel, WalkPolicy, collect, CTRL_HZ
 from growbot_cerebellum.forward import MLP, make_windows, K, AXES
 from growbot_cerebellum.gap import evaluate_axes
@@ -111,7 +112,7 @@ def thresholds():
     file fail on any checkout where results/real2sim.json is absent or stale, which is
     exactly the checkout someone runs the experiments in.
     """
-    spread = json.load(open("results/real2sim.json"))["control_seed_spread_500ms"]
+    spread = json.load(open(RESULTS / "real2sim.json"))["control_seed_spread_500ms"]
     return {ax: max(0.03, 2 * spread[ax]) for ax in AXES}
 
 
@@ -303,7 +304,7 @@ def main():
     ap.parse_args()
     # Taken before the run log opens (Tee truncates a tracked file -> "dirty").
     prov = provenance(seeds={"train": TRAIN_SEED, "trans": TRANS_SEED, "test": TEST_SEED, "mlp": 0})
-    sys.stdout = tee = Tee("results/logs/coverage.txt")
+    sys.stdout = tee = Tee(LOG_DIR / "coverage.txt")
     t0 = time.time()
     THRESH = thresholds()
     Oh, Ah, Dh, labelh, half, total, sit = load_real_heldout()
@@ -329,7 +330,7 @@ def main():
     #    the exact 300k prefix of the same rng stream)
     print("\n== collections")
     std_nom = collect(TRAIN_STEPS, TRAIN_SEED, return_realized=False)
-    tr_pub = np.load("data/train.npz")
+    tr_pub = np.load(DATA / "train.npz")
     assert np.array_equal(std_nom[0], tr_pub["obs"]) and np.array_equal(std_nom[1], tr_pub["act"]), \
         "nominal standard collection does not reproduce data/train.npz"
     print("  nominal standard collection asserted equal to data/train.npz")
@@ -493,7 +494,7 @@ def main():
     print(f"\n  {RETRACTION['conclusion']}")
 
     report["provenance"] = prov
-    json.dump(report, open("results/coverage.json", "w"), indent=1)
+    json.dump(report, open(RESULTS / "coverage.json", "w"), indent=1)
     print(f"\nwrote results/coverage.json   total {(time.time()-t0)/60:.1f} min")
     tee.f.close()
 

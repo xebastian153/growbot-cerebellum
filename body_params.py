@@ -49,19 +49,18 @@ from __future__ import annotations
 import argparse
 import json
 import time
-from pathlib import Path
 
 import mujoco
 import numpy as np
 
 from growbot_cerebellum import provenance
+from growbot_cerebellum.paths import DATA, RESULTS
 from growbot_cerebellum.sim import DR, GrowBotSim, quat_to_rpy
 from growbot_cerebellum.forward import MLP, make_windows, rollout_error, K, AXES
 from growbot_cerebellum.sim2real import corners as published_corners
 from growbot_cerebellum.honesty import (seed_stat, score_corners, decide, metric_keys, nominal_spread,
                                         seed_separation, decide_per_metric)
 
-HERE = Path(__file__).parent
 BASE_DELTA_KG = 0.075      # +-75 g added at the base's existing CoM: a mass isolation
 PHONE_KG = 0.200           # a real phone, for the anchor arithmetic only -- never a corner
 FALL_RAD = 1.2             # GrowBotSim.fallen(): |roll| > 1.2 or |pitch| > 1.2
@@ -561,7 +560,7 @@ def main():
     print("  LIMITS: prediction accuracy, not policy transfer; and the twin's prediction across")
     print("  units, not a second real robot -- every real-log number here is one unit, one phone.")
 
-    tr = np.load(HERE / "data" / "olie_train.npz")
+    tr = np.load(DATA / "olie_train.npz")
     Xtr, Ytr, *_ = make_windows(tr["obs"], tr["act"], tr["next_obs"], tr["done"], K)
     print(f"\n  training the frozen nominal model ({args.epochs} epochs)...", flush=True)
     nominal = MLP(hidden=128, epochs=args.epochs).fit(Xtr, Ytr)
@@ -702,9 +701,9 @@ def main():
                                          "different quantities and must not share a denominator",
                          "by_corner": part},
            "runtime_s": float(time.time() - t_start)}
-    (HERE / "results").mkdir(exist_ok=True)
+    RESULTS.mkdir(exist_ok=True)
     out["provenance"] = provenance(seeds=args.seeds)
-    (HERE / "results" / "body_params.json").write_text(json.dumps(out, indent=1))
+    (RESULTS / "body_params.json").write_text(json.dumps(out, indent=1))
     print(f"\nwrote results/body_params.json   total {time.time() - t_start:.0f}s")
 
 

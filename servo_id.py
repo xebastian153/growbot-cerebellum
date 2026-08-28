@@ -17,6 +17,7 @@ import argparse, json, time
 import numpy as np
 
 from growbot_cerebellum import provenance
+from growbot_cerebellum.paths import DATA, RESULTS
 from growbot_cerebellum.sim import ServoModel, collect
 from growbot_cerebellum.forward import MLP, make_windows, K
 from growbot_cerebellum.sim2real import horizon_within
@@ -34,7 +35,7 @@ def main():
     ap.add_argument("--true-deadband-deg", type=float, default=2.0)
     args = ap.parse_args()
 
-    tr = np.load("data/train.npz")
+    tr = np.load(DATA / "train.npz")
     Xtr, Ytr, *_ = make_windows(tr["obs"], tr["act"], tr["next_obs"], tr["done"], K)
     nominal = MLP(hidden=128, epochs=args.epochs).fit(Xtr, Ytr)
 
@@ -106,7 +107,7 @@ def main():
         print(f"  {h * 20:>3} ms   commanded {c * 100:5.1f}%   identified servo {e * 100:5.1f}%   true horn angle {t * 100:5.1f}%")
     out["mean_abs_horn_err_rad"] = float(np.abs(R_est[held] - R_true[held]).mean())
     out["provenance"] = provenance(seeds=args.seed)
-    json.dump(out, open("results/servo_id.json", "w"), indent=1)
+    json.dump(out, open(RESULTS / "servo_id.json", "w"), indent=1)
 
 
 if __name__ == "__main__":

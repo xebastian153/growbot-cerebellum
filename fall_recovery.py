@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse, json, time
 import numpy as np, mujoco
 from growbot_cerebellum import provenance
+from growbot_cerebellum.paths import DATA, RESULTS
 from growbot_cerebellum.sim import GrowBotSim, CTRL_HZ
 from growbot_cerebellum.forward import MLP, make_windows, encode_obs, K
 from growbot_cerebellum.planner import Imagination, cem_plan
@@ -60,7 +61,7 @@ def main():
     ap.add_argument("--T", type=int, default=200, help="4 s budget"); ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--only", choices=["tipped", "side", "back"], default=None, help="sample starts from one severity bucket only")
     args = ap.parse_args()
-    tr = np.load("data/train.npz")
+    tr = np.load(DATA / "train.npz")
     Xtr, Ytr, *_ = make_windows(tr["obs"], tr["act"], tr["next_obs"], tr["done"], K)
     model = MLP(hidden=128, epochs=args.epochs).fit(Xtr, Ytr); imag = Imagination(model, K)
     rng = np.random.default_rng(args.seed)
@@ -99,7 +100,7 @@ def main():
         print(line + f"{allv*100:>9.1f}%")
     print(f"{time.time()-t0:.0f}s")
     res["provenance"] = provenance(seeds={"rng": args.seed, "sim": "5000 + i"})
-    json.dump(res, open("results/fall_recovery.json", "w"), indent=1)
+    json.dump(res, open(RESULTS / "fall_recovery.json", "w"), indent=1)
 
 if __name__ == "__main__":
     main()

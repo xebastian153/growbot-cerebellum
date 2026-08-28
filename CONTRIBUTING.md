@@ -66,7 +66,8 @@ retrained the shipped weights during a documentation sweep. `ruff check .` is th
 
 The workflow is in `AGENTS.md` ("Building a new experiment"); the rules the write-up has
 to satisfy are in `docs/CONVENTIONS.md`. In short: one script at the root that imports the
-shared code from `growbot_cerebellum/` (never a sibling script), a docstring that states the
+shared code from `growbot_cerebellum/` (never a sibling script) and reads and writes through
+`growbot_cerebellum.paths` (`DATA`, `RESULTS`, `LOGS` — never a cwd-relative literal), a docstring that states the
 question, a working `--help`, output to `results/<name>.json` with a `provenance` block
 (`growbot_cerebellum.provenance(seeds=...)`: commit, library versions, argv, seeds) and a
 run log in `results/logs/<name>.txt`, a `Reproduce:` line in `docs/EXPERIMENTS.md`, and every figure in

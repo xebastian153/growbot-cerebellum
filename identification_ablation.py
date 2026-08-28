@@ -30,6 +30,7 @@ from __future__ import annotations
 import argparse, json, sys, time
 import numpy as np
 from growbot_cerebellum import provenance
+from growbot_cerebellum.paths import DATA, RESULTS, LOGS
 from growbot_cerebellum.imulog import parse, CTRL_HZ
 from growbot_cerebellum.forward import MLP, make_windows, K, AXES
 from growbot_cerebellum.gap import evaluate_axes
@@ -236,7 +237,7 @@ def main():
     args = ap.parse_args()
     # Taken before the run log opens (Tee truncates a tracked file -> "dirty").
     prov = provenance(seeds={"mlp": 0})
-    sys.stdout = Tee("results/logs/identification_ablation.txt")
+    sys.stdout = Tee(LOGS / "identification_ablation.txt")
 
     from sensor_id import default_out_path
     sensor_json = args.sensor_json or default_out_path([args.log])
@@ -251,7 +252,7 @@ def main():
     print("  applied as (roll, pitch, yaw); exact only upright, and the spread is far below")
     print("  the 20 ms grid, so the mapping cannot change an answer at this resolution")
 
-    tr = np.load("data/train.npz")
+    tr = np.load(DATA / "train.npz")
     Xtr, Ytr, *_ = make_windows(tr["obs"], tr["act"], tr["next_obs"], tr["done"], K)
     model = MLP(hidden=128, epochs=args.epochs).fit(Xtr, Ytr)
     grid = default_grid()
@@ -383,7 +384,7 @@ def main():
                "sensor_json": sensor_json, "sensor_lag_ms": lag, "sensor_lag_meta": lag_meta},
            "variants": variants, "delay_decomposition": decomp}
     out["provenance"] = prov
-    with open("results/identification_ablation.json", "w") as fh:
+    with open(RESULTS / "identification_ablation.json", "w") as fh:
         json.dump(out, fh, indent=1, default=float)
     print("\nwrote results/identification_ablation.json")
 

@@ -14,10 +14,10 @@ from pathlib import Path
 import numpy as np
 
 from growbot_cerebellum import provenance
+from growbot_cerebellum.paths import ROOT, DATA, RESULTS
 from growbot_cerebellum.forward import MLP, make_windows, encode_obs, rollout_error
 
-HERE = Path(__file__).parent
-OUT = HERE / "forward-model"
+OUT = ROOT / "forward-model"
 K = 5
 
 
@@ -38,8 +38,8 @@ def main():
     # rollout 0 is rollout_error's default start seed, which the scores use.
     prov = provenance(seeds={"torch": args.seed, "reference": args.seed, "rollout": 0},
                       data={"train": "data/train.npz", "score": "data/test.npz"})
-    tr = np.load(HERE / "data" / "train.npz")
-    te = np.load(HERE / "data" / "test.npz")
+    tr = np.load(DATA / "train.npz")
+    te = np.load(DATA / "test.npz")
     Xtr, Ytr, *_ = make_windows(tr["obs"], tr["act"], tr["next_obs"], tr["done"], K)
     Xte, Yte, *_ = make_windows(te["obs"], te["act"], te["next_obs"], te["done"], K)
 
@@ -122,8 +122,8 @@ def main():
              "within_0.2rad_axis": {f"{h * 20}ms": ro[h]["within_0.2rad_axis"] for h in (5, 25, 50)},
              "rmse_rollpitch_rad": {f"{h * 20}ms": ro[h]["rmse_rollpitch_rad"] for h in (5, 25, 50)},
              "provenance": prov}
-    (HERE / "results").mkdir(exist_ok=True)
-    (HERE / "results" / "export_js.json").write_text(json.dumps(score, indent=1))
+    RESULTS.mkdir(exist_ok=True)
+    (RESULTS / "export_js.json").write_text(json.dumps(score, indent=1))
     print("shipped weights, within 0.2 rad: " + "  ".join(f"{k} {v * 100:.1f}%" for k, v in score["within_0.2rad"].items())
           + "  -> results/export_js.json")
 

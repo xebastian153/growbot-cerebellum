@@ -8,14 +8,12 @@ from __future__ import annotations
 import argparse
 import json
 import time
-from pathlib import Path
 
 import numpy as np
 
 from growbot_cerebellum import provenance
+from growbot_cerebellum.paths import DATA, RESULTS
 from growbot_cerebellum.forward import CTRL_HZ, MLP, Linear, Persistence, by_regime, make_windows, rollout_error
-
-HERE = Path(__file__).parent
 
 
 def main():
@@ -28,7 +26,7 @@ def main():
                     help="horizons of the per-regime table (100 ms and 500 ms)")
     args = ap.parse_args()
 
-    tr = np.load(HERE / "data" / "train.npz"); te = np.load(HERE / "data" / "test.npz")
+    tr = np.load(DATA / "train.npz"); te = np.load(DATA / "test.npz")
     Xtr, Ytr, _, _, _ = make_windows(tr["obs"], tr["act"], tr["next_obs"], tr["done"], args.K)
     Xte, Yte, _, _, _ = make_windows(te["obs"], te["act"], te["next_obs"], te["done"], args.K)
     print(f"windows K={args.K}: train {len(Xtr):,}  test {len(Xte):,}  "
@@ -69,9 +67,9 @@ def main():
             n = table[models[0].name][name]["n"]
             print(f"  {name:<18}{n:>6}" + "".join(f"{table[m.name][name]['within_0.2rad'] * 100:>13.1f}%" for m in models))
 
-    (HERE / "results").mkdir(exist_ok=True)
+    RESULTS.mkdir(exist_ok=True)
     results["provenance"] = provenance(seeds={"mlp": 0, "rollout": 0, "regime_starts": 0})
-    (HERE / "results" / f"forward_K{args.K}.json").write_text(json.dumps(results, indent=1))
+    (RESULTS / f"forward_K{args.K}.json").write_text(json.dumps(results, indent=1))
 
 
 if __name__ == "__main__":

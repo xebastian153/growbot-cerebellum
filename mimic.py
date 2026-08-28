@@ -26,16 +26,15 @@ from __future__ import annotations
 import argparse
 import json
 import time
-from pathlib import Path
 
 import numpy as np
 
 from growbot_cerebellum import provenance
+from growbot_cerebellum.paths import DATA, RESULTS
 from growbot_cerebellum.sim import GrowBotSim, CTRL_HZ
 from growbot_cerebellum.planner import Imagination, run_episode, pick_targets, rpy_to_quat
 from growbot_cerebellum.forward import Persistence, Linear, MLP, make_windows
 
-HERE = Path(__file__).parent
 
 
 def main():
@@ -49,7 +48,7 @@ def main():
     ap.add_argument("--seed", type=int, default=0)
     args = ap.parse_args()
 
-    tr = np.load(HERE / "data" / "train.npz"); te = np.load(HERE / "data" / "test.npz")
+    tr = np.load(DATA / "train.npz"); te = np.load(DATA / "test.npz")
     Xtr, Ytr, *_ = make_windows(tr["obs"], tr["act"], tr["next_obs"], tr["done"], args.K)
     print("fitting forward models...", flush=True)
     models = {"persistence": Persistence().fit(Xtr, Ytr),
@@ -96,8 +95,8 @@ def main():
         print(f"{name:<14}{arr.mean():>12.3f} ± {arr.std():<4.3f}{within * 100:>14.1f}%"
               + (f"{wins * 100:>13.0f}%" if name != "hold still" else ""))
 
-    (HERE / "results").mkdir(exist_ok=True)
-    (HERE / "results" / "mimic.json").write_text(json.dumps(
+    RESULTS.mkdir(exist_ok=True)
+    (RESULTS / "mimic.json").write_text(json.dumps(
         {"provenance": provenance(seeds={"rng": args.seed, "sim": "1000 + i"}),
          "summary": {n: {"rmse_mean": float(np.mean(v)), "rmse_sd": float(np.std(v))}
                      for n, v in results.items()}, "per_target": per_target,

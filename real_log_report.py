@@ -43,6 +43,7 @@ import argparse, json, subprocess, sys
 import numpy as np
 
 from growbot_cerebellum import provenance
+from growbot_cerebellum.paths import ROOT, DATA, RESULTS, LOGS, under_root
 from growbot_cerebellum.imulog import parse, _deviceorientation_to_R, CTRL_HZ, rest_attitude
 from growbot_cerebellum.forward import MLP, make_windows, K, AXES
 from growbot_cerebellum.gap import evaluate_axes, twin_regimes, REGIME_MAP
@@ -309,12 +310,12 @@ def main():
     args = ap.parse_args()
     # Taken before the run log opens (Tee truncates a tracked file -> "dirty").
     prov = provenance(seeds={"mlp": 0})
-    sys.stdout = tee = Tee("results/logs/real_log_report.txt")
+    sys.stdout = tee = Tee(LOGS / "real_log_report.txt")
     report = {"files": args.logs, "conditions": {"epochs": args.epochs, "K": K,
               "horizons_ms": [100, 500], "model": "MLP h128 seed 0 on data/train.npz",
               "analysis": "per file; nothing pooled across files"}}
 
-    te = np.load("data/test.npz")
+    te = np.load(DATA / "test.npz")
     tw_mode, tw_rest = twin_regimes(te["obs"], te["mode"].astype(str))
     twin_rest = twin_rest_pitch()
 
@@ -384,10 +385,10 @@ def main():
     for f in args.logs:
         # sensor_id writes one artifact per input; ask for the path explicitly rather
         # than relying on a fixed name that a second file would overwrite.
-        sid_out = sensor_out_path([f])
-        gap_out = sensor_out_path([f], "gap_report")
-        for cmd, out, key in ((["gap_report.py", f, "--servo-id", "--out", gap_out], gap_out, "gap_report"),
-                              (["sensor_id.py", f, "--out", sid_out], sid_out, "sensor_id")):
+        sid_out = str(under_root(sensor_out_path([f])))
+        gap_out = str(under_root(sensor_out_path([f], "gap_report")))
+        for cmd, out, key in (([str(ROOT / "gap_report.py"), f, "--servo-id", "--out", gap_out], gap_out, "gap_report"),
+                              ([str(ROOT / "sensor_id.py"), f, "--out", sid_out], sid_out, "sensor_id")):
             print(f"\n$ python {' '.join(cmd)}")
             r = subprocess.run([sys.executable, *cmd], capture_output=True, text=True)
             print(r.stdout, end="")
@@ -397,7 +398,7 @@ def main():
             report[key][f] = json.load(open(out))
 
     print("\n== 3. per-file gap, per segment, against the twin floor each segment maps to")
-    tr = np.load("data/train.npz")
+    tr = np.load(DATA / "train.npz")
     Xtr, Ytr, *_ = make_windows(tr["obs"], tr["act"], tr["next_obs"], tr["done"], K)
     model = MLP(hidden=128, epochs=args.epochs).fit(Xtr, Ytr)
     horizons = [5, 25]
@@ -552,7 +553,7 @@ def main():
     report["data_ask"] = ask
 
     report["provenance"] = prov
-    json.dump(report, open("results/real_log_report.json", "w"), indent=1)
+    json.dump(report, open(RESULTS / "real_log_report.json", "w"), indent=1)
     print("\nwrote results/real_log_report.json")
     tee.f.close()
 

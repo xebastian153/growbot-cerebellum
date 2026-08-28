@@ -50,6 +50,7 @@ import argparse, json, sys, time
 import numpy as np
 
 from growbot_cerebellum import provenance
+from growbot_cerebellum.paths import DATA, RESULTS, LOGS
 from growbot_cerebellum.sim import ServoModel, collect
 from growbot_cerebellum.forward import MLP, make_windows, K, AXES
 from growbot_cerebellum.gap import evaluate_axes, twin_regimes, REGIME_MAP
@@ -67,7 +68,7 @@ EPOCHS, HIDDEN = 80, 128                # the published real-log model (real_log
 HORIZONS = [5, 25]                      # 100 / 500 ms
 DB2 = float(np.deg2rad(2))              # argmin deadband, shared by all corrected configs
 
-REAL_LOG_REPORT = "results/real_log_report.json"
+REAL_LOG_REPORT = RESULTS / "real_log_report.json"
 
 
 def determined_band(path=REAL_LOG_REPORT):
@@ -180,7 +181,7 @@ def main():
     # Taken before the run log opens: Tee truncates a tracked file, which would make
     # the block read "dirty" on a clean checkout.
     prov = provenance(seeds={"train": TRAIN_SEED, "test": TEST_SEED, "mlp": [0, *CONTROL_EXTRA_SEEDS]})
-    sys.stdout = tee = Tee("results/logs/real2sim.txt")
+    sys.stdout = tee = Tee(LOGS / "real2sim.txt")
     t0 = time.time()
     Oh, Ah, Dh, labelh, half, total, header = load_real_heldout()
     segs = {m: int((labelh == m).sum()) for m in sorted(set(labelh))}
@@ -229,7 +230,7 @@ def main():
         print(f"  gait sanity (policy mode): {sanity}")
         if kw is None:
             # the identical pipeline must reproduce the published data exactly
-            tr_pub = np.load("data/train.npz")
+            tr_pub = np.load(DATA / "train.npz")
             assert np.array_equal(O, tr_pub["obs"]) and np.array_equal(A, tr_pub["act"]), \
                 "control collection does not reproduce data/train.npz"
             print("  control collection asserted equal to data/train.npz")
@@ -373,7 +374,7 @@ def main():
     print(f"\n  {conclusion}")
 
     report["provenance"] = prov
-    json.dump(report, open("results/real2sim.json", "w"), indent=1)
+    json.dump(report, open(RESULTS / "real2sim.json", "w"), indent=1)
     print(f"\nwrote results/real2sim.json   total {(time.time() - t0) / 60:.1f} min")
     tee.f.close()
 

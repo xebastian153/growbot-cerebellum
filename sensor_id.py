@@ -38,6 +38,7 @@ import argparse, json
 import numpy as np
 
 from growbot_cerebellum import provenance
+from growbot_cerebellum.paths import under_root
 from growbot_cerebellum.imulog import _read_rows, run_preflight, GAP_MS, STILL_GYRO_RMS_MAX, STILL_ANG_STD_MAX
 from growbot_cerebellum.sensor_id import (BODY_AXES, GIMBAL_PITCH_RAD, MIN_REGIME_SAMPLES, ARW_TAIL_TRIM_MS,
                                           _stats_from_diffs, dt_stats, still_windows, regime_spans, verify_still, segment_rate,
@@ -68,7 +69,7 @@ def main():
                     help="output JSON; default results/sensor_id_<input stem>.json, so two "
                          "inputs never clobber one artifact")
     args = ap.parse_args()
-    out_path = args.out or default_out_path(args.log)
+    out_path = under_root(args.out or default_out_path(args.log))
 
     SEAM_MS = 1000.0                    # artificial gap inserted between files
     header = None

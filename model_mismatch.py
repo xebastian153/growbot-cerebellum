@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse, itertools, json, time
 import numpy as np
 from growbot_cerebellum import provenance
+from growbot_cerebellum.paths import DATA, RESULTS
 from growbot_cerebellum.sim import ServoModel, collect
 from growbot_cerebellum.forward import MLP, make_windows
 from growbot_cerebellum.servo_id import identify, realized_from_commands, confidence_band, determined_sets
@@ -111,7 +112,7 @@ def main():
     ap.add_argument("--seed", type=int, default=777)
     args = ap.parse_args()
 
-    tr = np.load("data/train.npz")
+    tr = np.load(DATA / "train.npz")
     Xtr, Ytr, *_ = make_windows(tr["obs"], tr["act"], tr["next_obs"], tr["done"], K)
     print("training nominal forward model...", flush=True)
     nominal = MLP(hidden=128, epochs=args.epochs).fit(Xtr, Ytr)
@@ -199,7 +200,7 @@ def main():
         }
 
     out["provenance"] = provenance(seeds=args.seed)
-    json.dump(out, open("results/model_mismatch.json", "w"), indent=1)
+    json.dump(out, open(RESULTS / "model_mismatch.json", "w"), indent=1)
     print("\nsaved results/model_mismatch.json")
 
 

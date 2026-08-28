@@ -34,6 +34,7 @@ import mujoco
 import numpy as np
 
 from growbot_cerebellum import provenance
+from growbot_cerebellum.paths import DATA, RESULTS
 from growbot_cerebellum.sim import GrowBotSim, Excitation, CTRL_HZ, OBS_DIM, ACT_DIM
 from growbot_cerebellum.forward import MLP, encode_obs, decode_obs
 
@@ -207,7 +208,7 @@ def main():
     print(f"collecting eval ({args.eval_steps:,} steps, seed 1)...", flush=True)
     Oe, Ae, O2e, Pe, De, Me = collect_priv(args.eval_steps, seed=1)
 
-    tr = np.load("data/train.npz"); te = np.load("data/test.npz")
+    tr = np.load(DATA / "train.npz"); te = np.load(DATA / "test.npz")
     n0 = len(tr["obs"])
     assert np.allclose(O[:n0], tr["obs"]) and np.array_equal(D[:n0], tr["done"]), \
         "collect_priv diverged from collect(): seed-0 prefix != data/train.npz"
@@ -300,7 +301,7 @@ def main():
 
     Path("results").mkdir(exist_ok=True)
     results["provenance"] = provenance(seeds={"collect": [0, 1], "mlp": [0, 1, 2]})
-    with open("results/yaw_floor.json", "w") as fh:
+    with open(RESULTS / "yaw_floor.json", "w") as fh:
         json.dump(results, fh, indent=1)
     print(f"\nsaved results/yaw_floor.json   total {(time.time() - t00) / 60:.1f} min", flush=True)
 

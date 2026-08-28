@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse, json, time
 import numpy as np, torch, torch.nn as nn
 from growbot_cerebellum import provenance
+from growbot_cerebellum.paths import DATA, RESULTS
 from growbot_cerebellum.forward import encode_obs, rollout_error, K
 
 def sequences(obs, act, next_obs, done, H):
@@ -100,7 +101,7 @@ def main():
     ap.add_argument("--seeds", type=int, nargs="+", default=[0, 1, 2])
     ap.add_argument("--horizons", type=int, nargs="+", default=[5, 10, 25, 50])
     args = ap.parse_args()
-    tr = np.load("data/train.npz"); te = np.load("data/test.npz")
+    tr = np.load(DATA / "train.npz"); te = np.load(DATA / "test.npz")
     res = {H: {h: [] for h in args.horizons} for H in args.Hs}
     times = {}
     for seed in args.seeds:
@@ -117,7 +118,7 @@ def main():
         print(f"H={H:<12}" + "".join(f"{np.mean(res[H][h])*100:>10.1f} ± {np.std(res[H][h])*100:<3.1f}" for h in args.horizons) + f"{times[H]:>8.0f}")
     json.dump({"epochs": args.epochs, "seeds": args.seeds, "horizons": args.horizons,
                "provenance": provenance(seeds=args.seeds),
-               "within": {str(H): {str(h): v for h, v in d.items()} for H, d in res.items()}}, open("results/multistep.json", "w"), indent=1)
+               "within": {str(H): {str(h): v for h, v in d.items()} for H, d in res.items()}}, open(RESULTS / "multistep.json", "w"), indent=1)
 
 if __name__ == "__main__":
     main()

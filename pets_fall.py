@@ -6,6 +6,7 @@ the ensemble mean, and PETS with 8 and 16 particles. Writes results/pets_fall.js
 import argparse, json, numpy as np, mujoco
 import fall_recovery as FR
 from growbot_cerebellum import provenance
+from growbot_cerebellum.paths import DATA, RESULTS
 from growbot_cerebellum.forward import MLP, make_windows, K
 from growbot_cerebellum.planner import Imagination
 from pets import ProbEnsemble, PETSImagination, cem_plan_pets
@@ -24,7 +25,7 @@ def main():
                     "(tee the output to results/logs/pets_fall.txt).")
     ap.parse_args()
 
-    tr = np.load("data/train.npz"); Xtr, Ytr, *_ = make_windows(tr["obs"], tr["act"], tr["next_obs"], tr["done"], K)
+    tr = np.load(DATA / "train.npz"); Xtr, Ytr, *_ = make_windows(tr["obs"], tr["act"], tr["next_obs"], tr["done"], K)
     det = MLP(hidden=128, epochs=40).fit(Xtr, Ytr); ens = ProbEnsemble(E=5, epochs=40).fit(Xtr, Ytr)
     rng = np.random.default_rng(0)
     starts=[]; i=0
@@ -53,7 +54,7 @@ def main():
         name = f"plan, PETS {P} particles"; res[name] = trial('plan', PETSImagination(ens, K, P, 0), cem_plan_pets)
         print(f"  {name:<28} {res[name]*100:5.1f}%", flush=True)
     res["provenance"] = provenance(seeds={"sim": "5000 + i"})
-    json.dump(res, open("results/pets_fall.json", "w"), indent=1)
+    json.dump(res, open(RESULTS / "pets_fall.json", "w"), indent=1)
 
 
 if __name__ == "__main__":

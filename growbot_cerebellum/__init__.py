@@ -11,6 +11,7 @@
     planner     Imagination and the CEM planner
     tee         Tee, the run-log mirror
     provenance  provenance(), the block every script writes into its artifact (older artifacts predate it)
+    paths       ROOT, DATA, RESULTS, LOGS — the scripts read and write through these, from any cwd
 
 Every script at the root is a thin CLI over these modules; every documented command still
 runs as written.
