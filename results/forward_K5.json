@@ -257,11 +257,209 @@
     }
    }
   },
-  "fit_s": 36.2,
+  "fit_s": 40.4,
   "params": 24841
  },
+ "by_regime": {
+  "5": {
+   "persistence": {
+    "policy walking": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.13439776003360748,
+     "within_0.2rad": 0.914
+    },
+    "sine gait": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.14374566078186035,
+     "within_0.2rad": 0.8106666666666666
+    },
+    "keyframe/OU": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.11079709231853485,
+     "within_0.2rad": 0.916
+    },
+    "still": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.0927368700504303,
+     "within_0.2rad": 0.928
+    },
+    "fast (|gyro|>3)": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.29175055027008057,
+     "within_0.2rad": 0.4126666666666667
+    },
+    "fallen": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.3288794159889221,
+     "within_0.2rad": 0.584
+    }
+   },
+   "linear": {
+    "policy walking": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.1063191145658493,
+     "within_0.2rad": 0.9506666666666667
+    },
+    "sine gait": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.11236676573753357,
+     "within_0.2rad": 0.9453333333333334
+    },
+    "keyframe/OU": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.09287556260824203,
+     "within_0.2rad": 0.958
+    },
+    "still": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.08773791790008545,
+     "within_0.2rad": 0.95
+    },
+    "fast (|gyro|>3)": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.21807527542114258,
+     "within_0.2rad": 0.7353333333333333
+    },
+    "fallen": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.2654080390930176,
+     "within_0.2rad": 0.754
+    }
+   },
+   "mlp": {
+    "policy walking": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.09861093014478683,
+     "within_0.2rad": 0.9573333333333334
+    },
+    "sine gait": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.08779145777225494,
+     "within_0.2rad": 0.9646666666666667
+    },
+    "keyframe/OU": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.08018545806407928,
+     "within_0.2rad": 0.9666666666666667
+    },
+    "still": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.08296779543161392,
+     "within_0.2rad": 0.956
+    },
+    "fast (|gyro|>3)": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.15119414031505585,
+     "within_0.2rad": 0.8733333333333333
+    },
+    "fallen": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.1652030348777771,
+     "within_0.2rad": 0.9006666666666666
+    }
+   }
+  },
+  "25": {
+   "persistence": {
+    "policy walking": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.3640225827693939,
+     "within_0.2rad": 0.734
+    },
+    "sine gait": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.40627041459083557,
+     "within_0.2rad": 0.592
+    },
+    "keyframe/OU": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.3566743731498718,
+     "within_0.2rad": 0.53
+    },
+    "still": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.27160847187042236,
+     "within_0.2rad": 0.7666666666666667
+    },
+    "fast (|gyro|>3)": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.5255221128463745,
+     "within_0.2rad": 0.30133333333333334
+    },
+    "fallen": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.6335935592651367,
+     "within_0.2rad": 0.36866666666666664
+    }
+   },
+   "linear": {
+    "policy walking": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.3333730399608612,
+     "within_0.2rad": 0.8206666666666667
+    },
+    "sine gait": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.3726319372653961,
+     "within_0.2rad": 0.8073333333333333
+    },
+    "keyframe/OU": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.326928973197937,
+     "within_0.2rad": 0.7593333333333333
+    },
+    "still": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.2807426154613495,
+     "within_0.2rad": 0.7826666666666666
+    },
+    "fast (|gyro|>3)": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.4586993157863617,
+     "within_0.2rad": 0.5793333333333334
+    },
+    "fallen": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.4929242730140686,
+     "within_0.2rad": 0.432
+    }
+   },
+   "mlp": {
+    "policy walking": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.336642324924469,
+     "within_0.2rad": 0.8333333333333334
+    },
+    "sine gait": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.37522268295288086,
+     "within_0.2rad": 0.8386666666666667
+    },
+    "keyframe/OU": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.29467085003852844,
+     "within_0.2rad": 0.8493333333333334
+    },
+    "still": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.2501690685749054,
+     "within_0.2rad": 0.8333333333333334
+    },
+    "fast (|gyro|>3)": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.455452561378479,
+     "within_0.2rad": 0.672
+    },
+    "fallen": {
+     "n": 1500,
+     "rmse_rollpitch_rad": 0.4287455976009369,
+     "within_0.2rad": 0.6633333333333333
+    }
+   }
+  }
+ },
  "provenance": {
-  "git_commit": "7031a66f65740d9b684224ed4f66e3eb041f6621",
+  "git_commit": "a4b94042f3a9b178c6f0d2d71fdcc4537063ef23",
   "git_dirty": false,
   "python": "3.11.15",
   "numpy": "2.4.6",
@@ -272,8 +470,9 @@
   ],
   "seeds": {
    "mlp": 0,
-   "rollout": 0
+   "rollout": 0,
+   "regime_starts": 0
   },
-  "timestamp": "2026-08-27T19:52:44+00:00"
+  "timestamp": "2026-08-28T17:27:38+00:00"
  }
 }

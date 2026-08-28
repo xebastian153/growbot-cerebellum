@@ -80,9 +80,25 @@ imagined roll/pitch stays within 0.2 rad of the truth. 128×2 swish MLP, 24,841 
 
 Per axis (now reported separately in `results/forward_K5.json`): yaw is consistently the
 hardest angle — MLP at 1 s sits at 59 % within 0.2 rad against 77 % for roll/pitch —
-consistent with contact dominating the yaw gyro. By regime at 100 ms the three tie on calm gaits (~95 %); the model earns its keep under
-fast motion (persistence 41 → MLP 86 %) and while tipping or fallen (58 → 89 %) —
-exactly where the video locates the gap. Capacity sweep saturated (192×2, 128×3 add nothing).
+consistent with contact dominating the yaw gyro.
+
+By regime (`by_regime` in the artifact, 1500 starts per regime, split by what the body was
+doing at the start), within 0.2 rad of roll/pitch:
+
+| regime | persistence | linear | **MLP** | | persistence | linear | **MLP** |
+|---|---|---|---|---|---|---|---|
+| | *100 ms* | | | | *500 ms* | | |
+| policy walking | 91.4 % | 95.1 % | **95.7 %** | | 73.4 % | 82.1 % | **83.3 %** |
+| sine gait | 81.1 % | 94.5 % | **96.5 %** | | 59.2 % | 80.7 % | **83.9 %** |
+| keyframe / OU | 91.6 % | 95.8 % | **96.7 %** | | 53.0 % | 75.9 % | **84.9 %** |
+| still | 92.8 % | 95.0 % | **95.6 %** | | 76.7 % | 78.3 % | **83.3 %** |
+| fast (\|gyro\| > 3 rad/s) | 41.3 % | 73.5 % | **87.3 %** | | 30.1 % | 57.9 % | **67.2 %** |
+| fallen | 58.4 % | 75.4 % | **90.1 %** | | 36.9 % | 43.2 % | **66.3 %** |
+
+On calm gaits the three are within a few points at 100 ms; the model earns its keep under
+fast motion (persistence 41 → MLP 87 %) and while tipping or fallen (58 → 90 %) — exactly
+where the video locates the gap. At 500 ms the same two regimes are still the hardest for
+every model (67 % and 66 % for the MLP).
 
 Reproduce: `.venv/bin/python forward.py > /path/outside/the/repo.txt` → `results/forward_K5.json`
 (80 epochs, the CLI default); copy the redirected stdout into `results/logs/forward_K5.txt` afterwards —

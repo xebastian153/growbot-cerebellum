@@ -24,10 +24,28 @@ linear       one-step delta RMSE 0.5053   fit 0.1s
     epoch  70  loss 0.3788
     epoch  80  loss 0.3777
 
-mlp          one-step delta RMSE 0.4689   fit 36.2s   params 24,841
+mlp          one-step delta RMSE 0.4689   fit 40.4s   params 24,841
    horizon    ms   roll/pitch RMSE   yaw RMSE   gyro RMSE  within 0.2  yaw w0.2
          1    20            0.0190     0.0206       0.726       99.6%     99.8%
          5   100            0.0955     0.1402       1.173       96.0%     96.2%
         10   200            0.1694     0.2620       1.331       90.6%     91.5%
         25   500            0.3252     0.5482       1.469       82.7%     77.5%
         50  1000            0.4837     0.8110       1.454       77.4%     58.8%
+
+by regime @ 100 ms, within 0.2 rad (n starts)
+  regime                 n   persistence        linear           mlp
+  policy walking      1500         91.4%         95.1%         95.7%
+  sine gait           1500         81.1%         94.5%         96.5%
+  keyframe/OU         1500         91.6%         95.8%         96.7%
+  still               1500         92.8%         95.0%         95.6%
+  fast (|gyro|>3)     1500         41.3%         73.5%         87.3%
+  fallen              1500         58.4%         75.4%         90.1%
+
+by regime @ 500 ms, within 0.2 rad (n starts)
+  regime                 n   persistence        linear           mlp
+  policy walking      1500         73.4%         82.1%         83.3%
+  sine gait           1500         59.2%         80.7%         83.9%
+  keyframe/OU         1500         53.0%         75.9%         84.9%
+  still               1500         76.7%         78.3%         83.3%
+  fast (|gyro|>3)     1500         30.1%         57.9%         67.2%
+  fallen              1500         36.9%         43.2%         66.3%

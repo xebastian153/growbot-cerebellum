@@ -60,7 +60,7 @@ file under `results/`.
 
 | experiment | verdict |
 |---|---|
-| [Forward model](docs/EXPERIMENTS.md#forward-model) | 96.0 % of imagined roll/pitch within 0.2 rad at 100 ms, 82.7 % at 500 ms, 24,841 params; wins where the body is fast or fallen |
+| [Forward model](docs/EXPERIMENTS.md#forward-model) | 96.0 % of imagined roll/pitch within 0.2 rad at 100 ms, 82.7 % at 500 ms, 24,841 params; wins where the body is fast (41 → 87 %) or fallen (58 → 90 %) at 100 ms |
 | [Mimic game](docs/EXPERIMENTS.md#mimic-game) | planning without a model is worse than doing nothing (0.220 vs 0.210 rad); with it, 0.095 rad |
 | [JS runner](docs/EXPERIMENTS.md#js-runner) | float32-equivalent to the trained net; the equivalence test caught a real convention bug |
 | [Sim-to-real proxy](docs/EXPERIMENTS.md#sim-to-real-proxy--negative) | **negative at 100 ms** — mass, CoM, leg, gain and sliding friction never reach the IMU there |
