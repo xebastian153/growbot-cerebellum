@@ -46,6 +46,9 @@ def provenance(seeds=None, **extra):
     """
     commit = _git("rev-parse", "HEAD")
     status = _git("status", "--porcelain")
+    digests = _data_digests(extra.get("data"))
+    if digests:
+        extra["data_sha256"] = digests
     return {
         "git_commit": commit,
         "git_dirty": None if commit is None or status is None else bool(status),
@@ -58,3 +61,18 @@ def provenance(seeds=None, **extra):
         "timestamp": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
         **extra,
     }
+
+
+def _data_digests(data):
+    """sha256 (first 16 hex) of every existing file named in `data` (a path or a dict of
+    paths), so an artifact says which twin stream it was computed on — the stream is
+    CPU-dependent, and a version pin alone does not identify it."""
+    import hashlib
+    paths = data.values() if isinstance(data, dict) else [data] if isinstance(data, str) else []
+    out = {}
+    for path in paths:
+        f = ROOT / path if not Path(path).is_absolute() else Path(path)
+        if isinstance(path, str) and f.is_file():
+            out[path] = hashlib.sha256(f.read_bytes()).hexdigest()[:16]
+    return out
+

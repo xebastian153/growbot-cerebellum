@@ -34,6 +34,13 @@ come back. A change that touches `growbot_cerebellum/` is not done until it is g
 before and after. `imulog.py --selftest` is the same thing spelled out; `imulog.py FILE` is
 the preflight on a real log and writes nothing. CI (`.github/workflows/ci.yml`) runs the
 lint, both test tiers and the JS test on every push, regenerating the twin data first.
+The last step regenerates `results/forward_K5.json` and compares it to the committed one —
+but only when the runner's regenerated data matches `data/twin.sha256`. The twin's contact
+dynamics are chaotic, so a CPU with a different floating-point path (FMA, AVX-512) produces a
+stream that diverges after a few ticks and every downstream number moves at the second
+digit; no version pin fixes that. On such a runner the step is *skipped with a warning*, not
+passed. If you regenerate the data on your own machine and `sha256sum -c data/twin.sha256`
+fails, your numbers will differ from the published ones for the same reason.
 
 The JS runner has its own equivalence test against the trained PyTorch net, float32
 tolerance:
