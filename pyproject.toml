@@ -12,9 +12,12 @@ license = { file = "LICENSE" }
 # Direct dependencies. The exact set that produced everything under results/ is
 # requirements.lock (uv pip freeze of the .venv; see README "Setup"). torch is the CPU
 # wheel: --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match
+# Pinned to the set that produced everything under results/ (requirements.lock): the CI
+# gate reproduces the headline artifact, and a MuJoCo minor bump alone moves the low
+# digits of every regenerated stream.
 dependencies = [
-    "mujoco>=3.3",
-    "numpy>=1.26",
+    "mujoco==3.11.0",
+    "numpy==2.4.6",
     "torch==2.5.1",
 ]
 

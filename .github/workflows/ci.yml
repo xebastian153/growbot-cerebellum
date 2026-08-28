@@ -16,7 +16,7 @@ jobs:
           python-version: "3.11"
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
       - name: Install
         run: |
           python -m pip install --upgrade pip
@@ -37,22 +37,43 @@ jobs:
       - name: Round-trip suite
         run: pytest -q -m slow
       - name: Headline artifact reproduces
-        # The documented command must give back the committed results/forward_K5.json —
-        # every number, not the wall-clock fit_s or the provenance block. A mismatch here
-        # means the published table no longer follows from the code and data as written.
+        # The documented command must give back the committed results/forward_K5.json at
+        # the precision the tables quote (0.1 pt on rates, 1e-3 on RMSEs) — wall-clock
+        # fit_s and the provenance block excluded. On a mismatch the step names every
+        # differing key and the largest deviation, so the failure is actionable.
         run: |
           git show HEAD:results/forward_K5.json > committed_forward_K5.json
           python forward.py
           python - <<'PY'
           import json, sys
+          TOL = 1e-3
           def strip(d):
               d.pop("provenance", None)
               for m in d.values():
                   if isinstance(m, dict): m.pop("fit_s", None)
               return d
-          a = strip(json.load(open("committed_forward_K5.json")))
-          b = strip(json.load(open("results/forward_K5.json")))
-          if a != b:
-              sys.exit("results/forward_K5.json does not reproduce from the committed code and regenerated data")
-          print("results/forward_K5.json reproduces: every number identical")
+          def leaves(d, pre=""):
+              if isinstance(d, dict):
+                  for k, v in d.items(): yield from leaves(v, f"{pre}/{k}")
+              elif isinstance(d, list):
+                  for i, v in enumerate(d): yield from leaves(v, f"{pre}[{i}]")
+              else:
+                  yield pre, d
+          a = dict(leaves(strip(json.load(open("committed_forward_K5.json")))))
+          b = dict(leaves(strip(json.load(open("results/forward_K5.json")))))
+          bad, worst = [], 0.0
+          for k in sorted(set(a) | set(b)):
+              if k not in a or k not in b:
+                  bad.append(f"{k}: present on one side only"); continue
+              x, y = a[k], b[k]
+              if isinstance(x, (int, float)) and not isinstance(x, bool) and isinstance(y, (int, float)):
+                  d = abs(x - y); worst = max(worst, d)
+                  if d > TOL: bad.append(f"{k}: committed {x} regenerated {y} (|d| {d:.3g})")
+              elif x != y:
+                  bad.append(f"{k}: committed {x!r} regenerated {y!r}")
+          print(f"largest numeric deviation {worst:.3g} (tolerance {TOL})")
+          if bad:
+              print("\n".join(bad))
+              sys.exit(f"results/forward_K5.json does not reproduce within {TOL}: {len(bad)} keys differ")
+          print("results/forward_K5.json reproduces at the published precision")
           PY

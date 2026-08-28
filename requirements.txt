@@ -1,7 +1,7 @@
 # Direct dependencies. The exact set that produced everything under results/ is
 # requirements.lock (uv pip freeze of the .venv; see README "Setup").
-mujoco>=3.3
-numpy>=1.26
+mujoco==3.11.0
+numpy==2.4.6
 torch==2.5.1   # CPU build is enough: --extra-index-url https://download.pytorch.org/whl/cpu
 
 # Only for timesfm_baseline.py (downloads a 200M-param model on first run)
