@@ -114,6 +114,18 @@ The suite takes about five minutes on CPU (4:40 measured). A change that touches
    Four such reviews each found real defects that the hidden-secret suite could not:
    the suite tests the code against the author's assumptions about the data, and the
    defects lived in the assumptions.
+9. **A pre-stated rule is one function, applied on every path.** If the rule lives in
+   one loop and a second loop skips it, the artifact publishes `counted: true` for a
+   check that never ran. *Scar:* the below-noise exclusion was applied in
+   identification A only; on the identical stream in identification B it would have
+   excluded 2 of the 3 seeds behind a "resolved 3 of 3" — withdrawn (`com_id.py`).
+10. **Verify with the documented command, not an equivalent.** `python -m pytest`
+    puts the cwd on the path; the documented `.venv/bin/pytest` does not. *Scar:* a
+    test module errored at collection under the documented command and CI while the
+    equivalent command reported green.
+11. **A run longer than the tool's timeout is launched detached.** A foreground run
+    killed at minute ten leaves no artifact and no record of why. *Scar:* `com_id.py`
+    (~15 min) died once at "candidates ready in 596 s" before the detached relaunch.
 
 ## Building a new experiment — the workflow
 
