@@ -60,7 +60,8 @@ same run that exports the weights; the persistence and linear columns come from 
 
 Where the body is calm the gap is small (at 100 ms the model sits at 96–97 %, linear at
 95–96 %, persistence at 81–93 % depending on the gait); the model earns its keep under fast
-motion (persistence 41 → model 87 %) and while tipping or fallen (58 → 90 %) — the bounces
+motion (linear 73.5 → model 87.3 %; persistence 41.3) and while tipping or fallen (linear 75.4 →
+90.1 %; persistence 58.4) — the bounces
 and shakes the video says the creature cannot picture (`by_regime` in `results/forward_K5.json`,
 1500 starts per regime).
 

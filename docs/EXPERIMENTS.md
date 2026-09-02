@@ -35,6 +35,7 @@ machine-readable source is `results/`. Conventions in `CONVENTIONS.md`.
 - [PETS — the model knows where it is unsure; planning through that knowledge does not help](#pets--the-model-knows-where-it-is-unsure-planning-through-that-knowledge-does-not-help)
 - [Metadata conditioning — negative](#metadata-conditioning--negative)
 - [TimesFM 2.5 baseline](#timesfm-25-baseline)
+- [Corrections log](CORRECTIONS.md) — every retraction and correction, dated by commit
 
 ## At a glance
 
@@ -43,7 +44,7 @@ One row per experiment, the verdict with its numbers; every figure resolves to a
 
 | experiment | verdict |
 |---|---|
-| Forward model | 96.0 % within 0.2 rad at 100 ms, 82.7 % at 500 ms; yaw is the hard axis (59 % vs 77 % at 1 s); the gain over baselines concentrates in fast motion (41 → 87 %) and falls (58 → 90 %) |
+| Forward model | 96.0 % within 0.2 rad at 100 ms, 82.7 % at 500 ms; yaw is the hard axis (59 % vs 77 % at 1 s); the gain over the strongest baseline concentrates in fast motion (linear 73.5 → 87.3 %; persistence 41.3) and falls (75.4 → 90.1 %; persistence 58.4) |
 | Mimic game | planning without a model is worse than doing nothing; with it, error halves (0.210 → 0.095 rad) and 39/40 traces beat hold-still |
 | JS runner | float32-equivalent to the trained net; the equivalence test caught a real convention bug |
 | Body-parameter DR proxy | **negative at 100 ms** — mass/CoM/leg/gain/*sliding* friction never reach the IMU there; contact chatter dominates the gyro. Re-scored at 500 ms below |
@@ -59,10 +60,10 @@ One row per experiment, the verdict with its numbers; every figure resolves to a
 | `?imulog=1` parser | round-trip validated: a hidden servo survives 60/30 Hz jittered sampling into the 50 Hz arrays, determined to one grid step — the injected 40 ms delay is inside the determined set on all 5 seeds tested and the set never leaves ±20 ms; slew resolves to within one grid step of the injected 5 rad/s (the set contains it on 4 of 5). The argmin alone is a coin flip here and is no longer the acceptance rule |
 | Yaw floor | **negative** — the twin's own yaw weakness (58.6 % @1 s vs ~83 % roll/pitch) is not a model limit: 4× data +0.9 pts, 4× capacity +1.3, and a teacher-forced probe fed true contact forces and linear velocity +3.1 — all under the pre-stated 4.6-pt materiality threshold (2× seed spread). Contact chatter is aleatoric at 20 ms; planning should not chase it. Sim-only, 3 MLP seeds |
 | Model mismatch | out-of-family servos (load-dependent slew, voltage sag) identify to their nearest grid point and still recover 90–94 % of the closable held-out gap at 500 ms; split-half DISAGREE fires on drift but is blind to stationary mismatch; a linear residual on top adds nothing (**negative**) — seed 777, sim-only |
-| Real logs (2 sessions, 21 s) | read **per file, per segment** — the two logs differ in agent gain and rest 43° apart, so they are never pooled. `growbot-imulog-1` carries no event rows, so the regimes are synthesized from the data: walk-1 = still 1.1 s + walking 15 s; walk-3 = still 2.6 s + impact + fall, and **no walking at all**. walk-1's walking gap @500 ms is −36.9 / −37.1 / −43.0 pts vs the twin's policy floor (−0.4 to +2.2 @100 ms). walk-3's *motionless* segment reads 4.8 % on pitch while the commands swing ±34° — that number measures the robot, not the model. Servo on walk-1 alone: argmin delay 100 ms / slew 2.0, split-half DISAGREE, delay determined set [2 … 6] ticks and slew [2.0, 3.0] rad/s. Fusion lag +12.8 to +13.8 ms, split-half AGREE (walk-1 only). Measured, not assumed: `header.gain` is baked into the logged commands (amplitude ratio 1.230, CI [1.171, 1.281] against 1.25 vs 1.00) |
+| Real logs (2 sessions, 21 s) | read **per file, per segment** — the two logs differ in agent gain and rest 43° apart, so they are never pooled. `growbot-imulog-1` carries no event rows, so the regimes are synthesized from the data: walk-1 = still 1.1 s + walking 15 s; walk-3 = still 2.6 s + impact + fall, and **no walking at all**. walk-1's walking gap @500 ms is −36.9 / −37.1 / −43.0 pts vs the twin's policy floor (−0.4 to +2.2 @100 ms). At 100 ms every baseline transfers too — persistence 94–98 %, above its own twin floor — so that number measures how little the body moves, not the model; at 500 ms **persistence beats the MLP on roll, 89.8 vs 50.8** (the twin has the MLP ahead by 8.8): the model imagines twin-sized swings the slower real body does not make. walk-3's *motionless* segment reads 4.8 % on pitch while the commands swing ±34° — that number measures the robot, not the model. Servo on walk-1 alone: argmin delay 100 ms / slew 2.0, split-half DISAGREE, delay determined set [2 … 6] ticks and slew [2.0, 3.0] rad/s. Fusion lag +12.8 to +13.8 ms, split-half AGREE (walk-1 only). Measured, not assumed: `header.gain` is baked into the logged commands (amplitude ratio 1.230, CI [1.171, 1.281] against 1.25 vs 1.00) |
 | Real2Sim loop closure | an actuator model helps on the real walk; **which** one is not identified. On walk-1's held-out half, retraining the twin against a servo from the determined band closes roll at every tested point — but the two cells inside both determined sets spread +16.0 to +33.4 pts, and the tested cells cover only 40 % of the determined delay set and 50 % of the slew set, so "robust to the identification uncertainty" is **retracted**. (The wider +4.5 to +33.4 range across all four cells is not that swing: its low end is `half-A` at slew 5.0, outside the slew set [2.0, 3.0], so the identification does tell that one apart.) A zero-delay smoothing-only cell closes yaw to within 2.7 pts of the best delayed cell — under the 10.7-pt threshold — so this log does not separate identified dynamics from plain action smoothing on yaw; on roll and pitch the latency does carry more. That cell is **outside** the determined band (delay 0 ∉ [2 … 6]), so it is an action-smoothing control rather than a rival hypothesis about the same servo — the earlier "inside the band" reading came from a hand-copied mirror of the determined sets that had gone stale; `real2sim` now reads them from `results/real_log_report.json` and fails hard if it cannot. Delay is determined only to [2 … 6] ticks (40–120 ms), deadband untested, 405 held-out ticks |
 | Coverage | **RETRACTED** — invalid twice over. The premise was false (no sit-to-stand exists in either log: the header puts the fold *after* recording ends, and the −1.0 rad tail is a **fall**), and the manipulation was null (the standard data already spans pitch −1.570 to +1.570 against the transitions' −1.568 to +1.459 and walk-3's −1.013 to +0.014 — the sanity check compared the treatment with the target and skipped the control, so it could not fail). The additivity claim went with it: its differences sit inside one control seed spread. Numbers kept in `results/coverage.json`, conclusion marked retracted; the sanity check is fixed so a rerun would be honest |
-| Identification ablation | four changes to how the servo is identified, on walk-1's held-out half. **Per-side servos give the largest gain and the weakest claim to it**: fitting one triple per horn instead of one for both more than doubles the roll gain, +3.5 → +8.0 pts (real, and it reproduces from the JSON) — but the *fit* improvement behind it, 0.0064, is a ratio of 1.01 against its own confidence band of 0.0063, i.e. on the noise floor; both per-side argmins sit on the grid **boundary** (delay 6 = max, slew 1.0 = min); and the "disjoint" slew sets are one-dimensional conditional slices, each swept with the partner frozen and cut with the *shared* band, so their disjointness restates the argmins rather than confirming them. What does survive a test: re-fitting per-side on each half puts the slower horn on the **right** both times — quoted with its noise floor, because it is now the only support left for that attribution: two halves each picking one of {left, right, neither} agree under a no-asymmetry null roughly 1 time in 2, so the flag is about one coin flip's worth of evidence, the same standard that rejects the 1.01 fit ratio above. (The L/R labels were **inverted** before this revision — action column 0 is the right leg, not the left — so every earlier left/right attribution here was backwards; no error, gain or set changes, only which horn owns which triple.) **Aligning the observation channels** (advancing the fused angles by the measured 13.2 ms so they meet the gyro) moves the identified delay 5 → 4 ticks and narrows its set, with no change in held-out accuracy: the correction is to the attribution, not the prediction, and 80 ms is now an upper bound on the actuator rather than its value. **Multi-horizon scoring backfired** — argmin to the grid's low boundary, delay set widens to everything, band ×14, roll gain negative: the published horizon ablation does not transfer at 16 s. Every variant still splits DISAGREE; none of this fixes the excitation |
+| Identification ablation | four changes to how the servo is identified, on walk-1's held-out half. What is resolved: **aligning the observation channels** (advancing the fused angles by the measured 13.2 ms) moves the identified delay 5 → 4 ticks and narrows its set with no change in held-out accuracy, so 80 ms is an upper bound on the actuator, not its value; **multi-horizon scoring backfires** at 16 s; and every variant still splits DISAGREE. What is not: **per-side servos give the largest gain and the weakest claim to it**: fitting one triple per horn instead of one for both more than doubles the roll gain, +3.5 → +8.0 pts (real, and it reproduces from the JSON) — but the *fit* improvement behind it, 0.0064, is a ratio of 1.01 against its own confidence band of 0.0063, i.e. on the noise floor; both per-side argmins sit on the grid **boundary** (delay 6 = max, slew 1.0 = min); and the "disjoint" slew sets are one-dimensional conditional slices, each swept with the partner frozen and cut with the *shared* band, so their disjointness restates the argmins rather than confirming them. What does survive a test: re-fitting per-side on each half puts the slower horn on the **right** both times — quoted with its noise floor, because it is now the only support left for that attribution: two halves each picking one of {left, right, neither} agree under a no-asymmetry null roughly 1 time in 2, so the flag is about one coin flip's worth of evidence, the same standard that rejects the 1.01 fit ratio above. (The L/R labels were **inverted** before this revision — action column 0 is the right leg, not the left — so every earlier left/right attribution here was backwards; no error, gain or set changes, only which horn owns which triple.) **Aligning the observation channels** (advancing the fused angles by the measured 13.2 ms so they meet the gyro) moves the identified delay 5 → 4 ticks and narrows its set, with no change in held-out accuracy: the correction is to the attribution, not the prediction, and 80 ms is now an upper bound on the actuator rather than its value. **Multi-horizon scoring backfired** — argmin to the grid's low boundary, delay set widens to everything, band ×14, roll gain negative: the published horizon ablation does not transfer at 16 s. Every variant still splits DISAGREE; none of this fixes the excitation |
 | Sensor characterisation | round-trip validated: a hidden 60 ms fusion-filter lag recovered on 3 of 3 body-rate axes (+61.5 / +61.6 / +62.1 ms, peak corr 0.89–0.92; 60.4–63.5 ms across 5 seeds), gyro noise density within 20 %, an injected timing stall flagged, and a bias instability refused on a gyro that has none — all from the file alone |
 
 **The twin is faithful.** The shipped `policy_85mm.json`, ported to numpy, walks in it
@@ -269,7 +270,7 @@ on any axis. At +3 cm the twin's whole-body CoM crosses into the foot support bo
 part of that drop is the body itself, not the model.
 
 Three things about that last sentence, the first two of which an earlier version of this
-section got wrong. **The 13.5 and the 30.2 are held-out-half points, and the 33.8 above them
+section got wrong (Corrected: see [docs/CORRECTIONS.md](CORRECTIONS.md#2026-08-26--body-parameters-partition-per-seed-geometry-in-body-frame-fast-motion-shift-unresolved-98a3231-1787c6c-b45fdf2)). **The 13.5 and the 30.2 are held-out-half points, and the 33.8 above them
 is the full-stream table figure**: they are different quantities measured on different data,
 and one is never divided into the other. **The share is not one number**: per seed it is
 37 / 42 / 55 %, so it is published as a range — the point estimate 45 % this section carried
@@ -696,7 +697,7 @@ direction at two or more counted seeds. (The conditions that would travel with t
 were made: one body, one magnitude and sign, no servo in the loop, the delay argmin on the
 grid's edge by construction.) On this same stream, section A excludes seed 2 and keeps seeds
 0–1 (its bands are wider), so the two sections cannot be compared seed for seed on this body;
-the earlier "section B contradicts the headline" reading is withdrawn with it.
+the earlier "section B contradicts the headline" reading is withdrawn with it. Corrected: see [docs/CORRECTIONS.md](CORRECTIONS.md#2026-08-27--centre-of-mass-identifiability-sign-test-removed-noise-floor-consumed-3-of-3-withdrawn-58ec2e9-6bdcd7c).
 
 **A slow servo leaves the delay undetermined — resolved on the counted seeds; the CoM/delay
 trade-off is not.** With the real-log servo candidate in the loop the delay set is the entire
@@ -885,7 +886,7 @@ attitudes differ by 43° — walk-1's body rests at pitch −0.74 rad, walk-3's 
 +0.01 — so the phone is not in the same place and every attitude-referenced number means
 something different in each. `gap_report.py` now refuses to concatenate files that
 disagree on either. An earlier version of this report published aggregates over the pair;
-they are withdrawn.
+they are withdrawn. Corrected: see [docs/CORRECTIONS.md](CORRECTIONS.md#2026-08-20--real-log-aggregates-withdrawn-3827c18).
 
 **What the segmenter finds.** `growbot-imulog-1` carries no event rows, so `growbot_cerebellum/imulog.py`
 synthesizes regimes from the data (rolling stillness by `sensor_id.verify_still`'s own
@@ -916,6 +917,36 @@ At 100 ms the same rows read −0.4 to +2.2 — the model is right about the nex
 real robot and wrong about the next 500. Roll and pitch sit at nearly the same distance
 below their floors, which is not the signature of a pitch-specific problem.
 
+**The baselines on the same starts** (`baselines` in `results/real_log_report.json`: the
+ridge linear model and persistence — predict no change — fit on the same windows, scored on
+the same 725 walking starts, each against *its own* twin floor):
+
+| walk-1 walking, within 0.2 rad | roll real / twin | pitch real / twin | yaw real / twin |
+|---|---|---|---|
+| MLP @100 ms | 96.1 / 96.0 | 95.0 / 97.1 | 97.9 / 95.8 |
+| linear @100 ms | 96.7 / 95.3 | 95.9 / 96.5 | 96.7 / 94.8 |
+| persistence @100 ms | 97.7 / 90.3 | 93.9 / 91.7 | 95.6 / 90.7 |
+| MLP @500 ms | 50.8 / 87.7 | 50.1 / 87.2 | 33.7 / 76.7 |
+| linear @500 ms | 55.4 / 87.6 | 45.7 / 87.1 | 49.9 / 70.7 |
+| persistence @500 ms | **89.8** / 78.9 | 52.8 / 77.7 | 54.5 / 68.4 |
+
+Two things follow, and the first corrects how "transfers at 100 ms" has been read. **At
+100 ms every model transfers, including doing nothing**: persistence sits at 94–98 % on the
+real walk, 3–7 pts *above* its own twin floor, and the MLP's margin over the linear model —
++0.7 roll on the twin — is −0.6 on the real log. A 100 ms score on this walk measures how
+little the real body moves in 100 ms, not the model. **At 500 ms persistence beats the MLP
+by 39 pts on roll** (89.8 vs 50.8; on the twin the MLP leads by 8.8) and by 21 on yaw: the
+real body's roll stays within 0.2 rad of where it was for half a second nine times in ten,
+while the MLP predicts twin-sized swings that do not happen. That is the actuator signature
+read from the other side — a slower servo moves the body less than the twin's — and it is
+also why the −36.9 above is not a statement about roll physics the model got wrong so much
+as motion it imagined and the robot did not produce. The same reading holds on walk-1's
+held-out half (374 starts, `servo.held_out_baselines`): at 500 ms persistence 92.0 / 61.2 /
+55.3 against the MLP's 43.0 / 51.3 / 33.2 and 46.5 / 50.0 / 40.9 after the identified servo.
+On walk-3's motionless segment persistence scores 100 / 84.0 / 98.4 at 500 ms where the
+MLP scores 91.2 / 4.8 / 67.2 — the body did not move, and the model that predicts no
+motion is the one that is right, which is the point the −84.2 below makes.
+
 **walk-3, per segment.** Reported separately and never mixed into walk-1:
 
 | walk-3 @500 ms | twin floor | n | roll real/twin/gap | pitch | yaw |
@@ -943,14 +974,7 @@ grid's 7 values, 40–120 ms) and slew **[2.0, 3.0] rad/s**. Eight seconds of pe
 walking is the excitation `servo_id.py` warns about: the argmin is not an identification
 at that width, but the set is no longer the whole grid.
 
-> These two sets are quoted from `results/real_log_report.json` (`servo.delay_determined_set`,
-> `servo.slew_determined_set`). An earlier revision of this section published delay
-> **[0 … 6] — the entire grid** — and slew **[1.5, 2.0, 3.0, 4.0]**, which were the sets
-> before `confidence_band` moved from a standard deviation to 1.4826·MAD. That change
-> narrowed both sets and nothing downstream noticed, because `real2sim.py` held a
-> hand-copied mirror of them. The copy is gone (`real2sim.determined_band` reads the
-> artifact and fails hard if it cannot), and every number below that depends on the sets
-> is recomputed against them.
+> Corrected: see [docs/CORRECTIONS.md](CORRECTIONS.md#2026-08-22--determined-sets-unstaled-bfa8475).
 > *Caveat added later (`com_id.py`): in the twin, a hidden delay-5 servo with 300 s of
 > `collect()`'s mixed excitation (not walking alone) leaves the delay set at the whole grid even
 > with the correct body model in the grid (4 of 4 counted seeds, 6 of 6 raw), and a 1.5 cm
@@ -986,25 +1010,16 @@ what Allan deviation needs (tens of taus with many independent clusters each: mi
 60 Hz, not seconds). The data ask stands, and now says the right thing: the still
 segments are **too short**, not absent.
 
+Reproduce: `.venv/bin/python real_log_report.py imu-walk-1-*.json imu-walk-3-*.json` →
+`results/real_log_report.json`, `results/logs/real_log_report.txt`; it also re-runs
+`gap_report.py --servo-id` and `sensor_id.py` per file and rewrites their four artifacts.
+Needs the two untracked walk logs. The four subprocess artifacts record `git_dirty: true`
+because the run's own log has already been rewritten when they are taken; the report's own
+block is taken first and is clean.
+
 ## Real2Sim loop closure — an actuator model helps on the real walk; *which* actuator model is not identified
 
-> **This section replaces an earlier one.** The previous version scored a
-> concatenation of walk-1 and walk-3 and concluded the loop was "validated robustly to
-> the identification uncertainty". Both halves of that are withdrawn. Roughly half the
-> old held-out slice was walk-3 — 2.6 s of a motionless body under swinging commands,
-> then a fall — so a large part of what the corrected twins were credited with
-> predicting was a robot that was not moving. And "robustly to the identification
-> uncertainty" was inferred from three sampled points out of a seven-wide determined
-> delay set, which is a claim about a band made from a sample of it. Every number below
-> is new: walk-1 only, and the verdict text is computed from which cells pass and from
-> how much of the band they cover.
->
-> **The band numbers in this section were corrected again.** They were computed against
-> `real2sim.py`'s hand-copied mirror of the determined sets, which had gone stale against
-> `results/real_log_report.json`. The coverage figures move 43 % → **40 %** on delay and
-> 25 % → **50 %** on slew, and the smoothing-only cell moves from inside the determined
-> band to outside it. The measured percentages in the table are unchanged — they never
-> depended on the sets — but two of the readings did, and both are rewritten below.
+> Corrected: see [docs/CORRECTIONS.md](CORRECTIONS.md#2026-08-20--real2sim-rescored-on-walk-1-alone-3827c18).
 
 `servo_id.py` on walk-1 alone leaves the servo at delay **[2, 3, 4, 5, 6] ticks** (40–120
 ms, 5 of the grid's 7 values) and slew **[2.0, 3.0] rad/s**, with
@@ -1149,31 +1164,7 @@ running out exactly as it is on the other two. Fixed and re-run: that horn now r
 `results/logs/identification_ablation.txt`, and carries its ⚠ in the table above.
 Nothing else moved — no error, no gain, no determined set.
 
-> **The per-side L/R labels in this table were inverted before this revision**, and every
-> published left/right attribution with them. `servo_id.realized_per_side` put the *left*
-> triple on action column 0, but column 0 is the **right** leg: `imulog.parse` stacks
-> `np.stack([a_right, a_left], 1)`, and the twin agrees (`a = np.tanh(x[:2])  # [aRight,
-> aLeft]`, `joint_1 is right_leg`). The error was invisible to every metric — swapping two
-> labels changes no error, no gain and no determined set, only who gets the credit — so
-> the fix changes no number in this table, only which horn each triple belongs to. The
-> slow horn is the **right** one, not the left. A regression guard now runs an
-> asymmetric fixture (one horn deliberately crippled) through the identification and
-> asserts the slow triple comes back on the side it was injected on; a symmetric fixture
-> cannot catch a label swap, which is why the old round-trip passed throughout.
->
-> **What that guard proves, precisely.** Its first version proved only self-consistency:
-> it injected the crippled horn through `servo_id.RIGHT_COL / LEFT_COL` and then read the
-> answer's label off the same two constants, so setting them to `1, 0` moved the
-> injection along with the label and the guard stayed green while every published
-> attribution inverted. It is now bound to ground truth instead, two ways: the constants
-> are asserted against the twin's own XML, read independently by
-> `servo_id.sim_side_columns` (actuator `servo_1` → `joint_1` → body `right_leg` ⇒ action
-> column 0 is the right leg), and the crippled horn is injected **by action column** on
-> the column that XML names, not on whatever column the constants currently name.
-> Verified by reversing the pair: with `RIGHT_COL, LEFT_COL = 1, 0` the suite exits 1 on
-> the convention assert, and with that assert bypassed it exits 1 again on the
-> attribution assert (`identified: L(delay 6, slew 1.5) R(delay 0, slew None)` — the slow
-> horn injected on the right, handed back as the left). Restored, it passes.
+> Corrected: see [docs/CORRECTIONS.md](CORRECTIONS.md#2026-08-22--leftright-attribution-inverted-bfa8475-81c8e88).
 
 Gains are (identified servo − raw commands) on the same data, which is what makes the
 column comparable across rows: the aligned variants are scored on aligned observations, so
@@ -1330,7 +1321,7 @@ acceptance window — and its curve *rises* from
 adev 2.53e-03 at tau 0.0167 s to 2.76e-03 at 0.0501 s, which is not what white noise
 does. `wy` is the only axis near the middle of the window at −0.554.
 
-**Correction — where the peak actually is.** This section previously said the 7.1 deg/s
+**Correction — where the peak actually is** (Corrected: see [docs/CORRECTIONS.md](CORRECTIONS.md#2026-08-26--still-lane-where-the-arw-peak-actually-is-64136fd)). This section previously said the 7.1 deg/s
 peak was the taps at 0–2.2 s and 71.7–73 s, "not a disturbance in the body of the
 capture". That was wrong about which samples entered the fit: 7.1 deg/s is the **last
 sample of the Allan segment** (t = 75.70 s), the tap that ends the recording, and the
@@ -1371,25 +1362,7 @@ needs motion, which is exactly what a still capture excludes.
 > `results/gesture_id_SEND-gesture-3_6min.json`; what is deleted is what was inferred
 > from them.
 >
-> **The example is a target pose, not a move.** `{l:130, r:50}` is an absolute pose pair
-> — 90+40 and 90−40 — so it is "a 40° move" only from neutral, and the header states no
-> start pose. Read through the parser's own calibration inversion it is 40.40° of horn
-> travel from neutral, not 40°, because the derivation dropped `cal.gain` (0.99) that
-> every other conversion in this repository applies. The rate that follows from it is
-> **1.0074 rad/s**, not the 0.9973 published in the artifact.
->
-> **The example is not from this session.** `post_walk` documents the sit fold that
-> happens **after recording ends**, on walks that end `done`. This is the second
-> conclusion in this repository built on that field, and the second to be withdrawn for
-> the same reason: the act it documents is not in the record it was read into.
->
-> **The confirmation was a grid artifact.** 1.0 rad/s is `min(slews)` in
-> `servo_id.default_grid()`. The gesture argmin sits on the grid boundary on all three
-> axes (`argmin_interior: false`) and its slew determined set is the *entire* grid,
-> "no slew limit" included. Any file that separates no slew hypothesis lands its argmin
-> at 1.0 whatever the engine does, so the agreement between the derived 1.0 and the
-> identified 1.0 carried no information — and, taken at face value, the two numbers were
-> not equal anyway.
+> The reasons, step by step: see [docs/CORRECTIONS.md](CORRECTIONS.md#2026-08-26--gesture-glide-engine-reading-retracted-64136fd).
 
 `gesture_id.py`, same grid and protocol on both files, identify on the first half:
 
@@ -1462,7 +1435,7 @@ Reproduce: `.venv/bin/python gesture_id.py` → `results/gesture_id_SEND-gesture
 > could not have measured what it claimed to measure. Both defects were in the design,
 > both were visible in the run's own output, and the numbers are preserved in
 > `results/coverage.json` (conclusion field marked retracted) so the record shows the
-> correction rather than a silent deletion.
+> correction rather than a silent deletion. Corrected: see [docs/CORRECTIONS.md](CORRECTIONS.md#2026-08-20--coverage-retracted-3827c18).
 
 **Defect 1 — the premise is false. There is no sit-to-stand in the logs.**
 The hypothesis was built on one header field, and the field says the opposite of what
