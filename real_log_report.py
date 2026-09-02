@@ -45,7 +45,7 @@ import numpy as np
 from growbot_cerebellum import provenance
 from growbot_cerebellum.paths import ROOT, DATA, RESULTS, LOGS, under_root
 from growbot_cerebellum.imulog import parse, _deviceorientation_to_R, CTRL_HZ, rest_attitude
-from growbot_cerebellum.forward import MLP, make_windows, K, AXES
+from growbot_cerebellum.forward import MLP, Persistence, Linear, make_windows, K, AXES
 from growbot_cerebellum.gap import evaluate_axes, twin_regimes, REGIME_MAP
 from growbot_cerebellum.servo_id import identify, realized_from_commands, confidence_band, determined_sets, default_grid, argmin_interior
 from growbot_cerebellum.sensor_id import default_out_path as sensor_out_path
@@ -72,7 +72,7 @@ def twin_rest_pitch(settle_s=5.0):
     mount's x axis is physically possible for a body at rest, not what the stance
     during a walk should be.
     """
-    from growbot_sim import GrowBotSim
+    from growbot_cerebellum.sim import GrowBotSim
     sim = GrowBotSim(0)
     o = sim.reset(tilt=0.0)
     for _ in range(int(settle_s * CTRL_HZ)):
@@ -300,6 +300,39 @@ def print_gap_table(real, twin, horizons, indent="    "):
                   f"{real[reg]['n'] if ax == 'roll' else '':>6}{ax:>7}   {cells}")
 
 
+def print_baseline_table(f, real, twin, baselines, horizons, indent="    "):
+    """MLP vs the two baselines on the same real starts, each against ITS OWN twin floor.
+
+    The column that matters is the last one: how much of the MLP's real-log margin over
+    the linear model is also there in the twin. A margin that is present on the twin and
+    absent on the real log is a margin that did not transfer.
+    """
+    names = ["mlp", "linear", "persistence"]
+    print(f"{indent}baselines on the same starts (within 0.2 rad, real | twin floor):")
+    print(f"{indent}{'segment':<10}{'axis':>6}{'ms':>6}" + "".join(f"{n:>20}" for n in names)
+          + f"{'mlp-linear real|twin':>24}")
+    for reg in real:
+        tname = REGIME_MAP.get(reg, "all") if reg != "all" else "all"
+        for ax in AXES:
+            for h in horizons:
+                cells = ""
+                vals = {}
+                for n in names:
+                    if n == "mlp":
+                        r = real[reg][h][ax]["within"]; t_ = twin.get(tname, twin["all"])[h][ax]["within"]
+                    else:
+                        b = baselines[n]
+                        r = b["per_file"][f][reg][h][ax]["within"]
+                        tf = b["twin_floor"]; t_ = tf.get(tname, tf["all"])[h][ax]["within"]
+                    vals[n] = (r, t_)
+                    cells += f"{r * 100:>10.1f}|{t_ * 100:<8.1f} "
+                dr = (vals["mlp"][0] - vals["linear"][0]) * 100
+                dt = (vals["mlp"][1] - vals["linear"][1]) * 100
+                print(f"{indent}{reg if (ax == 'roll' and h == horizons[0]) else '':<10}"
+                      f"{ax if h == horizons[0] else '':>6}{h * 20:>6}{cells}"
+                      f"{dr:>+11.1f}|{dt:<+8.1f}")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("logs", nargs="+", help="growbot-imulog-1 walk files, in walk order")
@@ -309,10 +342,12 @@ def main():
                          "default: the first file with a walking segment")
     args = ap.parse_args()
     # Taken before the run log opens (Tee truncates a tracked file -> "dirty").
-    prov = provenance(seeds={"mlp": 0})
+    prov = provenance(seeds={"mlp": 0},
+                      baselines="persistence and ridge linear, fit on the same data/train.npz windows")
     sys.stdout = tee = Tee(LOGS / "real_log_report.txt")
     report = {"files": args.logs, "conditions": {"epochs": args.epochs, "K": K,
               "horizons_ms": [100, 500], "model": "MLP h128 seed 0 on data/train.npz",
+              "baselines": "persistence (zero delta) and ridge linear, same windows, same K",
               "analysis": "per file; nothing pooled across files"}}
 
     te = np.load(DATA / "test.npz")
@@ -404,6 +439,14 @@ def main():
     horizons = [5, 25]
     twin = evaluate_axes(model, te["obs"], te["act"], te["done"], tw_mode, horizons)
     report["twin_floor"] = twin
+    # The two baselines that can embarrass the MLP, on the same windows and the same
+    # starts: a real-log number for the MLP alone says nothing about whether the MLP
+    # is what transfers, or whether anything that reads the last K ticks does.
+    baselines = {"persistence": Persistence().fit(Xtr, Ytr), "linear": Linear().fit(Xtr, Ytr)}
+    report["baselines"] = {name: {"twin_floor": evaluate_axes(b, te["obs"], te["act"], te["done"],
+                                                              tw_mode, horizons),
+                                  "per_file": {}}
+                           for name, b in baselines.items()}
     print(f"  twin floor regimes (rest roll {tw_rest[0]:+.2f}, pitch {tw_rest[1]:+.2f} rad): "
           f"{ {m: twin[m]['n'] for m in twin} }")
     per_file = {}
@@ -418,6 +461,9 @@ def main():
         print(f"\n  {f} -- {len(O)} ticks ({len(O) / 50:.1f} s), end_why="
               f"{header.get('end_why')!r}, agent gain={header.get('gain_agent')}")
         print_gap_table(real, twin, horizons)
+        for name, b in baselines.items():
+            report["baselines"][name]["per_file"][f] = evaluate_axes(b, O, A, D, mode, horizons)
+        print_baseline_table(f, real, twin, report["baselines"], horizons)
         for reg in sorted(set(mode) - set(real)):
             print(f"    ({reg}: {int((mode == reg).sum())} ticks, fewer than the 30 rollout "
                   f"starts evaluate_axes requires -- not reported)")
@@ -481,6 +527,8 @@ def main():
     held = slice(half, None)
     real_h = evaluate_axes(model, O[held], A[held], D[held], label[held], horizons)
     corr_h = evaluate_axes(model, O[held], R[held], D[held], label[held], horizons)
+    held_baselines = {name: evaluate_axes(b, O[held], A[held], D[held], label[held], horizons)
+                      for name, b in baselines.items()}
     ext = {}
     print(f"  held-out half ({len(O) - half} ticks) with the extended-grid servo "
           f"(within 0.2 rad; twin floor per segment):")
@@ -502,7 +550,8 @@ def main():
                        "split_half_agree": bool(agree),
                        "delay_determined_set": [int(v) for v in dset],
                        "slew_determined_set": [None if v is None else float(v) for v in sset],
-                       "held_out_by_segment": ext}
+                       "held_out_by_segment": ext,
+                       "held_out_baselines": held_baselines}
 
     print("\n== 5. is header.gain already inside the logged commands? (the test, not the assumption)")
     gt = agent_gain_test(args.logs, [parsed[f][4] for f in args.logs])
