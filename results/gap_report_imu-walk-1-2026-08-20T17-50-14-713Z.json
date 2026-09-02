@@ -125,7 +125,7 @@
   }
  },
  "provenance": {
-  "git_commit": "02394fd460b144b6e01e54691f00e0003134a3b6",
+  "git_commit": "b7743e7a8f7bd28b2c33931e07e2456a8a092428",
   "git_dirty": true,
   "python": "3.11.15",
   "numpy": "2.4.6",
