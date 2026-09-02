@@ -13,18 +13,30 @@ the bodies have no torsional friction, not a badly tuned one.
 
 ## Evidence
 
-Same seed, same excitation, 30 000 ticks per corner, three seeds; the comparison is the
-forward model's within-0.2 rad rate at 100 / 500 ms against the shipped body:
+Two measurements, stated separately.
 
-| change | effect on the simulated stream |
+The first three rows are a raw-stream audit: one 6 000-tick stream, same seed and excitation,
+compared observation by observation against the shipped body (no forward model involved).
+A sliding-friction change on the same audit moves the stream by up to 26.7 in observation
+units, so the audit can see a change when there is one.
+
+| change | raw observation stream vs the shipped body |
 |---|---|
 | torsional ×10 at condim 3 | bit-identical |
 | torsional ×100 at condim 3 | bit-identical |
 | rolling ×100 at condim 3 | bit-identical |
-| torsional 0.005 → 1.0 with condim 4 (torsional actually on) | roll −0.3, pitch −0.1, yaw −3.5 pts at 500 ms — under the 4.60-pt pre-stated threshold |
-| condim 6 with the XML's own `0.1 0.1` | roll −28.1, pitch −41.7, yaw −22.6 pts at 500 ms |
-| condim 6, torsional 0.1, rolling 0.0001 (rolling off) | roll +0.9, pitch −0.4, yaw −1.6 pts at 500 ms |
-| condim 6, torsional 0.005, rolling 0.1 (torsional off) | roll −29.2, pitch −42.3, yaw −27.1 pts at 500 ms |
+
+The remaining rows are forward-model prediction accuracy: 30 000 ticks per corner, three
+seeds, the within-0.2 rad rate at 100 ms and 500 ms, each corner scored against the shipped
+`condim=3` body (deltas in percentage points, roll / pitch / yaw; the pre-stated
+materiality threshold is 4.60 pts):
+
+| change (vs the shipped body) | 100 ms | 500 ms |
+|---|---|---|
+| condim 4, torsional 1.0 (torsional actually on) | −0.6 / −0.4 / +0.5 | −0.3 / −0.1 / −3.5 — under threshold |
+| condim 6 with the XML's own `0.1 0.1` | −3.4 / −2.5 / −2.0 | **−28.1 / −41.7 / −22.6** |
+| condim 6, torsional 0.1, rolling 0.0001 (rolling off) | −0.7 / −0.7 / −0.3 | +0.9 / −0.4 / −1.6 |
+| condim 6, torsional 0.005, rolling 0.1 (torsional off) | −4.1 / −3.6 / −3.3 | **−29.2 / −42.3 / −27.1** |
 
 So: the declared coefficients are inert today; switching torsional friction on changes
 little; and the value that would change the robot is the declared **rolling** 0.1 — 1000×

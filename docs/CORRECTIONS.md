@@ -8,9 +8,10 @@ never erased.
 
 Read the entries as the repository's error record. Most of them are a correct computation
 with a wrong story on top — the pattern AGENTS.md rule 8 was written for: the defects lived
-in the assumptions about the data. Two are shipped code defects and are named as such: the
-left/right attribution inverted in `servo_id.realized_per_side` (2026-08-22) and the
-hand-copied mirror of the determined sets in `real2sim.py` (2026-08-20).
+in the assumptions about the data. Three are shipped code defects and are named as such: the
+left/right attribution inverted in `servo_id.realized_per_side` (2026-08-22), the
+hand-copied mirror of the determined sets in `real2sim.py` (2026-08-22), and the below-noise
+rule applied to one identification path only in `com_id.py` (2026-08-27).
 
 ## 2026-08-20 — coverage retracted (3827c18)
 
