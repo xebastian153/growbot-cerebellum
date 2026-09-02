@@ -37,7 +37,7 @@
 
 == 2. the day-of-log commands, verbatim, ONE FILE AT A TIME
 
-$ python gap_report.py imu-walk-1-2026-08-20T17-50-14-713Z.json --servo-id --out results/gap_report_imu-walk-1-2026-08-20T17-50-14-713Z.json
+$ python /home/sebas/Downloads/Neural/growbot-cerebellum/gap_report.py imu-walk-1-2026-08-20T17-50-14-713Z.json --servo-id --out /home/sebas/Downloads/Neural/growbot-cerebellum/results/gap_report_imu-walk-1-2026-08-20T17-50-14-713Z.json
 --- imu-walk-1-2026-08-20T17-50-14-713Z.json
   [  ok] effective rates: IMU 59.9 Hz, commands 24.8 Hz
   [  ok] IMU dt: median 16.7 ms, p95 18.5, p99 20.5, max 71; 3.2% of ticks >20% off the median
@@ -63,9 +63,9 @@ walking      374   roll   94.4%  96.0%  -1.6   -1.1   43.0%  87.7% -44.7  -41.2
                   pitch   96.0%  97.1%  -1.1   -1.9   51.3%  87.2% -35.9  -37.2
                     yaw   97.6%  95.8%  +1.8   +4.0   33.2%  76.7% -43.5  -35.8
 
-wrote results/gap_report_imu-walk-1-2026-08-20T17-50-14-713Z.json
+wrote /home/sebas/Downloads/Neural/growbot-cerebellum/results/gap_report_imu-walk-1-2026-08-20T17-50-14-713Z.json
 
-$ python sensor_id.py imu-walk-1-2026-08-20T17-50-14-713Z.json --out results/sensor_id_imu-walk-1-2026-08-20T17-50-14-713Z.json
+$ python /home/sebas/Downloads/Neural/growbot-cerebellum/sensor_id.py imu-walk-1-2026-08-20T17-50-14-713Z.json --out /home/sebas/Downloads/Neural/growbot-cerebellum/results/sensor_id_imu-walk-1-2026-08-20T17-50-14-713Z.json
 --- imu-walk-1-2026-08-20T17-50-14-713Z.json
   [  ok] effective rates: IMU 59.9 Hz, commands 24.8 Hz
   [  ok] IMU dt: median 16.7 ms, p95 18.5, p99 20.5, max 71; 3.2% of ticks >20% off the median
@@ -102,9 +102,9 @@ Allan deviation on the longest still/idle segment (1 s, 69 samples, t = 0.0..1.1
      wy  ARW undetermined (no -1/2 slope around tau = 1 s: slope --);  bias instability undetermined (minimum at tau 0.23 s is a 1.4x-wide notch, not a flicker plateau (needs 5x within 10%): looks like an ARW / rate-random-walk crossover)
      wz  ARW undetermined (no -1/2 slope around tau = 1 s: slope --);  bias instability undetermined (minimum at tau 0.15 s is a 1.2x-wide notch, not a flicker plateau (needs 5x within 10%): looks like an ARW / rate-random-walk crossover)
 
-wrote results/sensor_id_imu-walk-1-2026-08-20T17-50-14-713Z.json
+wrote /home/sebas/Downloads/Neural/growbot-cerebellum/results/sensor_id_imu-walk-1-2026-08-20T17-50-14-713Z.json
 
-$ python gap_report.py imu-walk-3-2026-08-20T17-38-19-478Z.json --servo-id --out results/gap_report_imu-walk-3-2026-08-20T17-38-19-478Z.json
+$ python /home/sebas/Downloads/Neural/growbot-cerebellum/gap_report.py imu-walk-3-2026-08-20T17-38-19-478Z.json --servo-id --out /home/sebas/Downloads/Neural/growbot-cerebellum/results/gap_report_imu-walk-3-2026-08-20T17-38-19-478Z.json
 --- imu-walk-3-2026-08-20T17-38-19-478Z.json
   [  ok] effective rates: IMU 59.9 Hz, commands 24.7 Hz
   [  ok] IMU dt: median 16.7 ms, p95 18.0, p99 20.3, max 71; 2.2% of ticks >20% off the median
@@ -131,9 +131,9 @@ still        125   roll  100.0%  95.9%  +4.1   91.2%  90.1%  +1.1
                   pitch  100.0%  96.7%  +3.3    4.8%  89.0% -84.2
                     yaw  100.0%  95.7%  +4.3   67.2%  80.1% -12.9
 
-wrote results/gap_report_imu-walk-3-2026-08-20T17-38-19-478Z.json
+wrote /home/sebas/Downloads/Neural/growbot-cerebellum/results/gap_report_imu-walk-3-2026-08-20T17-38-19-478Z.json
 
-$ python sensor_id.py imu-walk-3-2026-08-20T17-38-19-478Z.json --out results/sensor_id_imu-walk-3-2026-08-20T17-38-19-478Z.json
+$ python /home/sebas/Downloads/Neural/growbot-cerebellum/sensor_id.py imu-walk-3-2026-08-20T17-38-19-478Z.json --out /home/sebas/Downloads/Neural/growbot-cerebellum/results/sensor_id_imu-walk-3-2026-08-20T17-38-19-478Z.json
 --- imu-walk-3-2026-08-20T17-38-19-478Z.json
   [  ok] effective rates: IMU 59.9 Hz, commands 24.7 Hz
   [  ok] IMU dt: median 16.7 ms, p95 18.0, p99 20.3, max 71; 2.2% of ticks >20% off the median
@@ -169,7 +169,7 @@ Allan deviation on the longest still/idle segment (3 s, 153 samples, t = 0.0..2.
   last 0.5 s trimmed (123 samples, peak 0.30 deg/s):  wx undetermined (slope -0.310)  wy undetermined (slope -0.766)  wz undetermined (slope -0.818)
   last 1.0 s trimmed (95 samples, peak 0.30 deg/s):  wx undetermined (slope --)  wy undetermined (slope --)  wz undetermined (slope --)
 
-wrote results/sensor_id_imu-walk-3-2026-08-20T17-38-19-478Z.json
+wrote /home/sebas/Downloads/Neural/growbot-cerebellum/results/sensor_id_imu-walk-3-2026-08-20T17-38-19-478Z.json
 
 == 3. per-file gap, per segment, against the twin floor each segment maps to
   twin floor regimes (rest roll +0.00, pitch -0.57 rad): {'all': 4000, np.str_('fallen'): 463, np.str_('keyframe'): 993, np.str_('ou'): 722, np.str_('policy'): 781, np.str_('sine'): 649, np.str_('still'): 392}
@@ -185,6 +185,26 @@ wrote results/sensor_id_imu-walk-3-2026-08-20T17-38-19-478Z.json
     walking   policy         725   roll         96.1  96.0   +0.1         50.8  87.7  -36.9   
                                   pitch         95.0  97.1   -2.0         50.1  87.2  -37.1   
                                     yaw         97.9  95.8   +2.2         33.7  76.7  -43.0   
+    baselines on the same starts (within 0.2 rad, real | twin floor):
+    segment     axis    ms                 mlp              linear         persistence    mlp-linear real|twin
+    all         roll   100      96.4|96.8           96.9|94.8           97.8|88.4            -0.5|+1.9    
+                       500      53.1|87.1           58.2|81.9           90.5|66.7            -5.1|+5.2    
+               pitch   100      95.4|97.2           96.1|95.7           94.3|92.4            -0.8|+1.4    
+                       500      52.6|87.2           45.6|84.2           56.0|74.9            +6.9|+3.0    
+                 yaw   100      98.1|96.3           96.9|94.5           95.9|89.4            +1.2|+1.7    
+                       500      36.6|77.9           53.3|65.4           57.6|61.5           -16.7|+12.5   
+    still       roll   100     100.0|95.9          100.0|94.6          100.0|92.9            +0.0|+1.3    
+                       500      84.9|90.1           96.2|89.3          100.0|82.7           -11.3|+0.8    
+               pitch   100     100.0|96.7          100.0|95.2          100.0|93.1            +0.0|+1.5    
+                       500      86.8|89.0           45.3|88.8          100.0|82.9           +41.5|+0.3    
+                 yaw   100     100.0|95.7          100.0|94.6          100.0|92.3            +0.0|+1.0    
+                       500      77.4|80.1          100.0|79.3          100.0|78.1           -22.6|+0.8    
+    walking     roll   100      96.1|96.0           96.7|95.3           97.7|90.3            -0.6|+0.8    
+                       500      50.8|87.7           55.4|87.6           89.8|78.9            -4.7|+0.1    
+               pitch   100      95.0|97.1           95.9|96.5           93.9|91.7            -0.8|+0.5    
+                       500      50.1|87.2           45.7|87.1           52.8|77.7            +4.4|+0.1    
+                 yaw   100      97.9|95.8           96.7|94.8           95.6|90.7            +1.2|+1.0    
+                       500      33.7|76.7           49.9|70.7           54.5|68.4           -16.3|+6.0    
 
   imu-walk-3-2026-08-20T17-38-19-478Z.json -- 261 ticks (5.2 s), end_why='tipped', agent gain=0.8
     segment   twin floor       n   axis      @100ms real|twin|gap      @500ms real|twin|gap
@@ -197,6 +217,26 @@ wrote results/sensor_id_imu-walk-3-2026-08-20T17-38-19-478Z.json
     still     still          125   roll        100.0  95.9   +4.1         91.2  90.1   +1.1   
                                   pitch        100.0  96.7   +3.3          4.8  89.0  -84.2   
                                     yaw        100.0  95.7   +4.3         67.2  80.1  -12.9   
+    baselines on the same starts (within 0.2 rad, real | twin floor):
+    segment     axis    ms                 mlp              linear         persistence    mlp-linear real|twin
+    all         roll   100     100.0|96.8          100.0|94.8          100.0|88.4            +0.0|+1.9    
+                       500      71.7|87.1           73.9|81.9          100.0|66.7            -2.2|+5.2    
+               pitch   100      95.7|97.2           97.8|95.7           93.0|92.4            -2.2|+1.4    
+                       500      17.4|87.2           17.0|84.2           67.4|74.9            +0.4|+3.0    
+                 yaw   100     100.0|96.3           99.6|94.5          100.0|89.4            +0.4|+1.7    
+                       500      61.7|77.9           81.3|65.4           89.1|61.5           -19.6|+12.5   
+    fall        roll   100     100.0|93.3          100.0|82.5          100.0|75.2            +0.0|+10.8   
+                       500      57.1|72.4           57.1|53.8          100.0|52.7            +0.0|+18.6   
+               pitch   100      91.7|95.0           95.2|89.6           96.4|79.7            -3.6|+5.4    
+                       500      40.5|67.2           38.1|48.8           50.0|55.7            +2.4|+18.4   
+                 yaw   100     100.0|93.5           98.8|90.5          100.0|83.4            +1.2|+3.0    
+                       500      61.9|66.1           66.7|48.2           79.8|53.1            -4.8|+17.9   
+    still       roll   100     100.0|95.9          100.0|94.6          100.0|92.9            +0.0|+1.3    
+                       500      91.2|90.1           97.6|89.3          100.0|82.7            -6.4|+0.8    
+               pitch   100     100.0|96.7          100.0|95.2          100.0|93.1            +0.0|+1.5    
+                       500       4.8|89.0            5.6|88.8           84.0|82.9            -0.8|+0.3    
+                 yaw   100     100.0|95.7          100.0|94.6          100.0|92.3            +0.0|+1.0    
+                       500      67.2|80.1           95.2|79.3           98.4|78.1           -28.0|+0.8    
     (impact: 21 ticks, fewer than the 30 rollout starts evaluate_axes requires -- not reported)
     NOTE: the still segment scores 4.8% on pitch at 500 ms while the commands reach 34 deg of horn swing. The model predicts the motion those commands imply; the body produced none. That gap measures the ROBOT (phone off the body, body off the ground, or servos not moving), not the forward model.
 

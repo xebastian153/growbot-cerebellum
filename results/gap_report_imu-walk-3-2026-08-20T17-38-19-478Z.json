@@ -147,5 +147,24 @@
     }
    }
   }
+ },
+ "provenance": {
+  "git_commit": "085f1332a454ce6c20c78a9d4009bba447c9a5f7",
+  "git_dirty": true,
+  "python": "3.11.15",
+  "numpy": "2.4.6",
+  "torch": "2.5.1+cpu",
+  "mujoco": "3.11.0",
+  "argv": [
+   "/home/sebas/Downloads/Neural/growbot-cerebellum/gap_report.py",
+   "imu-walk-3-2026-08-20T17-38-19-478Z.json",
+   "--servo-id",
+   "--out",
+   "/home/sebas/Downloads/Neural/growbot-cerebellum/results/gap_report_imu-walk-3-2026-08-20T17-38-19-478Z.json"
+  ],
+  "seeds": {
+   "mlp": 0
+  },
+  "timestamp": "2026-09-02T04:10:31+00:00"
  }
 }
