@@ -391,7 +391,7 @@
   }
  ],
  "provenance": {
-  "git_commit": "085f1332a454ce6c20c78a9d4009bba447c9a5f7",
+  "git_commit": "02394fd460b144b6e01e54691f00e0003134a3b6",
   "git_dirty": true,
   "python": "3.11.15",
   "numpy": "2.4.6",
@@ -404,6 +404,6 @@
    "/home/sebas/Downloads/Neural/growbot-cerebellum/results/sensor_id_imu-walk-3-2026-08-20T17-38-19-478Z.json"
   ],
   "seeds": null,
-  "timestamp": "2026-09-02T04:10:32+00:00"
+  "timestamp": "2026-09-02T04:32:24+00:00"
  }
 }

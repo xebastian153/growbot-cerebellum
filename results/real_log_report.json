@@ -11,7 +11,7 @@
    500
   ],
   "model": "MLP h128 seed 0 on data/train.npz",
-  "baselines": "persistence (zero delta) and ridge linear, same windows, same K",
+  "baselines": "persistence (zero delta) and ridge linear (ridge 0.001), same windows, same K",
   "analysis": "per file; nothing pooled across files"
  },
  "files_summary": {
@@ -406,7 +406,7 @@
     }
    },
    "provenance": {
-    "git_commit": "085f1332a454ce6c20c78a9d4009bba447c9a5f7",
+    "git_commit": "02394fd460b144b6e01e54691f00e0003134a3b6",
     "git_dirty": true,
     "python": "3.11.15",
     "numpy": "2.4.6",
@@ -422,7 +422,7 @@
     "seeds": {
      "mlp": 0
     },
-    "timestamp": "2026-09-02T04:09:42+00:00"
+    "timestamp": "2026-09-02T04:31:50+00:00"
    }
   },
   "imu-walk-3-2026-08-20T17-38-19-478Z.json": {
@@ -576,7 +576,7 @@
     }
    },
    "provenance": {
-    "git_commit": "085f1332a454ce6c20c78a9d4009bba447c9a5f7",
+    "git_commit": "02394fd460b144b6e01e54691f00e0003134a3b6",
     "git_dirty": true,
     "python": "3.11.15",
     "numpy": "2.4.6",
@@ -592,7 +592,7 @@
     "seeds": {
      "mlp": 0
     },
-    "timestamp": "2026-09-02T04:10:31+00:00"
+    "timestamp": "2026-09-02T04:32:24+00:00"
    }
   }
  },
@@ -942,7 +942,7 @@
    ],
    "allan_tail_trim": [],
    "provenance": {
-    "git_commit": "085f1332a454ce6c20c78a9d4009bba447c9a5f7",
+    "git_commit": "02394fd460b144b6e01e54691f00e0003134a3b6",
     "git_dirty": true,
     "python": "3.11.15",
     "numpy": "2.4.6",
@@ -955,7 +955,7 @@
      "/home/sebas/Downloads/Neural/growbot-cerebellum/results/sensor_id_imu-walk-1-2026-08-20T17-50-14-713Z.json"
     ],
     "seeds": null,
-    "timestamp": "2026-09-02T04:09:43+00:00"
+    "timestamp": "2026-09-02T04:31:51+00:00"
    }
   },
   "imu-walk-3-2026-08-20T17-38-19-478Z.json": {
@@ -1351,7 +1351,7 @@
     }
    ],
    "provenance": {
-    "git_commit": "085f1332a454ce6c20c78a9d4009bba447c9a5f7",
+    "git_commit": "02394fd460b144b6e01e54691f00e0003134a3b6",
     "git_dirty": true,
     "python": "3.11.15",
     "numpy": "2.4.6",
@@ -1364,7 +1364,7 @@
      "/home/sebas/Downloads/Neural/growbot-cerebellum/results/sensor_id_imu-walk-3-2026-08-20T17-38-19-478Z.json"
     ],
     "seeds": null,
-    "timestamp": "2026-09-02T04:10:32+00:00"
+    "timestamp": "2026-09-02T04:32:24+00:00"
    }
   }
  },
@@ -2520,7 +2520,8 @@
       }
      }
     }
-   }
+   },
+   "still_command_swing_deg": 0.0
   },
   "imu-walk-3-2026-08-20T17-38-19-478Z.json": {
    "ticks": 261,
@@ -2626,7 +2627,8 @@
       }
      }
     }
-   }
+   },
+   "still_command_swing_deg": 33.9
   }
  },
  "servo": {
@@ -2898,7 +2900,7 @@
   "the same walk lane twice, battery fresh vs low: the twin predicts a split-half DISAGREE on slew if the battery sags (model_mismatch.py); this is the free real actuator experiment"
  ],
  "provenance": {
-  "git_commit": "085f1332a454ce6c20c78a9d4009bba447c9a5f7",
+  "git_commit": "02394fd460b144b6e01e54691f00e0003134a3b6",
   "git_dirty": false,
   "python": "3.11.15",
   "numpy": "2.4.6",
@@ -2912,7 +2914,7 @@
   "seeds": {
    "mlp": 0
   },
-  "timestamp": "2026-09-02T04:08:55+00:00",
-  "baselines": "persistence and ridge linear, fit on the same data/train.npz windows"
+  "timestamp": "2026-09-02T04:31:14+00:00",
+  "baselines": "persistence and ridge linear (ridge 0.001), fit on the same data/train.npz windows"
  }
 }
