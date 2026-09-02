@@ -51,6 +51,8 @@ from growbot_cerebellum.servo_id import identify, realized_from_commands, confid
 from growbot_cerebellum.sensor_id import default_out_path as sensor_out_path
 from growbot_cerebellum.tee import Tee
 
+RIDGE = 1e-3  # Linear.fit default; recorded so "ridge linear" is reproducible from the artifact
+
 # The rate-axis assignment claim is "the logged rates are the device x/y/z body
 # rates, in that order". The test of that claim is diagonal dominance of the
 # correlation matrix against vee(R^T dR/dt): every diagonal term must beat the
@@ -343,11 +345,11 @@ def main():
     args = ap.parse_args()
     # Taken before the run log opens (Tee truncates a tracked file -> "dirty").
     prov = provenance(seeds={"mlp": 0},
-                      baselines="persistence and ridge linear, fit on the same data/train.npz windows")
+                      baselines=f"persistence and ridge linear (ridge {RIDGE:g}), fit on the same data/train.npz windows")
     sys.stdout = tee = Tee(LOGS / "real_log_report.txt")
     report = {"files": args.logs, "conditions": {"epochs": args.epochs, "K": K,
               "horizons_ms": [100, 500], "model": "MLP h128 seed 0 on data/train.npz",
-              "baselines": "persistence (zero delta) and ridge linear, same windows, same K",
+              "baselines": f"persistence (zero delta) and ridge linear (ridge {RIDGE:g}), same windows, same K",
               "analysis": "per file; nothing pooled across files"}}
 
     te = np.load(DATA / "test.npz")
@@ -442,7 +444,7 @@ def main():
     # The two baselines that can embarrass the MLP, on the same windows and the same
     # starts: a real-log number for the MLP alone says nothing about whether the MLP
     # is what transfers, or whether anything that reads the last K ticks does.
-    baselines = {"persistence": Persistence().fit(Xtr, Ytr), "linear": Linear().fit(Xtr, Ytr)}
+    baselines = {"persistence": Persistence().fit(Xtr, Ytr), "linear": Linear().fit(Xtr, Ytr, ridge=RIDGE)}
     report["baselines"] = {name: {"twin_floor": evaluate_axes(b, te["obs"], te["act"], te["done"],
                                                               tw_mode, horizons),
                                   "per_file": {}}
@@ -473,6 +475,9 @@ def main():
         if "still" in real:
             worst = min(real["still"][25][ax]["within"] for ax in AXES)
             drive = np.abs(A[mode == "still"]).max() if (mode == "still").any() else 0.0
+            # The swing is a published number (the "34 deg" of the still lane); it lives in
+            # the artifact, not only in this print.
+            per_file[f]["still_command_swing_deg"] = round(float(np.rad2deg(drive)), 1)
             if worst < 0.5 and np.rad2deg(drive) >= 5.0:
                 ax = min(AXES, key=lambda a: real["still"][25][a]["within"])
                 print(f"    NOTE: the still segment scores {worst * 100:.1f}% on {ax} at 500 ms "
