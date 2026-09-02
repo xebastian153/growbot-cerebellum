@@ -38,7 +38,10 @@ The last step regenerates `results/forward_K5.json` and compares it to the commi
 but only when the runner's regenerated data matches `data/twin.sha256`. The twin's contact
 dynamics are chaotic, so a CPU with a different floating-point path (FMA, AVX-512) produces a
 stream that diverges after a few ticks and every downstream number moves at the second
-digit; no version pin fixes that. On such a runner the step is *skipped with a warning*, not
+digit; no version pin fixes that. Measured on six CI runners with identical pinned versions:
+every runner that exposed `avx512f` regenerated the maintainer's stream bit-exact (Intel Xeon
+8370C and AMD EPYC 9V74 alike), every runner without it did not (AMD EPYC 7763, and the same
+9V74 model on a VM that hid the flag) — the split follows the vector extension, not the vendor. On such a runner the step is *skipped with a warning*, not
 passed. If you regenerate the data on your own machine and `sha256sum -c data/twin.sha256`
 fails, your numbers will differ from the published ones for the same reason.
 
