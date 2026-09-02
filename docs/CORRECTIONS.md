@@ -6,8 +6,11 @@ is currently believed and link here; the history is kept verbatim so that nothin
 erased, only relocated. Rule 7 in [AGENTS.md](../AGENTS.md): corrections are recorded,
 never erased.
 
-Read the entries as the repository's error record. The pattern across them is stated in
-AGENTS.md rule 8: the code was right every time, and the story on top of it was wrong.
+Read the entries as the repository's error record. Most of them are a correct computation
+with a wrong story on top — the pattern AGENTS.md rule 8 was written for: the defects lived
+in the assumptions about the data. Two are shipped code defects and are named as such: the
+left/right attribution inverted in `servo_id.realized_per_side` (2026-08-22) and the
+hand-copied mirror of the determined sets in `real2sim.py` (2026-08-20).
 
 ## 2026-08-20 — coverage retracted (3827c18)
 

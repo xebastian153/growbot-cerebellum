@@ -21,10 +21,10 @@ forward model's within-0.2 rad rate at 100 / 500 ms against the shipped body:
 | torsional ×10 at condim 3 | bit-identical |
 | torsional ×100 at condim 3 | bit-identical |
 | rolling ×100 at condim 3 | bit-identical |
-| torsional 0.005 → 1.0 with condim 4 (torsional actually on) | yaw at 500 ms moves at most −3.5 pts, under the 4.60-pt pre-stated threshold |
-| condim 6 with the XML's own `0.1 0.1` | yaw −22.6 pts, pitch −41.7 pts at 500 ms |
-| condim 6, torsional 0.1, rolling 0.0001 (rolling off) | −1.6 |
-| condim 6, torsional 0.005, rolling 0.1 (torsional off) | −27.1 |
+| torsional 0.005 → 1.0 with condim 4 (torsional actually on) | roll −0.3, pitch −0.1, yaw −3.5 pts at 500 ms — under the 4.60-pt pre-stated threshold |
+| condim 6 with the XML's own `0.1 0.1` | roll −28.1, pitch −41.7, yaw −22.6 pts at 500 ms |
+| condim 6, torsional 0.1, rolling 0.0001 (rolling off) | roll +0.9, pitch −0.4, yaw −1.6 pts at 500 ms |
+| condim 6, torsional 0.005, rolling 0.1 (torsional off) | roll −29.2, pitch −42.3, yaw −27.1 pts at 500 ms |
 
 So: the declared coefficients are inert today; switching torsional friction on changes
 little; and the value that would change the robot is the declared **rolling** 0.1 — 1000×

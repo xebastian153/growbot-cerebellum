@@ -79,7 +79,7 @@ file under `results/`.
 | [PETS](docs/EXPERIMENTS.md#pets--the-model-knows-where-it-is-unsure-planning-through-that-knowledge-does-not-help) | uncertainty calibrated per regime; planning through it is neutral-to-harmful ᴸ |
 | [Metadata conditioning](docs/EXPERIMENTS.md#metadata-conditioning--negative) | **negative** — one model serves two bodies regardless of the tag ᴸ |
 | [TimesFM 2.5 baseline](docs/EXPERIMENTS.md#timesfm-25-baseline) | a 200M-param action-blind forecaster ties persistence; the information is in the action ᴸ |
-| [The first real logs](docs/EXPERIMENTS.md#the-first-real-logs--read-per-file-per-segment) | at 100 ms every baseline transfers, persistence included; at 500 ms the walk sits ~40 pts under the twin and persistence beats the model on roll (89.8 vs 50.8) |
+| [The first real logs](docs/EXPERIMENTS.md#the-first-real-logs--read-per-file-per-segment) | at 100 ms the MLP is within ±5 pts of its twin floor, and so is predicting no change; at 500 ms the walk sits ~40 pts under the twin and persistence beats the model on all three axes (roll 89.8 vs 50.8; twin 78.9 vs 87.7) |
 | [Real2Sim loop closure](docs/EXPERIMENTS.md#real2sim-loop-closure--an-actuator-model-helps-on-the-real-walk-which-actuator-model-is-not-identified) | an actuator model helps on the real walk (roll +4.5 to +33.4 pts across the tested cells); **which** one is not identified ᴸ |
 | [Identification ablation](docs/EXPERIMENTS.md#identification-ablation--per-side-gains-the-most-and-proves-the-least-multi-horizon-backfires-and-the-delay-was-over-charged-by-a-tick) | aligning the observation channels moves the delay 5 → 4 ticks (80 ms is an upper bound); per-side gains the most and proves the least; every variant splits DISAGREE ᴸ |
 | [Gesture and still captures](docs/EXPERIMENTS.md#the-gesture-and-still-captures--the-still-lane-pays-out-the-gesture-lane-cannot) | the still lane measures the phone's gyro noise (ARW 6.42e-04 / 3.05e-04 / 1.26e-04 rad/s/√Hz); the gesture lane determines nothing ᴸ |
@@ -87,7 +87,8 @@ file under `results/`.
 | [`?imulog=1` parser](tests/test_imulog_roundtrips.py) | round-trip validated: a hidden servo through 60/30 Hz jittered sampling and three dialects, a hidden still prefix, walk and tip through the segmenter |
 | [Sensor characterisation](tests/test_imulog_roundtrips.py) | a hidden 60 ms fusion lag recovered on all three body-rate axes within 10 ms, gyro noise density within 20 %, a timing stall flagged, a bias instability refused |
 
-<sup>ᴸ</sup> artifact written before the `provenance` block existed (15 of 20 rows): the
+<sup>ᴸ</sup> artifact written before the `provenance` block existed (15 of the 22 rows; the two rows
+that link to tests have no artifact; 19 of the 28 files under `results/` lack the block): the
 numbers are unchanged and still resolve to `results/<name>.json`, but that file does not record
 the commit, library versions or data stream that produced it. Artifacts without the mark do.
 
@@ -95,13 +96,14 @@ the commit, library versions or data stream that produced it. Artifacts without 
 
 **Holds.** A small action-conditioned forward model gives the body a usable physical
 imagination in the twin — right about the shape of the next 100–500 ms, good enough to
-win the mimic game, small enough for the phone browser. On the real walk it is as good as
-the twin at 100 ms — and so is predicting no change at all: the real body moves little in
+win the mimic game, small enough for the phone browser. On the real walk it is within ±5 pts
+of the twin at 100 ms — and so is predicting no change at all: the real body moves little in
 100 ms, so that number is not evidence for the model.
 
 **Doesn't, yet.** At 500 ms the real walk sits ~40 pts under the twin's floor on every
-axis, and persistence beats the model by 39 pts on roll: the model imagines twin-sized
-swings the slower real body does not make. The actuator explains part of it and is
+axis, and persistence beats the model on every axis (roll 89.8 vs 50.8, where the twin has
+the model ahead, 87.7 vs 78.9): the model predicts swings the real body does not make, and
+whether the slower servo is why is not resolved. The actuator explains part of it and is
 recoverable from IMU + commands; the rest is not identified, and the learning half —
 compare prediction with the *real* IMU on device and update from the error — needs a body
 and a longer log.
